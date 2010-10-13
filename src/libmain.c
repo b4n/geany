@@ -334,6 +334,7 @@ gchar *main_get_argv_filename(const gchar *filename)
 static void get_line_and_column_from_filename(gchar *filename, gint *line, gint *column)
 {
 	gsize i;
+	gsize sep[2]; /* positions of the fields separators */
 	gint colon_count = 0;
 	gboolean have_number = FALSE;
 	gsize len;
@@ -343,15 +344,15 @@ static void get_line_and_column_from_filename(gchar *filename, gint *line, gint 
 	if (G_UNLIKELY(EMPTY(filename)))
 		return;
 
-	/* allow to open files like "test:0" */
-	if (g_file_test(filename, G_FILE_TEST_EXISTS))
-		return;
-
 	len = strlen(filename);
+	sep[0] = sep[1] = len;
 	for (i = len - 1; i >= 1; i--)
 	{
 		gboolean is_colon = filename[i] == ':';
 		gboolean is_digit = g_ascii_isdigit(filename[i]);
+
+		if (g_file_test(filename, G_FILE_TEST_EXISTS))
+			return;
 
 		if (! is_colon && ! is_digit)
 			break;
@@ -371,6 +372,7 @@ static void get_line_and_column_from_filename(gchar *filename, gint *line, gint 
 		{
 			gint number = atoi(&filename[i + 1]);
 
+			sep[*line >= 0] = i;
 			filename[i] = '\0';
 			have_number = FALSE;
 
@@ -380,6 +382,13 @@ static void get_line_and_column_from_filename(gchar *filename, gint *line, gint 
 
 		if (*column >= 0)
 			break;	/* line and column are set, so we're done */
+	}
+	if (! g_file_test(filename, G_FILE_TEST_EXISTS))
+	{
+		/* restore original filename */
+		for (i = 0; i < 2 && sep[i] < len; i++)
+			filename[sep[i]] = ':';
+		*column = *line = -1;
 	}
 }
 
