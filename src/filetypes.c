@@ -1238,6 +1238,8 @@ GtkFileFilter *filetypes_create_file_filter(const GeanyFiletype *ft)
 	{
 		gtk_file_filter_add_pattern(new_filter, ft->pattern[i]);
 	}
+	if (ft->mime_type)
+		gtk_file_filter_add_mime_type(new_filter, ft->mime_type);
 
 	return new_filter;
 }
