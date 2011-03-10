@@ -1212,7 +1212,7 @@ static void addOtherFields (tagEntryInfo* const tag, const tagType type,
 		case TAG_UNION:
 		{
 			if (vStringLength (scope) > 0  &&
-				(isMember (st) || st->parent->declaration == DECL_NAMESPACE))
+				(isMember (st) || parentDecl (st) == DECL_NAMESPACE))
 			{
 				if (isType (st->context, TOKEN_NAME))
 					tag->extensionFields.scope [0] = tagName (TAG_CLASS);
@@ -1442,6 +1442,30 @@ static void makeExtraTagEntry (const tagType type, tagEntryInfo *const e,
 	}
 }
 
+static void initCTagEntry (tagEntryInfo *const e, const char *const name,
+						   const tokenInfo *const token, const tagType type,
+						   const boolean isFileScope)
+{
+	initTagEntry (e, name);
+
+	e->lineNumber	= token->lineNumber;
+	e->filePosition	= token->filePosition;
+	e->isFileScope	= isFileScope;
+	e->kindName		= tagName (type);
+	e->kind			= tagLetter (type);
+	e->type			= type;
+}
+
+static void makeCTagEntry (const tagType type, tagEntryInfo *const tag,
+						   vString *const scope)
+{
+	makeTagEntry (tag);
+	if (NULL != TagEntryFunction)
+		makeExtraTagEntry (type, tag, scope);
+	if (NULL != tag->extensionFields.arglist)
+		free((char *) tag->extensionFields.arglist);
+}
+
 static void makeTag (const tokenInfo *const token,
 					 const statementInfo *const st,
 					 boolean isFileScope, const tagType type)
@@ -1458,8 +1482,12 @@ static void makeTag (const tokenInfo *const token,
 	if (isType (token, TOKEN_NAME)  &&  vStringLength (token->name) > 0  /* &&
 		includeTag (type, isFileScope) */)
 	{
-		vString *scope = vStringNew ();
+		vString *scope;
 		tagEntryInfo e;
+		char *nameptr;
+		char *name;
+		boolean haveScopedName = FALSE;
+		tagType parentType = TAG_UNDEFINED;
 
 		/* take only functions which are introduced by "function ..." */
 		if (type == TAG_FUNCTION && isLanguage (Lang_ferite) &&
@@ -1468,27 +1496,70 @@ static void makeTag (const tokenInfo *const token,
 			return;
 		}
 
-		initTagEntry (&e, vStringValue (token->name));
+		nameptr = vStringValue (token->name);
+		name = nameptr;
 
-		e.lineNumber	= token->lineNumber;
-		e.filePosition	= token->filePosition;
-		e.isFileScope = isFileScope;
-		e.kindName	= tagName (type);
-		e.kind		= tagLetter (type);
-		e.type = type;
-
+		scope = vStringNew ();
 		findScopeHierarchy (scope, st);
+
+		/* some Vala tags may contain namespace prefix, so we extract them */
+		if (isLanguage (Lang_vala) &&
+			(TAG_NAMESPACE == type || TAG_CLASS == type ||
+			 TAG_INTERFACE == type || TAG_ENUM == type || TAG_STRUCT == type))
+		{
+			char *next;
+
+			if (isMember (st) || parentDecl (st) == DECL_NAMESPACE)
+				parentType = declToTagType (parentDecl (st));
+
+			nameptr = eStrdup (nameptr);
+			/* extract namespace and create corresponding tags */
+			for (name = nameptr; (next = strchr (name, '.')) != NULL; name = next)
+			{
+				/* avoid creating empty tags if it is an invalid prefix */
+				if (next[1] == 0 || next[1] == '.')
+					break;
+				*next = 0; /* end the string at the dot position */
+				next ++; /* and next is the character after the dot */
+
+				initCTagEntry (&e, name, token, TAG_NAMESPACE, isFileScope);
+				addOtherFields (&e, TAG_NAMESPACE, token, st, scope);
+				/* override scope */
+				if (parentType != TAG_UNDEFINED && vStringLength (scope) > 0)
+				{
+					e.extensionFields.scope [0] = tagName (parentType);
+					e.extensionFields.scope [1] = vStringValue (scope);
+				}
+
+#ifdef DEBUG_C
+				printTagEntry(&e);
+#endif
+				makeCTagEntry (type, &e, scope);
+
+				if (vStringLength (scope) > 0)
+					addContextSeparator (scope);
+				vStringCatS (scope, name);
+				haveScopedName = TRUE;
+				parentType = TAG_NAMESPACE;
+			}
+		}
+
+		initCTagEntry (&e, name, token, type, isFileScope);
 		addOtherFields (&e, type, token, st, scope);
+		/* override the scope if we extracted one */
+		if (isLanguage (Lang_vala) && haveScopedName)
+		{
+			e.extensionFields.scope [0] = tagName (parentType);
+			e.extensionFields.scope [1] = vStringValue (scope);
+		}
 
 #ifdef DEBUG_C
 		printTagEntry(&e);
 #endif
-		makeTagEntry (&e);
-		if (NULL != TagEntryFunction)
-			makeExtraTagEntry (type, &e, scope);
+		makeCTagEntry (type, &e, scope);
 		vStringDelete (scope);
-		if (NULL != e.extensionFields.arglist)
-			free((char *) e.extensionFields.arglist);
+		if (nameptr != vStringValue (token->name))
+			eFree (nameptr);
 	}
 }
 
@@ -1796,7 +1867,7 @@ static void readIdentifier (tokenInfo *const token, const int firstChar)
 
 	/* Bug #1585745 (CTags): strangely, C++ destructors allow whitespace between
 	* the ~ and the class name. */
-	if (isLanguage (Lang_cpp) && firstChar == '~')
+	if ((isLanguage (Lang_cpp) || isLanguage (Lang_vala)) && firstChar == '~')
 	{
 		vStringPut (name, c);
 		c = skipToNonWhite ();
