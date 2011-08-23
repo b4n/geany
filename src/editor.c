@@ -697,14 +697,189 @@ static void request_reshowing_calltip(SCNotification *nt)
 }
 
 
+/* mostly stolen from tm_workspace.c:match_langs() */
+static gboolean lang_matches(const TMTag *tag, langType lang)
+{
+	if (lang == -1)
+		return TRUE;
+
+	if (tag->file)
+	{	/* workspace tag */
+		if (lang == tag->file->lang)
+			return TRUE;
+	}
+	else
+	{	/* global tag */
+		if (lang == tag->lang)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+
+/* gets the real type of @name_orig by resolving the typedefs
+ * @file: (in/out) the preferred TMSourceFile, will be filled with the TMSourceFile in which the
+ *   returned is found. This may point to @NULL, but cannot be a NULL pointer */
+static const gchar *resolve_typedef(TMSourceFile **file, const gchar *type_name, langType lang)
+{
+	const TMWorkspace *ws = tm_get_workspace();
+	guint i, pass = 0;
+	GPtrArray *tag_arrays[3];
+	gboolean again;
+
+	g_return_val_if_fail(file != NULL, NULL);
+	g_return_val_if_fail(type_name != NULL, NULL);
+
+	tag_arrays[0] = (*file) ? (*file)->tags_array : NULL;
+	tag_arrays[1] = ws->tags_array;
+	tag_arrays[2] = ws->global_tags;
+
+	do
+	{
+		again = FALSE;
+
+		g_debug("resolving %s...", type_name);
+		for (i = 0; i < G_N_ELEMENTS(tag_arrays); i++)
+		{
+			const TMTag *tag;
+			guint j;
+
+			if (! tag_arrays[i] || tag_arrays[i]->len < 1)
+				continue;
+
+			foreach_ptr_array(tag, j, tag_arrays[i])
+			{
+				if (! lang_matches(tag, lang))
+					continue;
+
+				if (tag->type & tm_tag_typedef_t && strcmp(type_name, tag->name) == 0 &&
+					tag->var_type && strcmp (type_name, tag->var_type) != 0)
+				{
+					type_name = tag->var_type;
+					/* we need to resolve the new name in case it is typedefed again, trying the
+					 * file containing the typedef first */
+					again = TRUE;
+					*file = tag->file;
+					tag_arrays[0] = (*file) ? (*file)->tags_array : NULL;
+					break;
+				}
+			}
+		}
+		pass++;
+	}
+	while (again && pass <= 8);
+	/* 8 is an arbitrary limit not to loop infinitely on recurive self-referencing typedefs */
+
+	g_debug("resolved to %s.", type_name);
+	return type_name;
+}
+
+
+/* tries to find children of type @type_name
+ * @file: the preferred TMSourceFile (e.g. the one containing the type definitions) */
+static GPtrArray *find_type_children(TMSourceFile *file, const gchar *type_name, langType lang)
+{
+	const TMWorkspace *ws = tm_get_workspace();
+	guint i;
+	gsize len;
+	const GPtrArray *tag_arrays[3];
+	GPtrArray *children = NULL;
+
+	g_return_val_if_fail(type_name != NULL, NULL);
+
+	g_debug("searching children for %s...", type_name);
+
+	type_name = resolve_typedef(&file, type_name, lang);
+	len = strlen(type_name);
+
+	tag_arrays[0] = file ? file->tags_array : NULL;
+	tag_arrays[1] = ws->tags_array;
+	tag_arrays[2] = ws->global_tags;
+
+	for (i = 0; ! children && i < G_N_ELEMENTS(tag_arrays); i++)
+	{
+		const TMTag *tag;
+		guint j;
+
+		if (! tag_arrays[i])
+			continue;
+
+		foreach_ptr_array(tag, j, tag_arrays[i])
+		{
+			if (G_UNLIKELY(tag->type & tm_tag_file_t))
+				continue;
+			if (! lang_matches(tag, lang))
+				continue;
+
+			if (tag->scope && strncmp(tag->scope, type_name, len) == 0 &&
+				(tag->scope[len] == 0 || tag->scope[len] == '.' ||
+				 tag->scope[len] == ':'))
+			{
+				if (! children)
+					children = g_ptr_array_new();
+				g_debug("found child %s", tag->name);
+				g_ptr_array_add(children, (gpointer)tag);
+			}
+		}
+	}
+
+	return children;
+}
+
+
+/* finds scope completions for @name
+ * @file: the preferred TMSourceFile (e.g. the one containing the name) */
+static GPtrArray *find_scope_members(TMSourceFile *file, const gchar *name, langType lang)
+{
+	const TMWorkspace *ws = tm_get_workspace();
+	guint i;
+	const GPtrArray *tag_arrays[3];
+	GPtrArray *children = NULL;
+
+	tag_arrays[0] = file ? file->tags_array : NULL;
+	tag_arrays[1] = ws->tags_array;
+	tag_arrays[2] = ws->global_tags;
+
+	g_debug("finding scope member for %s", name);
+
+	for (i = 0; ! children && i < G_N_ELEMENTS(tag_arrays); i++)
+	{
+		const TMTag *tag;
+		guint j;
+
+		if (! tag_arrays[i])
+			continue;
+
+		foreach_ptr_array(tag, j, tag_arrays[i])
+		{
+			if (G_UNLIKELY(tag->type & tm_tag_file_t))
+				continue;
+			if (! lang_matches(tag, lang))
+				continue;
+			if (strcmp(tag->name, name) != 0)
+				continue;
+			if (tag->var_type == NULL)
+				continue;
+
+			/* this doesn't work properly for e.g. C functions because their return type includes
+			 * type modifiers such as "const" or "*". */
+			children = find_type_children(tag->file, tag->var_type, lang);
+			if (children)
+				break;
+		}
+	}
+
+	return children;
+}
+
+
 static void autocomplete_scope(GeanyEditor *editor)
 {
 	ScintillaObject *sci = editor->sci;
 	gint pos = sci_get_current_position(editor->sci);
 	gchar typed = sci_get_char_at(sci, pos - 1);
 	gchar *name;
-	const GPtrArray *tags = NULL;
-	const TMTag *tag;
+	GPtrArray *tags = NULL;
 	GeanyFiletype *ft = editor->document->file_type;
 
 	if (ft->id == GEANY_FILETYPES_C || ft->id == GEANY_FILETYPES_CPP)
@@ -726,22 +901,13 @@ static void autocomplete_scope(GeanyEditor *editor)
 	if (!name)
 		return;
 
-	tags = tm_workspace_find(name, tm_tag_max_t, NULL, FALSE, ft->lang);
+	tags = find_scope_members(editor->document->tm_file, name, ft->lang);
 	g_free(name);
-	if (!tags || tags->len == 0)
+	if (! tags)
 		return;
-
-	tag = g_ptr_array_index(tags, 0);
-	name = tag->var_type;
-	if (name)
-	{
-		TMSourceFile *obj = editor->document->tm_file;
-
-		tags = tm_workspace_find_scope_members(obj ? obj->tags_array : NULL,
-			name, TRUE, FALSE);
-		if (tags)
-			show_tags_list(editor, tags, 0);
-	}
+	if (tags->len > 0)
+		show_tags_list(editor, tags, 0);
+	g_ptr_array_free(tags, TRUE);
 }
 
 
