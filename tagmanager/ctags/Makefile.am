@@ -35,6 +35,7 @@ parsers = \
 	latex.c \
 	lregex.c \
 	lua.c \
+	m4.c \
 	make.c \
 	markdown.c \
 	matlab.c \

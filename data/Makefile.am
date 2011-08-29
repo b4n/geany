@@ -45,6 +45,7 @@ filetypes = \
 	filedefs/filetypes.latex \
 	filedefs/filetypes.lisp \
 	filedefs/filetypes.lua \
+	filedefs/filetypes.m4 \
 	filedefs/filetypes.makefile \
 	filedefs/filetypes.markdown \
 	filedefs/filetypes.matlab \

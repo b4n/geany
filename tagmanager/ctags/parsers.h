@@ -66,7 +66,8 @@
     GoParser, \
     JsonParser, \
     ZephirParser, \
-    PowerShellParser
+    PowerShellParser, \
+    M4Parser
 
 #endif	/* _PARSERS_H */
 
