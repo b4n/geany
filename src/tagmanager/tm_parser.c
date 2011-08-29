@@ -488,6 +488,12 @@ static TMParserMapEntry map_POWERSHELL[] = {
 	{'v', tm_tag_variable_t},
 };
 
+/* not in universal-ctags */
+static TMParserMapEntry map_M4[] = {
+	{'d', tm_tag_macro_t},
+	{'v', tm_tag_variable_t},
+};
+
 
 typedef struct
 {
@@ -550,6 +556,7 @@ static TMParserMap parser_map[] = {
 	MAP_ENTRY(JSON),
 	MAP_ENTRY(ZEPHIR),
 	MAP_ENTRY(POWERSHELL),
+	MAP_ENTRY(M4),
 };
 /* make sure the parser map is consistent and complete */
 G_STATIC_ASSERT(G_N_ELEMENTS(parser_map) == TM_PARSER_COUNT);
