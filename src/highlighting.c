@@ -1025,6 +1025,7 @@ void highlighting_init_styles(guint filetype_idx, GKeyFile *config, GKeyFile *co
 		init_styleset_case(JS);
 		init_styleset_case(LATEX);
 		init_styleset_case(LUA);
+		init_styleset_case(M4);
 		init_styleset_case(MAKE);
 		init_styleset_case(MATLAB);
 		init_styleset_case(MARKDOWN);
@@ -1113,6 +1114,7 @@ void highlighting_set_styles(ScintillaObject *sci, GeanyFiletype *ft)
 		styleset_case(JS);
 		styleset_case(LATEX);
 		styleset_case(LUA);
+		styleset_case(M4);
 		styleset_case(MAKE);
 		styleset_case(MARKDOWN);
 		styleset_case(MATLAB);

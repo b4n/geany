@@ -94,6 +94,7 @@ ctags_sources = set([
     'tagmanager/ctags/latex.c',
     'tagmanager/ctags/lregex.c',
     'tagmanager/ctags/lua.c',
+    'tagmanager/ctags/m4.c',
     'tagmanager/ctags/make.c',
     'tagmanager/ctags/markdown.c',
     'tagmanager/ctags/matlab.c',

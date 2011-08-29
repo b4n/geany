@@ -972,6 +972,13 @@ static const HLKeyword highlighting_keywords_LUA[] =
 #define highlighting_properties_LUA		EMPTY_PROPERTIES
 
 
+/* M4 */
+#define highlighting_lexer_M4			highlighting_lexer_SH
+#define highlighting_styles_M4			highlighting_styles_SH
+#define highlighting_keywords_M4		highlighting_keywords_SH
+#define highlighting_properties_M4		highlighting_properties_SH
+
+
 /* Makefile */
 #define highlighting_lexer_MAKE			SCLEX_MAKEFILE
 static const HLStyle highlighting_styles_MAKE[] =
