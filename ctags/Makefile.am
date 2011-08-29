@@ -31,6 +31,7 @@ parsers = \
 	parsers/json.c \
 	parsers/latex.c \
 	parsers/lua.c \
+	parsers/m4.c \
 	parsers/make.c \
 	parsers/markdown.c \
 	parsers/matlab.c \
