@@ -294,6 +294,7 @@ static void ColouriseBashDoc(Sci_PositionU startPos, Sci_Position length, int in
 					s2[0] = static_cast<char>(sc.ch);
 					s2[1] = '\0';
 					bool keywordEnds = IsASpace(sc.ch) || cmdDelimiter.InList(s2);
+					bool stateContinues = false;
 					// 'in' or 'do' may be construct keywords
 					if (cmdState == BASH_CMD_WORD) {
 						if (strcmp(s, "in") == 0 && keywordEnds)
@@ -327,6 +328,12 @@ static void ColouriseBashDoc(Sci_PositionU startPos, Sci_Position length, int in
 						else
 							sc.ChangeState(SCE_SH_IDENTIFIER);
 					}
+					// FIXME: allow to disable this?
+					// 'dnl' is treat as a comment for M4 support
+					else if (strcmp(s, "dnl") == 0) {
+						sc.ChangeState(SCE_SH_COMMENTLINE);
+						stateContinues = ! sc.atLineEnd;
+					}
 					// disambiguate option items and file test operators
 					else if (s[0] == '-') {
 						if (cmdState != BASH_CMD_TEST)
@@ -337,7 +344,8 @@ static void ColouriseBashDoc(Sci_PositionU startPos, Sci_Position length, int in
 						  || !(keywords.InList(s) && keywordEnds)) {
 						sc.ChangeState(SCE_SH_IDENTIFIER);
 					}
-					sc.SetState(SCE_SH_DEFAULT);
+					if (! stateContinues)
+						sc.SetState(SCE_SH_DEFAULT);
 				}
 				break;
 			case SCE_SH_IDENTIFIER:
@@ -752,12 +760,25 @@ static void ColouriseBashDoc(Sci_PositionU startPos, Sci_Position length, int in
 	sc.Complete();
 }
 
+// checks for an M4 'dnl' command
+static bool IsDnlComment(Sci_Position pos, Accessor &styler)
+{
+	if (! styler.Match(pos, "dnl"))
+		return false;
+	int ch = styler.SafeGetCharAt(pos + 3);
+	// use the same word set as when highlighting, see ColouriseBashDoc()::setWord
+	return ! IsAlphaNumeric(ch) && ch != '.' && ch != '_' && ch != '+' && ch != '-';
+}
+
 static bool IsCommentLine(Sci_Position line, Accessor &styler) {
 	Sci_Position pos = styler.LineStart(line);
 	Sci_Position eol_pos = styler.LineStart(line + 1) - 1;
 	for (Sci_Position i = pos; i < eol_pos; i++) {
 		char ch = styler[i];
 		if (ch == '#')
+			return true;
+		// FIXME: allow to disable this?
+		else if (IsDnlComment(i, styler))
 			return true;
 		else if (ch != ' ' && ch != '\t')
 			return false;
