@@ -67,7 +67,8 @@
     JsonParser, \
     ZephirParser, \
     PowerShellParser, \
-    M4Parser
+    M4Parser, \
+    AutoConfParser
 
 #endif	/* _PARSERS_H */
 
