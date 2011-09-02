@@ -13,7 +13,7 @@ extension=m4
 #wordchars=_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
 
 # single comments, like # in this file
-comment_single=#
+comment_single=dnl
 # multiline comments
 #comment_open=
 #comment_close=
@@ -38,4 +38,6 @@ context_action_cmd=
 # %f will be replaced by the complete filename
 # %e will be replaced by the filename without extension
 # (use only one of it at one time)
-run_cmd="m4 %f"
+compiler=m4 --debug=aeflq "%f"
+run_cmd=m4 "%f"
+error_regex=^m4:([^:]+):([0-9]+): .*$
