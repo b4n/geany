@@ -66,6 +66,7 @@
 	JsonParser, \
 	ZephirParser, \
 	PowerShellParser, \
-	M4Parser
+	M4Parser, \
+	AutoConfParser
 
 #endif  /* CTAGS_MAIN_PARSERS_H */
