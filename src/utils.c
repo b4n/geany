@@ -1817,6 +1817,58 @@ gchar *utils_make_filename(const gchar *path, ...)
 }
 
 
+struct MountFileData
+{
+	gboolean finished;
+	GError *error;
+};
+
+
+static void mount_enclosing_volume_callback(GObject *object, GAsyncResult *res, struct MountFileData *data)
+{
+	g_file_mount_enclosing_volume_finish(G_FILE(object), res, &data->error);
+	data->finished = TRUE;
+}
+
+
+/* wraps g_file_mount_enclosing_volume() to make it synchronous
+ * making an asynchronous function synchronous is a bit ugly, but GIO doesn't
+ * provide the synchronous version and the calling code can't easily be made
+ * asynchronous */
+static gboolean mount_enclosing_volume(GFile *file)
+{
+	struct MountFileData data = { FALSE, NULL };
+	gboolean success = TRUE;
+	GMountOperation *op;
+
+	op = gtk_mount_operation_new(GTK_WINDOW(main_widgets.window));
+	g_file_mount_enclosing_volume(file, G_MOUNT_MOUNT_NONE, op, NULL,
+			(GAsyncReadyCallback) mount_enclosing_volume_callback, &data);
+	g_object_unref(op);
+	/* now block until mount finished -- note that this *doesn't* block the
+	 * main loop, so idle & timeout callbacks will still run, which is needed
+	 * for the result callback to be triggered */
+	while (! data.finished)
+		g_main_context_iteration(NULL, TRUE);
+
+	if (data.error)
+	{
+		if (data.error->code != G_IO_ERROR_ALREADY_MOUNTED)
+		{
+			gchar *uri = g_file_get_uri(file);
+
+			geany_debug("The enclosing mount of URI '%s' could not be mounted: %s",
+				uri, data.error->message);
+			g_free(uri);
+			success = FALSE;
+		}
+		g_error_free(data.error);
+	}
+
+	return success;
+}
+
+
 /* Retrieves the path for the given URI.
  * It returns:
  * - the path which was determined by g_filename_from_uri() or GIO
@@ -1838,6 +1890,9 @@ gchar *utils_get_path_from_uri(const gchar *uri)
 	{
 		GFile *file = g_file_new_for_uri(uri);
 		locale_filename = g_file_get_path(file);
+		/* if path not found, try to mount the URI */
+		if (locale_filename == NULL && mount_enclosing_volume(file))
+			locale_filename = g_file_get_path(file);
 		g_object_unref(file);
 		if (locale_filename == NULL)
 		{
