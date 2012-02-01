@@ -52,6 +52,7 @@
 #include "win32.h"
 #include "project.h"
 #include "ui_utils.h"
+#include "main.h"
 
 #include "utils.h"
 
@@ -1819,51 +1820,151 @@ gchar *utils_make_filename(const gchar *path, ...)
 
 struct MountFileData
 {
+	gint ref_count;
 	gboolean finished;
 	GError *error;
 };
 
 
-static void mount_enclosing_volume_callback(GObject *object, GAsyncResult *res, struct MountFileData *data)
+static struct MountFileData *mount_file_data_ref(struct MountFileData *data)
 {
-	g_file_mount_enclosing_volume_finish(G_FILE(object), res, &data->error);
+	g_atomic_int_inc(&data->ref_count);
+	return data;
+}
+
+
+static void mount_file_data_unref(struct MountFileData *data)
+{
+	if (g_atomic_int_dec_and_test(&data->ref_count))
+	{
+		if (data->error)
+			g_error_free(data->error);
+		g_free(data);
+	}
+}
+
+
+static gboolean progress_bar_pulse(gpointer progress)
+{
+	gtk_progress_bar_pulse(progress);
+	return TRUE;
+}
+
+
+static void on_mount_progress_dialog_response(GtkDialog *dialog, gint response, GCancellable *cancel)
+{
+	switch (response)
+	{
+		case GTK_RESPONSE_CANCEL:
+		case GTK_RESPONSE_DELETE_EVENT:
+			g_cancellable_cancel(cancel);
+			break;
+	}
+}
+
+
+static void on_mount_cancelled(GCancellable *cancel, struct MountFileData *data)
+{
+	if (! data->error)
+		g_cancellable_set_error_if_cancelled(cancel, &data->error);
 	data->finished = TRUE;
 }
 
 
+static gboolean on_mount_progress_dialog_delete_event(GtkDialog *dialog, GdkEvent *event, gpointer data)
+{
+	return TRUE;
+}
+
+
+static void mount_enclosing_volume_callback(GObject *object, GAsyncResult *res, struct MountFileData *data)
+{
+	g_file_mount_enclosing_volume_finish(G_FILE(object), res,
+		/* don't fill error if it was already set by a cancellation */
+		data->error ? NULL : &data->error);
+	data->finished = TRUE;
+	mount_file_data_unref(data);
+}
+
+
 /* wraps g_file_mount_enclosing_volume() to make it synchronous
+ *
  * making an asynchronous function synchronous is a bit ugly, but GIO doesn't
  * provide the synchronous version and the calling code can't easily be made
- * asynchronous */
+ * asynchronous.  so, this function is full of funny hacks:
+ *
+ * 1) we nest a main GMainLoop (actually we manually deal with the GMainContext
+ *    but that's close anyway) to wait for the async operation to finish;
+ * 2) we have a modal progress dialog with cancellation support, which also prevents
+ *    interaction with the main window while waiting for the operation to complete;
+ * 3) since GVfsDaemon has no actual cancellation support (it simply ignores
+ *    cancellation as of today), we fake cancellation by connectiong to the
+ *    cancellable's :cancelled signal and, if user cancels, simply do as if the
+ *    whole operation was cancelled, but leave the op's callback to run when it
+ *    finished (since we can't abort it), ignoring its result.
+ *    Since the op's callback *may* then run after the function terminated, we need
+ *    refcounted data not to free it while still used.
+ */
 static gboolean mount_enclosing_volume(GFile *file)
 {
-	struct MountFileData data = { FALSE, NULL };
+	struct MountFileData *data;
 	gboolean success = TRUE;
 	GMountOperation *op;
+	GtkWidget *dialog;
+	GtkWidget *box;
+	GtkWidget *progress;
+	gulong tid;
+	gchar *uri = g_file_get_uri(file);
+	GCancellable *cancel = g_cancellable_new();
 
-	op = gtk_mount_operation_new(GTK_WINDOW(main_widgets.window));
-	g_file_mount_enclosing_volume(file, G_MOUNT_MOUNT_NONE, op, NULL,
-			(GAsyncReadyCallback) mount_enclosing_volume_callback, &data);
+	data = g_malloc(sizeof *data);
+	data->ref_count = 1;
+	data->error = NULL;
+	data->finished = FALSE;
+
+	/* progress dialog with cancel button */
+	dialog = gtk_message_dialog_new(main_status.main_window_realized ? GTK_WINDOW(main_widgets.window) : NULL,
+		GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+		GTK_MESSAGE_INFO, GTK_BUTTONS_CANCEL,
+		_("Please wait while trying to mount volume enclosing URI \"%s\"..."), uri);
+	box = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+	progress = gtk_progress_bar_new();
+	tid = g_timeout_add(200, progress_bar_pulse, progress);
+	gtk_box_pack_start(GTK_BOX(box), progress, FALSE, FALSE, 0);
+	g_signal_connect_object(dialog, "response", G_CALLBACK(on_mount_progress_dialog_response), cancel, 0);
+	/* prevent the dialog from being destroyed on close */
+	g_signal_connect(dialog, "delete-event", G_CALLBACK(on_mount_progress_dialog_delete_event), NULL);
+	gtk_widget_show_all(dialog);
+
+	/* monitor cancellation because GVfsDaemon doesn't actually honor it */
+	g_signal_connect_data(cancel, "cancelled", G_CALLBACK(on_mount_cancelled),
+		mount_file_data_ref(data), (GClosureNotify) mount_file_data_unref, 0);
+
+	/* start the operation itself... */
+	op = gtk_mount_operation_new(GTK_WINDOW(dialog));
+	g_file_mount_enclosing_volume(file, G_MOUNT_MOUNT_NONE, op, cancel,
+		(GAsyncReadyCallback) mount_enclosing_volume_callback, mount_file_data_ref(data));
 	g_object_unref(op);
-	/* now block until mount finished -- note that this *doesn't* block the
+
+	/* now "block" until mount finished -- note that this *doesn't* block the
 	 * main loop, so idle & timeout callbacks will still run, which is needed
 	 * for the result callback to be triggered */
-	while (! data.finished)
+	while (! data->finished)
 		g_main_context_iteration(NULL, TRUE);
 
-	if (data.error)
-	{
-		if (data.error->code != G_IO_ERROR_ALREADY_MOUNTED)
-		{
-			gchar *uri = g_file_get_uri(file);
+	g_source_remove(tid);
+	gtk_widget_destroy(dialog);
+	g_object_unref(cancel);
 
-			geany_debug("The enclosing mount of URI '%s' could not be mounted: %s",
-				uri, data.error->message);
-			g_free(uri);
-			success = FALSE;
-		}
-		g_error_free(data.error);
+	if (data->error && data->error->code != G_IO_ERROR_ALREADY_MOUNTED)
+	{
+		geany_debug("The enclosing mount of URI '%s' could not be mounted: %s",
+			uri, data->error->message);
+		success = FALSE;
 	}
+
+	mount_file_data_unref(data);
+	g_free(uri);
 
 	return success;
 }
