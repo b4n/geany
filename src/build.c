@@ -1193,6 +1193,8 @@ static gboolean build_create_shellscript(const gchar *fname, const gchar *cmd, g
 	gboolean success = TRUE;
 #ifdef G_OS_WIN32
 	gchar *expanded_cmd;
+	wchar_t wcp[16];
+	gchar cp[16];
 #endif
 
 	fp = g_fopen(fname, "w");
@@ -1202,9 +1204,15 @@ static gboolean build_create_shellscript(const gchar *fname, const gchar *cmd, g
 		return FALSE;
 	}
 #ifdef G_OS_WIN32
+	/* get the codepage to pass to chcp */
+	if (! GetLocaleInfoW(LOCALE_USER_DEFAULT, LOCALE_IDEFAULTANSICODEPAGE, wcp, G_N_ELEMENTS(wcp)) ||
+		! WideCharToMultiByte(CP_UTF8, 0, wcp, -1, cp, G_N_ELEMENTS(cp), NULL, NULL))
+		cp[0] = '\0'; /* empty cp if not found, and just hope */
+
 	/* Expand environment variables like %blah%. */
 	expanded_cmd = win32_expand_environment_variables(cmd);
-	str = g_strdup_printf("%s\n\n%s\ndel \"%%0\"\n\npause\n", expanded_cmd, (autoclose) ? "" : "pause");
+	str = g_strdup_printf("chcp %s>NUL\n\n%s\n\n%s\ndel \"%%0\"\n\npause\n",
+		cp, expanded_cmd, (autoclose) ? "" : "pause");
 	g_free(expanded_cmd);
 #else
 	str = g_strdup_printf(
