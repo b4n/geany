@@ -75,8 +75,8 @@ typedef struct _geany_win32_spawn geany_win32_spawn;
 
 static gboolean GetContentFromHandle(HANDLE hFile, gchar **content, GError **error);
 static HANDLE GetTempFileHandle(GError **error);
-static gboolean CreateChildProcess(geany_win32_spawn *gw_spawn, TCHAR *szCmdline,
-		const TCHAR *dir, GError **error);
+static gboolean CreateChildProcess(geany_win32_spawn *gw_spawn, const gchar *szCmdline,
+		const gchar *dir, GError **error);
 static VOID ReadFromPipe(HANDLE hRead, HANDLE hWrite, HANDLE hFile, GError **error);
 
 
@@ -820,17 +820,63 @@ gchar *win32_get_hostname(void)
 }
 
 
+/* normally this function should deal with quoting & stuff, but currently the
+ * callers expect it to simply rebuild a string out of tokens simply split by
+ * spaces (see build.c:build_spawn_cmd()), so changing this would break the
+ * API.  Anyway if the quoting is right in the input it will be ok there too.
+ *
+ * Also, envvar expansion should probably be done in a per-argument basis to be
+ * truly safe, but since the split did not take care of it it'd be worste to do
+ * so here, so simply expand envvars on the result.
+ *
+ * @param argv an utf8-encoded argv
+ * @return and utf8-encoded expanded commandline */
+static gchar *argv_to_cmdline(gchar **argv)
+{
+	GString *cmd;
+	gchar *result;
+
+	cmd = g_string_new(NULL);
+	for (; *argv; argv ++)
+	{
+#if 0 /* untested quoting, disbaled, see above */
+		/* expand envvars in each argument */
+		gchar *arg = win32_expand_environment_variables(*argv);
+		const gchar *p;
+
+		g_string_append_c(cmd, '"');
+		for (p = arg; *p; p++)
+		{
+			if (*p == '"' || *p == '\\')
+				g_string_append_c(cmd, '\\');
+			g_string_append_c(cmd, *p);
+		}
+		g_string_append_c(cmd, '"');
+		g_string_append(cmd, arg);
+		g_free(arg);
+#else
+		g_string_append(cmd, *argv);
+#endif
+		g_string_append_c(cmd, ' ');
+	}
+
+#if 0
+	result = g_string_free(cmd, FALSE);
+#else
+	result = win32_expand_environment_variables(cmd->str);
+	g_string_free(cmd, TRUE);
+#endif
+
+	return result;
+}
+
+
 /* Process spawning implementation for Windows, by Pierre Joye.
  * Don't call this function directly, use utils_spawn_[a]sync() instead. */
 gboolean win32_spawn(const gchar *dir, gchar **argv, gchar **env, GSpawnFlags flags,
 					 gchar **std_out, gchar **std_err, gint *exit_status, GError **error)
 {
-	TCHAR  buffer[CMDSIZE]=TEXT("");
-	TCHAR  cmdline[CMDSIZE] = TEXT("");
-	TCHAR* lpPart[CMDSIZE]={NULL};
-	DWORD  retval = 0;
-	gint argc = 0, i;
-	gint cmdpos = 0;
+	gchar *cmdline;
 
 	SECURITY_ATTRIBUTES saAttr;
 	BOOL fSuccess;
@@ -843,30 +889,14 @@ gboolean win32_spawn(const gchar *dir, gchar **argv, gchar **env, GSpawnFlags fl
 	gchar *stdout_content = NULL;
 	gchar *stderr_content = NULL;
 
-	while (argv[argc])
-	{
-		++argc;
-	}
 	g_return_val_if_fail (std_out == NULL ||
 						!(flags & G_SPAWN_STDOUT_TO_DEV_NULL), FALSE);
 	g_return_val_if_fail (std_err == NULL ||
 						!(flags & G_SPAWN_STDERR_TO_DEV_NULL), FALSE);
 
-	if (flags & G_SPAWN_SEARCH_PATH)
-	{
-		retval = SearchPath(NULL, argv[0], ".exe", sizeof(buffer), buffer, lpPart);
-		if (retval > 0)
-			g_snprintf(cmdline, sizeof(cmdline), "\"%s\"", buffer);
-		else
-			g_strlcpy(cmdline, argv[0], sizeof(cmdline));
-		cmdpos = 1;
-	}
-
-	for (i = cmdpos; i < argc; i++)
-	{
-		g_snprintf(cmdline, sizeof(cmdline), "%s %s", cmdline, argv[i]);
-		/*MessageBox(NULL, cmdline, cmdline, MB_OK);*/
-	}
+	/* no need to SearchPath() ourselves if G_SPAWN_SEARCH_PATH is given,
+	 * CreateProcess() does the path search itself */
+	cmdline = argv_to_cmdline(argv);
 
 	if (std_err != NULL)
 	{
@@ -921,7 +951,7 @@ gboolean win32_spawn(const gchar *dir, gchar **argv, gchar **env, GSpawnFlags fl
 	if (! CreatePipe(&(gw_spawn.hChildStderrRd), &(gw_spawn.hChildStderrWr), &saAttr, 0))
 	{
 		gchar *msg = g_win32_error_message(GetLastError());
-		geany_debug("win32_spawn: Stderr pipe creation failed");
+		geany_debug("win32_spawn: Stderr pipe creation failed (%s)", msg);
 		g_set_error(error, G_SPAWN_ERROR, G_FILE_ERROR_PIPE, "%s", msg);
 		g_free(msg);
 		return FALSE;
@@ -934,7 +964,7 @@ gboolean win32_spawn(const gchar *dir, gchar **argv, gchar **env, GSpawnFlags fl
 	if (! CreatePipe(&(gw_spawn.hChildStdinRd), &(gw_spawn.hChildStdinWr), &saAttr, 0))
 	{
 		gchar *msg = g_win32_error_message(GetLastError());
-		geany_debug("win32_spawn: Stdin pipe creation failed");
+		geany_debug("win32_spawn: Stdin pipe creation failed (%s)", msg);
 		g_set_error(error, G_SPAWN_ERROR, G_FILE_ERROR_PIPE, "%s", msg);
 		g_free(msg);
 		return FALSE;
@@ -1029,24 +1059,40 @@ static gboolean GetContentFromHandle(HANDLE hFile, gchar **content, GError **err
 }
 
 
+/* expands win32 envvars inside @str.  @str must be an UTF-8 encoded string.
+ * returns a newly allocated UTF-8 string with envvars expanded */
 gchar *win32_expand_environment_variables(const gchar *str)
 {
-	gchar expCmdline[32768]; /* 32768 is the limit for ExpandEnvironmentStrings() */
+	wchar_t wstr[32768]; /* 32768 is the limit for ExpandEnvironmentStrings() */
+	gchar *expstr = NULL;
 
-	if (ExpandEnvironmentStrings((LPCTSTR) str, (LPTSTR) expCmdline, sizeof(expCmdline)) != 0)
-		return g_strdup(expCmdline);
-	else
-		return g_strdup(str);
+	if (MultiByteToWideChar(CP_UTF8, 0, str, -1, wstr, G_N_ELEMENTS(wstr)))
+	{
+		wchar_t wexpstr[32768];
+		DWORD n;
+
+		n = ExpandEnvironmentStringsW((LPCWSTR) wstr, (LPWSTR) wexpstr, G_N_ELEMENTS(wexpstr));
+		if (n != 0)
+		{
+			gchar expstr_buf[32768];
+
+			WideCharToMultiByte(CP_UTF8, 0, wexpstr, n, expstr_buf, G_N_ELEMENTS(expstr_buf), NULL, NULL);
+			expstr = g_strdup(expstr_buf);
+		}
+	}
+	if (! expstr)
+		expstr = g_strdup(str);
+
+	return expstr;
 }
 
 
-static gboolean CreateChildProcess(geany_win32_spawn *gw_spawn, TCHAR *szCmdline,
-		const TCHAR *dir, GError **error)
+static gboolean CreateChildProcess(geany_win32_spawn *gw_spawn, const gchar *cmdline,
+		const gchar *dir, GError **error)
 {
 	PROCESS_INFORMATION piProcInfo;
 	STARTUPINFOW siStartInfo;
 	BOOL bFuncRetn = FALSE;
-	gchar *expandedCmdline;
 	wchar_t w_commandline[CMDSIZE];
 	wchar_t w_dir[MAX_PATH];
 
@@ -1062,11 +1108,8 @@ static gboolean CreateChildProcess(geany_win32_spawn *gw_spawn, TCHAR *szCmdline
 	siStartInfo.hStdInput  = gw_spawn->hChildStdinRd;
 	siStartInfo.dwFlags   |= STARTF_USESTDHANDLES;
 
-	/* Expand environment variables like %blah%. */
-	expandedCmdline = win32_expand_environment_variables(szCmdline);
-
-	MultiByteToWideChar(CP_UTF8, 0, expandedCmdline, -1, w_commandline, sizeof(w_commandline));
-	MultiByteToWideChar(CP_UTF8, 0, dir, -1, w_dir, sizeof(w_dir));
+	MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, w_commandline, G_N_ELEMENTS(w_commandline));
+	MultiByteToWideChar(CP_UTF8, 0, dir, -1, w_dir, G_N_ELEMENTS(w_dir));
 
 	/* Create the child process. */
 	bFuncRetn = CreateProcessW(NULL,
@@ -1079,8 +1122,6 @@ static gboolean CreateChildProcess(geany_win32_spawn *gw_spawn, TCHAR *szCmdline
 		w_dir,           /* use parent's current directory */
 		&siStartInfo,  /* STARTUPINFO pointer */
 		&piProcInfo);  /* receives PROCESS_INFORMATION */
-
-	g_free(expandedCmdline);
 
 	if (bFuncRetn == 0)
 	{
