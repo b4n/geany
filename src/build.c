@@ -1189,6 +1189,7 @@ static gboolean build_create_shellscript(const gchar *fname, const gchar *cmd, g
 {
 	FILE *fp;
 	gchar *str;
+	gchar *locale_str;
 	gboolean success = TRUE;
 #ifdef G_OS_WIN32
 	gchar *expanded_cmd;
@@ -1213,12 +1214,19 @@ static gboolean build_create_shellscript(const gchar *fname, const gchar *cmd, g
 			"dash\ndummy_var=\"\"\nread dummy_var");
 #endif
 
-	if (fputs(str, fp) < 0)
-	{
-		set_file_error_from_errno(error, errno, "Failed to write file");
-		success = FALSE;
-	}
+	locale_str = g_locale_from_utf8(str, -1, NULL, NULL, error);
 	g_free(str);
+	if (! locale_str)
+		success = FALSE;
+	else
+	{
+		if (fputs(locale_str, fp) < 0)
+		{
+			set_file_error_from_errno(error, errno, "Failed to write file");
+			success = FALSE;
+		}
+		g_free(locale_str);
+	}
 
 	if (fclose(fp) != 0)
 	{
