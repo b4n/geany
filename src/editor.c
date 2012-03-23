@@ -894,8 +894,9 @@ static void autocomplete_scope(GeanyEditor *editor)
 	else if (typed != '.')
 		return;
 
-	/* allow for a space between word and operator */
-	if (isspace(sci_get_char_at(sci, pos - 2)))
+	/* allow for spaces between word and operator */
+	while (pos >= 2 && (isspace(sci_get_char_at(sci, pos - 2)) ||
+						highlighting_is_comment_style(sci_get_lexer(sci), sci_get_style_at(sci, pos - 2))))
 		pos--;
 	name = editor_get_word_at_pos(editor, pos - 1, NULL);
 	if (!name)
