@@ -463,14 +463,9 @@ static GString *get_global_typenames(gint lang)
 {
 	GString *s = NULL;
 
-	if (app->tm_workspace)
+	if (app->ctm_workspace)
 	{
-		GPtrArray *tags_array = app->tm_workspace->global_tags;
-
-		if (tags_array)
-		{
-			s = symbols_find_tags_as_string(tags_array, TM_GLOBAL_TYPE_MASK, lang);
-		}
+		s = symbols_find_tags_as_string(app->ctm_workspace->global_tags, CTM_GLOBAL_TYPE_MASK, lang);
 	}
 	return s;
 }

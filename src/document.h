@@ -34,6 +34,7 @@ G_BEGIN_DECLS
 #include "Scintilla.h"
 #include "ScintillaWidget.h"
 #include "editor.h"
+#include "ctm-source-file.h"
 
 #if defined(G_OS_WIN32)
 # define GEANY_DEFAULT_EOL_CHARACTER SC_EOL_CRLF
@@ -96,8 +97,8 @@ struct GeanyDocument
 	/** The filetype for this document, it's only a reference to one of the elements of the global
 	 *  filetypes array. */
 	GeanyFiletype	*file_type;
-	/** TMWorkObject object for this document, or @c NULL. */
-	TMWorkObject	*tm_file;
+	/** CtmSourceFile object for this document, or @c NULL. */
+	CtmSourceFile	*ctm_file;
 	/** Whether this document is read-only. */
 	gboolean		 readonly;
 	/** Whether this document has been changed since it was last saved. */

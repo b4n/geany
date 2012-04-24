@@ -23,7 +23,9 @@
 #ifndef GEANY_SYMBOLS_H
 #define GEANY_SYMBOLS_H 1
 
-extern const guint TM_GLOBAL_TYPE_MASK;
+#include "ctm-data-backend.h"
+
+extern const guint CTM_GLOBAL_TYPE_MASK;
 
 enum
 {
@@ -41,7 +43,7 @@ void symbols_reload_config_files(void);
 
 void symbols_global_tags_loaded(guint file_type_idx);
 
-GString *symbols_find_tags_as_string(GPtrArray *tags_array, guint tag_types, gint lang);
+GString *symbols_find_tags_as_string(CtmDataBackend *backend, guint tag_types, gint lang);
 
 const gchar *symbols_get_context_separator(gint ft_id);
 

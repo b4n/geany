@@ -33,7 +33,7 @@ G_BEGIN_DECLS
 #	include "config.h"
 #endif
 
-#include "tm_tagmanager.h"
+#include "ctm-workspace.h"
 
 #ifndef PLAT_GTK
 #   define PLAT_GTK 1	/* needed when including ScintillaWidget.h */
@@ -77,7 +77,7 @@ typedef struct GeanyApp
 	gchar				*configdir;
 	gchar				*datadir;
 	gchar				*docdir;
-	const TMWorkspace	*tm_workspace;	/**< TagManager workspace/session tags. */
+	CtmWorkspace		*ctm_workspace;	/**< TagManager workspace/session tags. */
 	struct GeanyProject	*project;		/**< Currently active project or @c NULL if none is open. */
 }
 GeanyApp;

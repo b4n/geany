@@ -30,6 +30,8 @@
 #include <string.h>
 #include <glib/gstdio.h>
 
+#include "ctm-parse.h"
+
 #include "geany.h"
 #include "filetypes.h"
 #include "filetypesprivate.h"
@@ -1220,7 +1222,7 @@ static void load_settings(guint ft_id, GKeyFile *config, GKeyFile *configh)
 	result = utils_get_setting(string, configh, config, "settings", "tag_parser", NULL);
 	if (result != NULL)
 	{
-		ft->lang = tm_source_file_get_named_lang(result);
+		ft->lang = ctm_parser_get_named_lang(result);
 		if (ft->lang < 0)
 			geany_debug("Cannot find tag parser '%s' for custom filetype '%s'.", result, ft->name);
 		g_free(result);

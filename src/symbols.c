@@ -38,6 +38,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "ctm-workspace.h"
+#include "ctm-source-file.h"
+#include "ctm-completion.h"
+
 #include "prefix.h"
 #include "symbols.h"
 #include "utils.h"
@@ -55,9 +59,14 @@
 #include "sciwrappers.h"
 
 
-const guint TM_GLOBAL_TYPE_MASK =
-	tm_tag_class_t | tm_tag_enum_t | tm_tag_interface_t |
-	tm_tag_struct_t | tm_tag_typedef_t | tm_tag_union_t | tm_tag_namespace_t;
+const guint CTM_GLOBAL_TYPE_MASK =
+	CTM_TAG_TYPE_CLASS |
+	CTM_TAG_TYPE_ENUM |
+	CTM_TAG_TYPE_INTERFACE |
+	CTM_TAG_TYPE_STRUCT |
+	CTM_TAG_TYPE_TYPEDEF |
+	CTM_TAG_TYPE_UNION |
+	CTM_TAG_TYPE_NAMESPACE;
 
 
 static gchar **html_entities = NULL;
@@ -136,8 +145,8 @@ void symbols_reload_config_files(void)
 
 static gsize get_tag_count(void)
 {
-	GPtrArray *tags = tm_get_workspace()->global_tags;
-	gsize count = tags ? tags->len : 0;
+	CtmDataBackend *tags = ctm_workspace_get_default()->global_tags;
+	gsize count = 0 /*tags ? tags->len : 0*/; /*FIXME*/
 
 	return count;
 }
@@ -151,12 +160,14 @@ static gboolean symbols_load_global_tags(const gchar *tags_file, GeanyFiletype *
 	gboolean result;
 	gsize old_tag_count = get_tag_count();
 
-	result = tm_workspace_load_global_tags(tags_file, ft->lang);
+	/* FIXME: */
+	result = FALSE;
+	/*result = tm_workspace_load_global_tags(tags_file, ft->lang);
 	if (result)
 	{
 		geany_debug("Loaded %s (%s), %u tag(s).", tags_file, ft->name,
 			(guint) (get_tag_count() - old_tag_count));
-	}
+	}*/
 	return result;
 }
 
@@ -175,7 +186,7 @@ void symbols_global_tags_loaded(guint file_type_idx)
 		load_c_ignore_tags();
 	}
 
-	if (cl_options.ignore_global_tags || app->tm_workspace == NULL)
+	if (cl_options.ignore_global_tags || app->ctm_workspace == NULL)
 		return;
 
 	/* load config in case of custom filetypes */
@@ -236,41 +247,78 @@ static void html_tags_loaded(void)
 }
 
 
-GString *symbols_find_tags_as_string(GPtrArray *tags_array, guint tag_types, gint lang)
+GList *extract_tags(CtmDataBackend *backend, guint limit, guint types, langType lang)
 {
-	guint j;
-	TMTag *tag;
-	GString *s = NULL;
-	GPtrArray *typedefs;
-	gint tag_lang;
+#if 0 /* FIXME: */
+	/* FIXME: handle lang, and lang == -2 for all */
+	return ctm_data_backend_find(backend, limit, CTM_DATA_BACKEND_SORT_DIR_ASC,
+		ctm_tag_cmp_type, ctm_tag_match_type, GUINT_TO_POINTER(types));
+#else
+	GList *tags = NULL;
+	guint i, n;
 
-	g_return_val_if_fail(tags_array != NULL, NULL);
-
-	typedefs = tm_tags_extract(tags_array, tag_types);
-
-	if ((typedefs) && (typedefs->len > 0))
+	/* this is ugly, but we can't search for several types at once, because
+	 * we can't sort by several types at once */
+	for (i = 1, n = 0; (limit == 0 || n < limit) && types && i < CTM_TAG_TYPE_ANY; i <<= 1)
 	{
-		s = g_string_sized_new(typedefs->len * 10);
-		for (j = 0; j < typedefs->len; ++j)
-		{
-			tag = TM_TAG(typedefs->pdata[j]);
-			/* tag->atts.file.lang contains (for some reason) the line of the tag if
-			 * tag->atts.entry.file is not NULL */
-			tag_lang = (tag->atts.entry.file) ? tag->atts.entry.file->lang : tag->atts.file.lang;
+		GList *tmp;
 
-			/* the check for tag_lang == lang is necessary to avoid wrong type colouring of
-			 * e.g. PHP classes in C++ files
-			 * lang = -2 disables the check */
-			if (tag->name && (tag_lang == lang || lang == -2))
+		if (! (i & types))
+			continue;
+		types ^= i;
+
+		/* FIXME: handle lang */
+		tmp = ctm_data_backend_find(backend, limit, CTM_DATA_BACKEND_SORT_DIR_ASC,
+			ctm_tag_cmp_type, ctm_tag_match_type, GUINT_TO_POINTER(i));
+		/* manually concatenate the list for perf */
+		while (tmp) {
+			GList *next = tmp->next;
+
+			if (limit == 0 || n < limit)
 			{
-				if (j != 0)
-					g_string_append_c(s, ' ');
-				g_string_append(s, tag->name);
+				tmp->prev = NULL;
+				tmp->next = tags;
+				tags = tmp;
+				n++;
 			}
+			else
+				ctm_tag_unref(tmp->data);
+			tmp = next;
 		}
 	}
-	if (typedefs)
-		g_ptr_array_free(typedefs, TRUE);
+
+	return tags;
+#endif
+}
+
+
+GString *symbols_find_tags_as_string(CtmDataBackend *backend, guint tag_types, gint lang)
+{
+	GString *s = NULL;
+	GList *tags, *item;
+
+	g_return_val_if_fail(backend != NULL, NULL);
+
+	tags = extract_tags(backend, 0, tag_types, lang);
+	if (tags)
+	{
+		s = g_string_new(NULL);
+
+		foreach_list(item, tags)
+		{
+			CtmTag *tag = item->data;
+
+			if (G_UNLIKELY(! tag->name)) /* is this really useful at all? */
+				continue;
+
+			if (item != tags)
+				g_string_append_c(s, ' ');
+			g_string_append(s, tag->name);
+			ctm_tag_unref(tag);
+		}
+		g_list_free(tags);
+	}
+
 	return s;
 }
 
@@ -305,118 +353,37 @@ const gchar *symbols_get_context_separator(gint ft_id)
 
 GString *symbols_get_macro_list(gint lang)
 {
-	guint j, i;
-	GPtrArray *ftags;
+	GList *tags = NULL, *item;
 	GString *words;
-	gint tag_lang;
-	TMTag *tag;
 
-	if (app->tm_workspace->work_objects == NULL)
+	if (app->ctm_workspace->files == NULL)
 		return NULL;
 
-	ftags = g_ptr_array_sized_new(50);
 	words = g_string_sized_new(200);
 
-	for (j = 0; j < app->tm_workspace->work_objects->len; j++)
-	{
-		GPtrArray *tags;
-
-		tags = tm_tags_extract(TM_WORK_OBJECT(app->tm_workspace->work_objects->pdata[j])->tags_array,
-			tm_tag_enum_t | tm_tag_variable_t | tm_tag_macro_t | tm_tag_macro_with_arg_t);
-		if (NULL != tags)
-		{
-			for (i = 0; ((i < tags->len) && (i < editor_prefs.autocompletion_max_entries)); ++i)
-			{
-				tag = TM_TAG(tags->pdata[i]);
-				tag_lang = (tag->atts.entry.file) ?
-					tag->atts.entry.file->lang : tag->atts.file.lang;
-
-				if (tag_lang == lang)
-					g_ptr_array_add(ftags, (gpointer) tags->pdata[i]);
-			}
-			g_ptr_array_free(tags, TRUE);
-		}
-	}
-
-	if (ftags->len == 0)
-	{
-		g_ptr_array_free(ftags, TRUE);
-		g_string_free(words, TRUE);
+	/* FIXME:
+	 * 
+	 * - old code used to walk all files rather than use the global array, why?
+	 * - also, it used to limit to @autocompletion_max_entries in a *per file* basis, WTF? */
+	tags = extract_tags(app->ctm_workspace->tags, editor_prefs.autocompletion_max_entries,
+		CTM_TAG_TYPE_ENUM | CTM_TAG_TYPE_VARIABLE | CTM_TAG_TYPE_MACRO | CTM_TAG_TYPE_MACRO_WITH_ARG,
+		lang);
+	if (! tags)
 		return NULL;
-	}
 
-	tm_tags_sort(ftags, NULL, FALSE);
-	for (j = 0; j < ftags->len; j++)
+	/* FIXME: sort tags by name */
+	foreach_list (item, tags)
 	{
-		if (j > 0)
+		CtmTag *tag = item->data;
+
+		if (item != tags)
 			g_string_append_c(words, '\n');
-		g_string_append(words, TM_TAG(ftags->pdata[j])->name);
+		g_string_append(words, tag->name);
+		ctm_tag_unref(tag);
 	}
-	g_ptr_array_free(ftags, TRUE);
+	g_list_free(tags);
+
 	return words;
-}
-
-
-/* Note: if tags is sorted, we can use bsearch or tm_tags_find() to speed this up. */
-static TMTag *
-symbols_find_tm_tag(const GPtrArray *tags, const gchar *tag_name)
-{
-	guint i;
-	g_return_val_if_fail(tags != NULL, NULL);
-
-	for (i = 0; i < tags->len; ++i)
-	{
-		if (utils_str_equal(TM_TAG(tags->pdata[i])->name, tag_name))
-			return TM_TAG(tags->pdata[i]);
-	}
-	return NULL;
-}
-
-
-static TMTag *find_work_object_tag(const TMWorkObject *workobj,
-		const gchar *tag_name, guint type)
-{
-	GPtrArray *tags;
-	TMTag *tmtag;
-
-	if (G_LIKELY(workobj != NULL))
-	{
-		tags = tm_tags_extract(workobj->tags_array, type);
-		if (tags != NULL)
-		{
-			tmtag = symbols_find_tm_tag(tags, tag_name);
-
-			g_ptr_array_free(tags, TRUE);
-
-			if (tmtag != NULL)
-				return tmtag;
-		}
-	}
-	return NULL;	/* not found */
-}
-
-
-static TMTag *find_workspace_tag(const gchar *tag_name, guint type)
-{
-	guint j;
-	const GPtrArray *work_objects = NULL;
-
-	if (app->tm_workspace != NULL)
-		work_objects = app->tm_workspace->work_objects;
-
-	if (work_objects != NULL)
-	{
-		for (j = 0; j < work_objects->len; j++)
-		{
-			TMWorkObject *workobj = TM_WORK_OBJECT(work_objects->pdata[j]);
-			TMTag *tmtag;
-
-			tmtag = find_work_object_tag(workobj, tag_name, type);
-			if (tmtag != NULL)
-				return tmtag;
-		}
-	}
-	return NULL;	/* not found */
 }
 
 
@@ -430,7 +397,7 @@ const gchar **symbols_get_html_entities(void)
 
 
 /* sort by name, then line */
-static gint compare_symbol(const TMTag *tag_a, const TMTag *tag_b)
+static gint compare_symbol(const CtmTag *tag_a, const CtmTag *tag_b)
 {
 	gint ret;
 
@@ -446,60 +413,31 @@ static gint compare_symbol(const TMTag *tag_a, const TMTag *tag_b)
 	ret = strcmp(tag_a->name, tag_b->name);
 	if (ret == 0)
 	{
-		return tag_a->atts.entry.line - tag_b->atts.entry.line;
+		return tag_a->line - tag_b->line;
 	}
 	return ret;
 }
 
 
 /* sort by line, then scope */
-static gint compare_symbol_lines(gconstpointer a, gconstpointer b)
+static gint compare_symbol_lines(const CtmTag *tag_a, const CtmTag *tag_b)
 {
-	const TMTag *tag_a = TM_TAG(a);
-	const TMTag *tag_b = TM_TAG(b);
 	gint ret;
 
-	if (a == NULL || b == NULL)
+	if (tag_a == NULL || tag_b == NULL)
 		return 0;
 
-	ret = tag_a->atts.entry.line - tag_b->atts.entry.line;
+	ret = tag_a->line - tag_b->line;
 	if (ret == 0)
 	{
-		if (tag_a->atts.entry.scope == NULL)
-			return -(tag_a->atts.entry.scope != tag_b->atts.entry.scope);
-		if (tag_b->atts.entry.scope == NULL)
-			return tag_a->atts.entry.scope != tag_b->atts.entry.scope;
+		if (tag_a->scope == NULL)
+			return -(tag_a->scope != tag_b->scope);
+		if (tag_b->scope == NULL)
+			return tag_a->scope != tag_b->scope;
 		else
-			return strcmp(tag_a->atts.entry.scope, tag_b->atts.entry.scope);
+			return strcmp(tag_a->scope, tag_b->scope);
 	}
 	return ret;
-}
-
-
-static GList *get_tag_list(GeanyDocument *doc, guint tag_types)
-{
-	GList *tag_names = NULL;
-	TMTag *tag;
-	guint i;
-
-	g_return_val_if_fail(doc, NULL);
-
-	if (! doc->tm_file || ! doc->tm_file->tags_array)
-		return NULL;
-
-	for (i = 0; i < doc->tm_file->tags_array->len; ++i)
-	{
-		tag = TM_TAG(doc->tm_file->tags_array->pdata[i]);
-		if (G_UNLIKELY(tag == NULL))
-			return NULL;
-
-		if (tag->type & tag_types)
-		{
-			tag_names = g_list_prepend(tag_names, tag);
-		}
-	}
-	tag_names = g_list_sort(tag_names, compare_symbol_lines);
-	return tag_names;
 }
 
 
@@ -1014,10 +952,10 @@ static void hide_empty_rows(GtkTreeStore *store)
 }
 
 
-static const gchar *get_symbol_name(GeanyDocument *doc, const TMTag *tag, gboolean found_parent)
+static const gchar *get_symbol_name(GeanyDocument *doc, const CtmTag *tag, gboolean found_parent)
 {
 	gchar *utf8_name;
-	const gchar *scope = tag->atts.entry.scope;
+	const gchar *scope = tag->scope;
 	static GString *buffer = NULL;	/* buffer will be small so we can keep it for reuse */
 	gboolean doc_is_utf8 = FALSE;
 
@@ -1055,13 +993,13 @@ static const gchar *get_symbol_name(GeanyDocument *doc, const TMTag *tag, gboole
 	if (! doc_is_utf8)
 		g_free(utf8_name);
 
-	g_string_append_printf(buffer, " [%lu]", tag->atts.entry.line);
+	g_string_append_printf(buffer, " [%lu]", tag->line);
 
 	return buffer->str;
 }
 
 
-static gchar *get_symbol_tooltip(GeanyDocument *doc, const TMTag *tag)
+static gchar *get_symbol_tooltip(GeanyDocument *doc, const CtmTag *tag)
 {
 	gchar *utf8_name = editor_get_calltip_text(doc->editor, tag);
 
@@ -1083,9 +1021,9 @@ static gchar *get_symbol_tooltip(GeanyDocument *doc, const TMTag *tag)
 
 
 /* find the last word in "foo::bar::blah", e.g. "blah" */
-static const gchar *get_parent_name(const TMTag *tag, filetype_id ft_id)
+static const gchar *get_parent_name(const CtmTag *tag, filetype_id ft_id)
 {
-	const gchar *scope = tag->atts.entry.scope;
+	const gchar *scope = tag->scope;
 	const gchar *separator = symbols_get_context_separator(ft_id);
 	const gchar *str, *ptr;
 
@@ -1109,58 +1047,58 @@ static const gchar *get_parent_name(const TMTag *tag, filetype_id ft_id)
 }
 
 
-static GtkTreeIter *get_tag_type_iter(TMTagType tag_type, filetype_id ft_id)
+static GtkTreeIter *get_tag_type_iter(CtmTagType tag_type, filetype_id ft_id)
 {
 	GtkTreeIter *iter = NULL;
 
 	switch (tag_type)
 	{
-		case tm_tag_prototype_t:
-		case tm_tag_method_t:
-		case tm_tag_function_t:
+		case CTM_TAG_TYPE_PROTOTYPE:
+		case CTM_TAG_TYPE_METHOD:
+		case CTM_TAG_TYPE_FUNCTION:
 		{
 			iter = &tv_iters.tag_function;
 			break;
 		}
-		case tm_tag_macro_t:
-		case tm_tag_macro_with_arg_t:
+		case CTM_TAG_TYPE_MACRO:
+		case CTM_TAG_TYPE_MACRO_WITH_ARG:
 		{
 			iter = &tv_iters.tag_macro;
 			break;
 		}
-		case tm_tag_class_t:
+		case CTM_TAG_TYPE_CLASS:
 		{
 			iter = &tv_iters.tag_class;
 			break;
 		}
-		case tm_tag_member_t:
-		case tm_tag_field_t:
+		case CTM_TAG_TYPE_MEMBER:
+		case CTM_TAG_TYPE_FIELD:
 		{
 			iter = &tv_iters.tag_member;
 			break;
 		}
-		case tm_tag_typedef_t:
-		case tm_tag_enum_t:
+		case CTM_TAG_TYPE_TYPEDEF:
+		case CTM_TAG_TYPE_ENUM:
 		{
 			iter = &tv_iters.tag_type;
 			break;
 		}
-		case tm_tag_union_t:
-		case tm_tag_struct_t:
+		case CTM_TAG_TYPE_UNION:
+		case CTM_TAG_TYPE_STRUCT:
 		{
 			iter = &tv_iters.tag_struct;
 			break;
 		}
-		case tm_tag_interface_t:
+		case CTM_TAG_TYPE_INTERFACE:
 			iter = &tv_iters.tag_interface;
 			break;
-		case tm_tag_variable_t:
+		case CTM_TAG_TYPE_VARIABLE:
 		{
 			iter = &tv_iters.tag_variable;
 			break;
 		}
-		case tm_tag_namespace_t:
-		case tm_tag_package_t:
+		case CTM_TAG_TYPE_NAMESPACE:
+		case CTM_TAG_TYPE_PACKAGE:
 		{
 			iter = &tv_iters.tag_namespace;
 			break;
@@ -1194,35 +1132,35 @@ static GdkPixbuf *get_child_icon(GtkTreeStore *tree_store, GtkTreeIter *parent)
 
 static gboolean tag_equal(gconstpointer v1, gconstpointer v2)
 {
-	const TMTag *t1 = v1;
-	const TMTag *t2 = v2;
+	const CtmTag *t1 = v1;
+	const CtmTag *t2 = v2;
 
 	return (t1->type == t2->type && strcmp(t1->name, t2->name) == 0 &&
-			utils_str_equal(t1->atts.entry.scope, t2->atts.entry.scope) &&
+			utils_str_equal(t1->scope, t2->scope) &&
 			/* include arglist in match to support e.g. C++ overloading */
-			utils_str_equal(t1->atts.entry.arglist, t2->atts.entry.arglist));
+			utils_str_equal(t1->arglist, t2->arglist));
 }
 
 
 /* inspired from g_str_hash() */
 static guint tag_hash(gconstpointer v)
 {
-	const TMTag *tag = v;
+	const CtmTag *tag = v;
 	const gchar *p;
 	guint32 h = 5381;
 
 	h = (h << 5) + h + tag->type;
 	for (p = tag->name; *p != '\0'; p++)
 		h = (h << 5) + h + *p;
-	if (tag->atts.entry.scope)
+	if (tag->scope)
 	{
-		for (p = tag->atts.entry.scope; *p != '\0'; p++)
+		for (p = tag->scope; *p != '\0'; p++)
 			h = (h << 5) + h + *p;
 	}
 	/* for e.g. C++ overloading */
-	if (tag->atts.entry.arglist)
+	if (tag->arglist)
 	{
-		for (p = tag->atts.entry.arglist; *p != '\0'; p++)
+		for (p = tag->arglist; *p != '\0'; p++)
 			h = (h << 5) + h + *p;
 	}
 
@@ -1263,7 +1201,7 @@ static gboolean tree_store_remove_row(GtkTreeStore *store, GtkTreeIter *iter)
 
 /* adds a new element in the parent table if it's key is known.
  * duplicates are kept */
-static void update_parents_table(GHashTable *table, const TMTag *tag, const gchar *parent_name,
+static void update_parents_table(GHashTable *table, const CtmTag *tag, const gchar *parent_name,
 		const GtkTreeIter *iter)
 {
 	GList **list;
@@ -1300,8 +1238,8 @@ static void free_iter_slice_list(gpointer data)
  * previous data is not overwritten if the key is duplicated, but rather the
  * two values are kept in a list
  *
- * table is: GHashTable<TMTag, GList<GList<TMTag>>> */
-static void tags_table_insert(GHashTable *table, TMTag *tag, GList *data)
+ * table is: GHashTable<CtmTag, GList<GList<CtmTag>>> */
+static void tags_table_insert(GHashTable *table, CtmTag *tag, GList *data)
 {
 	GList *list = g_hash_table_lookup(table, tag);
 	list = g_list_prepend(list, data);
@@ -1311,7 +1249,7 @@ static void tags_table_insert(GHashTable *table, TMTag *tag, GList *data)
 
 /* looks up the entry in @table that better matches @tag.
  * if there are more than one candidate, the one that has closest line position to @tag is chosen */
-static GList *tags_table_lookup(GHashTable *table, TMTag *tag)
+static GList *tags_table_lookup(GHashTable *table, CtmTag *tag)
 {
 	GList *data = NULL;
 	GList *node = g_hash_table_lookup(table, tag);
@@ -1320,7 +1258,7 @@ static GList *tags_table_lookup(GHashTable *table, TMTag *tag)
 		glong delta;
 		data = node->data;
 
-#define TAG_DELTA(a, b) ABS((glong) TM_TAG(a)->atts.entry.line - (glong) TM_TAG(b)->atts.entry.line)
+#define TAG_DELTA(a, b) ABS((glong) CTM_TAG(a)->line - (glong) CTM_TAG(b)->line)
 
 		delta = TAG_DELTA(((GList *) node->data)->data, tag);
 		for (node = node->next; node; node = node->next)
@@ -1343,7 +1281,7 @@ static GList *tags_table_lookup(GHashTable *table, TMTag *tag)
 
 /* removes the element at @tag from @table.
  * @tag must be the exact pointer used at insertion time */
-static void tags_table_remove(GHashTable *table, TMTag *tag)
+static void tags_table_remove(GHashTable *table, CtmTag *tag)
 {
 	GList *list = g_hash_table_lookup(table, tag);
 	if (list)
@@ -1394,11 +1332,11 @@ static void update_tree_tags(GeanyDocument *doc, GList **tags)
 	/* Build hash tables holding tags and parents */
 	/* parent table holds "tag-name":GtkTreeIter */
 	parents_table = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, free_iter_slice_list);
-	/* tags table is another representation of the @tags list, TMTag:GList<TMTag> */
+	/* tags table is another representation of the @tags list, CtmTag:GList<CtmTag> */
 	tags_table = g_hash_table_new_full(tag_hash, tag_equal, NULL, NULL);
 	foreach_list(item, *tags)
 	{
-		TMTag *tag = item->data;
+		CtmTag *tag = item->data;
 		const gchar *name;
 
 		tags_table_insert(tags_table, tag, item);
@@ -1415,7 +1353,7 @@ static void update_tree_tags(GeanyDocument *doc, GList **tags)
 	cont = gtk_tree_model_get_iter_first(model, &iter);
 	while (cont)
 	{
-		TMTag *tag;
+		CtmTag *tag;
 
 		gtk_tree_model_get(model, &iter, SYMBOLS_COLUMN_TAG, &tag, -1);
 		if (! tag) /* most probably a toplevel, skip it */
@@ -1431,7 +1369,7 @@ static void update_tree_tags(GeanyDocument *doc, GList **tags)
 			{
 				const gchar *name;
 				const gchar *parent_name;
-				TMTag *found = found_item->data;
+				CtmTag *found = found_item->data;
 
 				parent_name = get_parent_name(found, doc->file_type->id);
 				/* if parent is unknown, ignore it */
@@ -1451,11 +1389,12 @@ static void update_tree_tags(GeanyDocument *doc, GList **tags)
 				/* remove the updated tag from the table and list */
 				tags_table_remove(tags_table, found);
 				*tags = g_list_delete_link(*tags, found_item);
+				ctm_tag_unref(found);
 
 				cont = next_iter(model, &iter, TRUE);
 			}
 
-			tm_tag_unref(tag);
+			ctm_tag_unref(tag);
 		}
 	}
 
@@ -1463,7 +1402,7 @@ static void update_tree_tags(GeanyDocument *doc, GList **tags)
 	 * we simply add new ones */
 	foreach_list (item, *tags)
 	{
-		TMTag *tag = item->data;
+		CtmTag *tag = item->data;
 		GtkTreeIter *parent;
 
 		parent = get_tag_type_iter(tag->type, doc->file_type->id);
@@ -1493,13 +1432,13 @@ static void update_tree_tags(GeanyDocument *doc, GList **tags)
 					glong delta = G_MAXLONG;
 					foreach_list(node, *candidates)
 					{
-						TMTag *parent_tag;
+						CtmTag *parent_tag;
 						glong  d;
 
 						gtk_tree_model_get(GTK_TREE_MODEL(store), node->data,
 								SYMBOLS_COLUMN_TAG, &parent_tag, -1);
 
-						d = tag->atts.entry.line - parent_tag->atts.entry.line;
+						d = tag->line - parent_tag->line;
 						if (! parent_search || (d >= 0 && d < delta))
 						{
 							delta = d;
@@ -1568,12 +1507,11 @@ static gint compare_top_level_names(const gchar *a, const gchar *b)
 }
 
 
-static gboolean tag_has_missing_parent(const TMTag *tag, GtkTreeStore *store,
+static gboolean tag_has_missing_parent(const CtmTag *tag, GtkTreeStore *store,
 		GtkTreeIter *iter)
 {
 	/* if the tag has a parent tag, it should be at depth >= 2 */
-	return NZV(tag->atts.entry.scope) &&
-		gtk_tree_store_iter_depth(store, iter) == 1;
+	return NZV(tag->scope) && gtk_tree_store_iter_depth(store, iter) == 1;
 }
 
 
@@ -1581,7 +1519,7 @@ static gint tree_sort_func(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b,
 		gpointer user_data)
 {
 	gboolean sort_by_name = GPOINTER_TO_INT(user_data);
-	TMTag *tag_a, *tag_b;
+	CtmTag *tag_a, *tag_b;
 	gint cmp;
 
 	gtk_tree_model_get(model, a, SYMBOLS_COLUMN_TAG, &tag_a, -1);
@@ -1622,15 +1560,15 @@ static gint tree_sort_func(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b,
 				if (tag_a && tag_b)
 					if (!sort_by_name ||
 						(utils_str_equal(tag_a->name, tag_b->name) &&
-							utils_str_equal(tag_a->atts.entry.scope, tag_b->atts.entry.scope)))
+							utils_str_equal(tag_a->scope, tag_b->scope)))
 						cmp = compare_symbol_lines(tag_a, tag_b);
 			}
 		}
 		g_free(astr);
 		g_free(bstr);
 	}
-	tm_tag_unref(tag_a);
-	tm_tag_unref(tag_b);
+	ctm_tag_unref(tag_a);
+	ctm_tag_unref(tag_b);
 
 	return cmp;
 }
@@ -1651,7 +1589,8 @@ gboolean symbols_recreate_tag_list(GeanyDocument *doc, gint sort_mode)
 
 	g_return_val_if_fail(doc != NULL, FALSE);
 
-	tags = get_tag_list(doc, tm_tag_max_t);
+	tags = ctm_data_backend_find(doc->ctm_file->backend, 0, CTM_DATA_BACKEND_SORT_DIR_ASC,
+		compare_symbol_lines, ctm_tag_match_all, NULL);
 	if (tags == NULL)
 		return FALSE;
 
@@ -1665,7 +1604,7 @@ gboolean symbols_recreate_tag_list(GeanyDocument *doc, gint sort_mode)
 	add_top_level_items(doc);
 
 	update_tree_tags(doc, &tags);
-	g_list_free(tags);
+	g_list_free_full(tags, (GDestroyNotify) ctm_tag_unref);
 
 	hide_empty_rows(doc->priv->tag_store);
 
@@ -1740,9 +1679,11 @@ int symbols_generate_global_tags(int argc, char **argv, gboolean want_preprocess
 			command = NULL;	/* don't preprocess */
 
 		geany_debug("Generating %s tags file.", ft->name);
+#if 0 /* FIXME: */
 		tm_get_workspace();
 		status = tm_workspace_create_global_tags(command, (const char **) (argv + 2),
 												 argc - 2, tags_file, ft->lang);
+#endif
 		g_free(command);
 		symbols_finalize(); /* free c_tags_ignore data */
 		if (! status)
@@ -1901,32 +1842,41 @@ static void load_user_tags(filetype_id ft_id)
 
 static gboolean goto_tag(const gchar *name, gboolean definition)
 {
-	const gint forward_types = tm_tag_prototype_t | tm_tag_externvar_t;
+	const gint forward_types = CTM_TAG_TYPE_PROTOTYPE | CTM_TAG_TYPE_EXTERNVAR;
 	guint type;
-	TMTag *tmtag = NULL;
+	GList *tags, *item;
+	CtmTag *tag = NULL;
 	GeanyDocument *old_doc = document_get_current();
 
 	/* goto tag definition: all except prototypes / forward declarations / externs */
-	type = (definition) ? tm_tag_max_t - forward_types : forward_types;
+	type = (definition) ? CTM_TAG_TYPE_ANY - forward_types : forward_types;
 
-	/* first look in the current document */
-	if (old_doc != NULL && old_doc->tm_file)
-		tmtag = find_work_object_tag(old_doc->tm_file, name, type);
-
-	/* if not found, look in the workspace */
-	if (tmtag == NULL)
-		tmtag = find_workspace_tag(name, type);
-
-	if (tmtag != NULL)
+	tags = ctm_workspace_find(app->ctm_workspace, old_doc ? old_doc->ctm_file : NULL, TRUE,
+		0, /* we could use 1 if we could filter by type too */
+		CTM_DATA_BACKEND_SORT_DIR_ASC,
+		ctm_tag_cmp_name, ctm_tag_match_name, (gpointer) name);
+	/* FIXME: filtering the type should be done straight in the find call */
+	foreach_list (item, tags)
 	{
-		GeanyDocument *new_doc = document_find_by_real_path(
-			tmtag->atts.entry.file->work_object.file_name);
+		if (CTM_TAG(item->data)->type & type)
+		{
+			 /* FIXME: we don't ref here and rely on the fact the backend keeps
+			  * the tag alive since we unref all @tags content below */
+			tag = item->data;
+			break;
+		}
+	}
+	g_list_free_full(tags, (GDestroyNotify) ctm_tag_unref);
+
+	if (tag != NULL)
+	{
+		GeanyDocument *new_doc = document_find_by_real_path(tag->file->name);
 
 		if (new_doc)
 		{
 			/* If we are already on the tag line, swap definition/declaration */
 			if (new_doc == old_doc &&
-				tmtag->atts.entry.line == (guint)sci_get_current_line(old_doc->editor->sci) + 1)
+				tag->line == (guint)sci_get_current_line(old_doc->editor->sci) + 1)
 			{
 				if (goto_tag(name, !definition))
 					return TRUE;
@@ -1935,10 +1885,10 @@ static gboolean goto_tag(const gchar *name, gboolean definition)
 		else
 		{
 			/* not found in opened document, should open */
-			new_doc = document_open_file(tmtag->atts.entry.file->work_object.file_name, FALSE, NULL, NULL);
+			new_doc = document_open_file(tag->file->name, FALSE, NULL, NULL);
 		}
 
-		if (navqueue_goto_line(old_doc, new_doc, tmtag->atts.entry.line))
+		if (navqueue_goto_line(old_doc, new_doc, tag->line))
 			return TRUE;
 	}
 	return FALSE;
@@ -2099,7 +2049,7 @@ gint symbols_get_current_function(GeanyDocument *doc, const gchar **tagname)
 	static gchar *cur_tag = NULL;
 	gint line;
 	gint fold_level;
-	TMWorkObject *tm_file;
+	CtmSourceFile *ctm_file;
 
 	if (doc == NULL)	/* reset current function */
 	{
@@ -2131,20 +2081,19 @@ gint symbols_get_current_function(GeanyDocument *doc, const gchar **tagname)
 		tag_line = -1;
 		return tag_line;
 	}
-	tm_file = doc->tm_file;
+	ctm_file = doc->ctm_file;
 
 	/* if the document has no changes, get the previous function name from TM */
-	if (! doc->changed && tm_file != NULL && tm_file->tags_array != NULL)
+	if (! doc->changed && ctm_file != NULL)
 	{
-		const TMTag *tag = (const TMTag*) tm_get_current_function(tm_file->tags_array, line);
+		CtmTag *tag = ctm_completion_get_function_at_line(ctm_file, line);
 
 		if (tag != NULL)
 		{
-			gchar *tmp;
-			tmp = tag->atts.entry.scope;
-			cur_tag = tmp ? g_strconcat(tmp, "::", tag->name, NULL) : g_strdup(tag->name);
+			cur_tag = tag->scope ? g_strconcat(tag->scope, "::", tag->name, NULL) : g_strdup(tag->name);
 			*tagname = cur_tag;
-			tag_line = tag->atts.entry.line;
+			tag_line = tag->line;
+			ctm_tag_unref(tag);
 			return tag_line;
 		}
 	}

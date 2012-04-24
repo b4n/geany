@@ -48,6 +48,8 @@
 /*#define USE_GIO_FILEMON 1*/
 #include <gio/gio.h>
 
+#include "ctm-parse.h"
+
 #include "document.h"
 #include "documentprivate.h"
 #include "filetypes.h"
@@ -603,7 +605,7 @@ static gboolean remove_page(guint page_num)
 	g_free(doc->priv->saved_encoding.encoding);
 	g_free(doc->file_name);
 	g_free(doc->real_path);
-	tm_workspace_remove_object(doc->tm_file, TRUE, TRUE);
+	ctm_workspace_remove(ctm_workspace_get_default(), doc->ctm_file);
 
 	editor_destroy(doc->editor);
 	doc->editor = NULL; /* needs to be NULL for document_undo_clear() call below */
@@ -2221,7 +2223,7 @@ void document_update_tags(GeanyDocument *doc)
 	gsize len;
 
 	g_return_if_fail(DOC_VALID(doc));
-	g_return_if_fail(app->tm_workspace != NULL);
+	g_return_if_fail(app->ctm_workspace != NULL);
 
 	/* early out if it's a new file or doesn't support tags */
 	if (! doc->file_name || ! doc->file_type || !filetype_has_tags(doc->file_type))
@@ -2233,48 +2235,22 @@ void document_update_tags(GeanyDocument *doc)
 		return;
 	}
 
-	/* create a new TM file if there isn't one yet */
-	if (! doc->tm_file)
+	/* create a new CTM file if there isn't one yet */
+	if (! doc->ctm_file)
 	{
 		gchar *locale_filename = utils_get_locale_from_utf8(doc->file_name);
-		const gchar *name;
 
-		/* lookup the name rather than using filetype name to support custom filetypes */
-		name = tm_source_file_get_lang_name(doc->file_type->lang);
-		doc->tm_file = tm_source_file_new(locale_filename, FALSE, name);
+		doc->ctm_file = ctm_source_file_new(locale_filename, doc->file_type->lang);
 		g_free(locale_filename);
-
-		if (doc->tm_file && !tm_workspace_add_object(doc->tm_file))
-		{
-			tm_work_object_free(doc->tm_file);
-			doc->tm_file = NULL;
-		}
-	}
-
-	/* early out if there's no work object and we couldn't create one */
-	if (doc->tm_file == NULL)
-	{
-		/* We must call sidebar_update_tag_list() before returning,
-		 * to ensure that the symbol list is always updated properly (e.g.
-		 * when creating a new document with a partial filename set. */
-		sidebar_update_tag_list(doc, FALSE);
-		return;
+		ctm_workspace_add(ctm_workspace_get_default(), doc->ctm_file);
 	}
 
 	len = sci_get_length(doc->editor->sci);
-	/* tm_source_file_buffer_update() below don't support 0-length data,
-	 * so just empty the tags array and leave */
-	if (len < 1)
-	{
-		tm_tags_array_free(doc->tm_file->tags_array, FALSE);
-		sidebar_update_tag_list(doc, FALSE);
-		return;
-	}
-
 	/* Parse Scintilla's buffer directly using TagManager
 	 * Note: this buffer *MUST NOT* be modified */
 	buffer_ptr = (guchar *) scintilla_send_message(doc->editor->sci, SCI_GETCHARACTERPOINTER, 0, 0);
-	tm_source_file_buffer_update(doc->tm_file, buffer_ptr, len, TRUE);
+	/* FIXME: parse using _async() */
+	ctm_parser_parse_sync(doc->ctm_file, buffer_ptr, len);
 
 	sidebar_update_tag_list(doc, TRUE);
 	document_highlight_tags(doc);
@@ -2312,13 +2288,13 @@ void document_highlight_tags(GeanyDocument *doc)
 		default:
 			return; /* early out if type keywords are not supported */
 	}
-	if (!app->tm_workspace->work_object.tags_array)
-		return;
+	/*if (!app->tm_workspace->work_object.tags_array)
+		return;*/
 
 	/* get any type keywords and tell scintilla about them
 	 * this will cause the type keywords to be colourized in scintilla */
-	keywords_str = symbols_find_tags_as_string(app->tm_workspace->work_object.tags_array,
-		TM_GLOBAL_TYPE_MASK, doc->file_type->lang);
+	keywords_str = symbols_find_tags_as_string(app->ctm_workspace->tags,
+		CTM_GLOBAL_TYPE_MASK, doc->file_type->lang);
 	if (keywords_str)
 	{
 		keywords = g_string_free(keywords_str, FALSE);
@@ -2372,10 +2348,10 @@ static void document_load_config(GeanyDocument *doc, GeanyFiletype *type,
 		doc->file_type = type;
 
 		/* delete tm file object to force creation of a new one */
-		if (doc->tm_file != NULL)
+		if (doc->ctm_file != NULL)
 		{
-			tm_workspace_remove_object(doc->tm_file, TRUE, TRUE);
-			doc->tm_file = NULL;
+			ctm_workspace_remove(ctm_workspace_get_default(), doc->ctm_file);
+			doc->ctm_file = NULL;
 		}
 		/* load tags files before highlighting (some lexers highlight global typenames) */
 		if (type->id != GEANY_FILETYPES_NONE)

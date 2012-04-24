@@ -36,6 +36,9 @@ G_BEGIN_DECLS
 #define NZV(ptr) \
 	((ptr) && (ptr)[0])
 
+/* Evaluates to X is X is defined, else evaluates to Y */
+#define NVL(X,Y) (X)?(X):(Y)
+
 /** Assigns @a result to @a ptr, then frees the old value.
  * @a result can be an expression using the 'old' value of @a ptr.
  * E.g. @code SETPTR(str, g_strndup(str, 5)); @endcode
@@ -276,6 +279,8 @@ gchar *utils_str_middle_truncate(const gchar *string, guint truncate_length);
 gchar *utils_str_remove_chars(gchar *string, const gchar *chars);
 
 gchar **utils_copy_environment(const gchar **exclude_vars, const gchar *first_varname, ...) G_GNUC_NULL_TERMINATED;
+
+gchar *tm_get_real_path(const gchar *file_name);
 
 G_END_DECLS
 

@@ -40,6 +40,8 @@
 /* gstdio.h also includes sys/stat.h */
 #include <glib/gstdio.h>
 
+#include "ctm-source-file.h"
+
 #include "dialogs.h"
 
 #include "callbacks.h"
@@ -514,8 +516,7 @@ static gboolean handle_save_as(const gchar *utf8_filename, gboolean open_new_tab
 				document_rename_file(doc, utf8_filename);
 			}
 			/* create a new tm_source_file object otherwise tagmanager won't work correctly */
-			tm_workspace_remove_object(doc->tm_file, TRUE, TRUE);
-			doc->tm_file = NULL;
+			ctm_source_file_set_name(doc->ctm_file, doc->file_name);
 		}
 		success = document_save_file_as(doc, utf8_filename);
 

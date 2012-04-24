@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = tagmanager scintilla src plugins icons po doc
+SUBDIRS = ctagsmanager scintilla src plugins icons po doc
 
 AUTOMAKE_OPTIONS =	1.7
 

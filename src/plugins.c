@@ -289,12 +289,14 @@ static KeybindingFuncs keybindings_funcs = {
 };
 
 static TagManagerFuncs tagmanager_funcs = {
+#if 0
 	&tm_get_real_path,
 	&tm_source_file_new,
 	&tm_workspace_add_object,
 	&tm_source_file_update,
 	&tm_work_object_free,
 	&tm_workspace_remove_object
+#endif
 };
 
 static SearchFuncs search_funcs = {

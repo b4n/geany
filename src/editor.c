@@ -39,6 +39,8 @@
 
 #include <gdk/gdkkeysyms.h>
 
+#include "ctm-completion.h"
+
 #include "SciLexer.h"
 #include "geany.h"
 
@@ -609,25 +611,25 @@ static void show_autocomplete(ScintillaObject *sci, gsize rootlen, GString *word
 }
 
 
-static void show_tags_list(GeanyEditor *editor, const GPtrArray *tags, gsize rootlen)
+static void show_tags_list(GeanyEditor *editor, const GList *tags, gsize rootlen)
 {
 	ScintillaObject *sci = editor->sci;
 
-	g_return_if_fail(tags);
-
-	if (tags->len > 0)
+	if (tags)
 	{
 		GString *words = g_string_sized_new(150);
-		guint j;
+		const GList *item;
+		guint n = 0;
 
-		for (j = 0; j < tags->len; ++j)
+		foreach_list(item, tags)
 		{
-			TMTag *tag = tags->pdata[j];
+			CtmTag *tag = item->data;
 
-			if (j > 0)
+			if (n > 0)
 				g_string_append_c(words, '\n');
 
-			if (j == editor_prefs.autocompletion_max_entries)
+			/* FIXME: maybe limit could be checked at tag find time for perf? */
+			if (n == editor_prefs.autocompletion_max_entries)
 			{
 				g_string_append(words, "...");
 				break;
@@ -635,10 +637,12 @@ static void show_tags_list(GeanyEditor *editor, const GPtrArray *tags, gsize roo
 			g_string_append(words, tag->name);
 
 			/* for now, tag types don't all follow C, so just look at arglist */
-			if (NZV(tag->atts.entry.arglist))
+			if (NZV(tag->arglist))
 				g_string_append(words, "?2");
 			else
 				g_string_append(words, "?1");
+
+			n++;
 		}
 		show_autocomplete(sci, rootlen, words);
 		g_string_free(words, TRUE);
@@ -696,8 +700,7 @@ static void autocomplete_scope(GeanyEditor *editor)
 	gint pos = sci_get_current_position(editor->sci);
 	gchar typed = sci_get_char_at(sci, pos - 1);
 	gchar *name;
-	const GPtrArray *tags = NULL;
-	const TMTag *tag;
+	GList *tags = NULL;
 	GeanyFiletype *ft = editor->document->file_type;
 
 	if (ft->id == GEANY_FILETYPES_C || ft->id == GEANY_FILETYPES_CPP)
@@ -717,21 +720,13 @@ static void autocomplete_scope(GeanyEditor *editor)
 	if (!name)
 		return;
 
-	tags = tm_workspace_find(name, tm_tag_max_t, NULL, FALSE, ft->lang);
+	tags = ctm_completion_get_scope_completions(editor->document->ctm_file, name);
 	g_free(name);
-	if (!tags || tags->len == 0)
-		return;
 
-	tag = g_ptr_array_index(tags, 0);
-	name = tag->atts.entry.var_type;
-	if (name)
+	if (tags)
 	{
-		TMWorkObject *obj = editor->document->tm_file;
-
-		tags = tm_workspace_find_scope_members(obj ? obj->tags_array : NULL,
-			name, TRUE, FALSE);
-		if (tags)
-			show_tags_list(editor, tags, 0);
+		show_tags_list(editor, tags, 0);
+		g_list_free_full(tags, (GDestroyNotify) ctm_tag_unref);
 	}
 }
 
@@ -1770,45 +1765,46 @@ static gint find_start_bracket(ScintillaObject *sci, gint pos)
 }
 
 
-static gboolean append_calltip(GString *str, const TMTag *tag, filetype_id ft_id)
+static gboolean append_calltip(GString *str, const CtmTag *tag, filetype_id ft_id)
 {
-	if (! tag->atts.entry.arglist)
+	if (! tag->arglist)
 		return FALSE;
 
 	if (ft_id != GEANY_FILETYPES_PASCAL)
 	{	/* usual calltips: "retval tagname (arglist)" */
-		if (tag->atts.entry.var_type)
+		if (tag->var_type)
 		{
 			guint i;
 
-			g_string_append(str, tag->atts.entry.var_type);
+			g_string_append(str, tag->var_type);
+			/* FIXME: implement this with Ctm?
 			for (i = 0; i < tag->atts.entry.pointerOrder; i++)
 			{
 				g_string_append_c(str, '*');
-			}
+			}*/
 			g_string_append_c(str, ' ');
 		}
-		if (tag->atts.entry.scope)
+		if (tag->scope)
 		{
 			const gchar *cosep = symbols_get_context_separator(ft_id);
 
-			g_string_append(str, tag->atts.entry.scope);
+			g_string_append(str, tag->scope);
 			g_string_append(str, cosep);
 		}
 		g_string_append(str, tag->name);
 		g_string_append_c(str, ' ');
-		g_string_append(str, tag->atts.entry.arglist);
+		g_string_append(str, tag->arglist);
 	}
 	else
 	{	/* special case Pascal calltips: "tagname (arglist) : retval" */
 		g_string_append(str, tag->name);
 		g_string_append_c(str, ' ');
-		g_string_append(str, tag->atts.entry.arglist);
+		g_string_append(str, tag->arglist);
 
-		if (NZV(tag->atts.entry.var_type))
+		if (NZV(tag->var_type))
 		{
 			g_string_append(str, " : ");
-			g_string_append(str, tag->atts.entry.var_type);
+			g_string_append(str, tag->var_type);
 		}
 	}
 
@@ -1816,52 +1812,68 @@ static gboolean append_calltip(GString *str, const TMTag *tag, filetype_id ft_id
 }
 
 
+#if 0
+static gint tag_cmp_name_with_arglist(const CtmTag *a, const CtmTag *b)
+{
+	gint cmp;
+
+	if (! a->arglist || ! b->arglist)
+		cmp = a->arglist - b->arglist;
+	else
+	{
+		/* sort by: name, scope, arglist */
+		if ((cmp = ctm_tag_cmp_name(a, b)) == 0 &&
+			(cmp = g_strcmp0(a->scope, b->scope)) == 0)
+			cmp = strcmp(a->arglist, b->arglist);
+	}
+
+	return cmp;
+}
+
+
+static gint tag_match_name_with_arglist(const CtmTag *a, gpointer name)
+{
+	if (a->arglist)
+		return ctm_tag_match_name(a, name);
+	else
+		return 1;
+}
+#endif
+
+
 static gchar *find_calltip(const gchar *word, GeanyFiletype *ft)
 {
-	const GPtrArray *tags;
-	const gint arg_types = tm_tag_function_t | tm_tag_prototype_t |
-		tm_tag_method_t | tm_tag_macro_with_arg_t;
-	TMTagAttrType *attrs = NULL;
-	TMTag *tag;
+	GList *tags, *item;
+	CtmTag *tag;
 	GString *str = NULL;
 	guint i;
 
 	g_return_val_if_fail(ft && word && *word, NULL);
 
 	/* use all types in case language uses wrong tag type e.g. python "members" instead of "methods" */
-	tags = tm_workspace_find(word, tm_tag_max_t, attrs, FALSE, ft->lang);
-	if (tags->len == 0)
+	/*tags = tm_workspace_find(word, tm_tag_max_t, attrs, FALSE, ft->lang);*/
+	tags = ctm_completion_get_methods(NULL, ft->lang, word, FALSE);
+	/* FIXME: remove duplicates */
+	if (! tags)
+	{
+		g_debug ("no calltip found");
 		return NULL;
+	}
 
-	tag = TM_TAG(tags->pdata[0]);
+	tag = tags->data;
 
 	if (ft->id == GEANY_FILETYPES_D &&
-		(tag->type == tm_tag_class_t || tag->type == tm_tag_struct_t))
+		(tag->type & (CTM_TAG_TYPE_CLASS | CTM_TAG_TYPE_STRUCT)))
 	{
 		/* user typed e.g. 'new Classname(' so lookup D constructor Classname::this() */
-		tags = tm_workspace_find_scoped("this", tag->name,
-			arg_types, attrs, FALSE, ft->lang, TRUE);
-		if (tags->len == 0)
+		ctm_tag_ref(tag);
+		g_list_free_full(tags, (GDestroyNotify) ctm_tag_unref);
+
+		tags = ctm_completion_get_scoped_methods (tag->file, tag->file->lang,
+												  tag->name, "this", FALSE);
+		ctm_tag_unref(tag);
+		if (! tags)
 			return NULL;
-	}
-
-	/* remove tags with no argument list */
-	for (i = 0; i < tags->len; i++)
-	{
-		tag = TM_TAG(tags->pdata[i]);
-
-		if (! tag->atts.entry.arglist)
-			tags->pdata[i] = NULL;
-	}
-	tm_tags_prune((GPtrArray *) tags);
-	if (tags->len == 0)
-		return NULL;
-	else
-	{	/* remove duplicate calltips */
-		TMTagAttrType sort_attr[] = {tm_tag_attr_name_t, tm_tag_attr_scope_t,
-			tm_tag_attr_arglist_t, 0};
-
-		tm_tags_sort((GPtrArray *) tags, sort_attr, TRUE);
 	}
 
 	/* if the current word has changed since last time, start with the first tag match */
@@ -1870,18 +1882,20 @@ static gchar *find_calltip(const gchar *word, GeanyFiletype *ft)
 	/* cache the current word for next time */
 	g_free(calltip.last_word);
 	calltip.last_word = g_strdup(word);
-	calltip.tag_index = MIN(calltip.tag_index, tags->len - 1);	/* ensure tag_index is in range */
 
-	for (i = calltip.tag_index; i < tags->len; i++)
+	i = 0;
+	foreach_list(item, tags)
 	{
-		tag = TM_TAG(tags->pdata[i]);
+		/* don't add anything before tag_index unless we actually have less tags than that */
+		if (i++ < calltip.tag_index && item->next)
+			continue;
 
 		if (str == NULL)
 		{
 			str = g_string_new(NULL);
 			if (calltip.tag_index > 0)
 				g_string_prepend(str, "\001 ");	/* up arrow */
-			append_calltip(str, tag, FILETYPE_ID(ft));
+			append_calltip(str, item->data, FILETYPE_ID(ft));
 		}
 		else /* add a down arrow */
 		{
@@ -1892,13 +1906,10 @@ static gchar *find_calltip(const gchar *word, GeanyFiletype *ft)
 			break;
 		}
 	}
+	g_list_foreach(tags, (GFunc) ctm_tag_unref, NULL);
+	g_list_free(tags);
 	if (str)
-	{
-		gchar *result = str->str;
-
-		g_string_free(str, FALSE);
-		return result;
-	}
+		return g_string_free(str, FALSE);
 	return NULL;
 }
 
@@ -1958,7 +1969,7 @@ gboolean editor_show_calltip(GeanyEditor *editor, gint pos)
 }
 
 
-gchar *editor_get_calltip_text(GeanyEditor *editor, const TMTag *tag)
+gchar *editor_get_calltip_text(GeanyEditor *editor, const CtmTag *tag)
 {
 	GString *str;
 
@@ -2013,19 +2024,19 @@ autocomplete_html(ScintillaObject *sci, const gchar *root, gsize rootlen)
 static gboolean
 autocomplete_tags(GeanyEditor *editor, const gchar *root, gsize rootlen)
 {
-	TMTagAttrType attrs[] = { tm_tag_attr_name_t, 0 };
-	const GPtrArray *tags;
+	GList *tags;
 	GeanyDocument *doc;
 
 	g_return_val_if_fail(editor, FALSE);
 
 	doc = editor->document;
 
-	tags = tm_workspace_find(root, tm_tag_max_t, attrs, TRUE, doc->file_type->lang);
+	tags = ctm_completion_get_completions(doc->ctm_file, root);
 	if (tags)
 	{
 		show_tags_list(editor, tags, rootlen);
-		return tags->len > 0;
+		g_list_free_full(tags, (GDestroyNotify) ctm_tag_unref);
+		return TRUE;
 	}
 	return FALSE;
 }

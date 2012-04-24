@@ -27,6 +27,7 @@ G_BEGIN_DECLS
 
 #include "Scintilla.h"
 #include "ScintillaWidget.h"
+#include "ctm-tag.h"
 
 /** Default character set to define which characters should be treated as part of a word. */
 #define GEANY_WORDCHARS					"_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -307,7 +308,7 @@ void editor_set_indentation_guides(GeanyEditor *editor);
 
 void editor_apply_update_prefs(GeanyEditor *editor);
 
-gchar *editor_get_calltip_text(GeanyEditor *editor, const TMTag *tag);
+gchar *editor_get_calltip_text(GeanyEditor *editor, const CtmTag *tag);
 
 void editor_insert_text_block(GeanyEditor *editor, const gchar *text,
 	 						  gint insert_pos, gint cursor_index,

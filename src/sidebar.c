@@ -216,7 +216,7 @@ void sidebar_update_tag_list(GeanyDocument *doc, gboolean update)
 		if (doc->priv->tag_tree == NULL)
 		{
 			doc->priv->tag_store = gtk_tree_store_new(
-				SYMBOLS_N_COLUMNS, GDK_TYPE_PIXBUF, G_TYPE_STRING, TM_TYPE_TAG, G_TYPE_STRING);
+				SYMBOLS_N_COLUMNS, GDK_TYPE_PIXBUF, G_TYPE_STRING, CTM_TYPE_TAG, G_TYPE_STRING);
 			doc->priv->tag_tree = gtk_tree_view_new();
 			prepare_taglist(doc->priv->tag_tree, doc->priv->tag_store);
 			gtk_widget_show(doc->priv->tag_tree);
@@ -884,13 +884,13 @@ static gboolean taglist_go_to_selection(GtkTreeSelection *selection, guint keyva
 
 	if (gtk_tree_selection_get_selected(selection, &model, &iter))
 	{
-		TMTag *tag;
+		CtmTag *tag;
 
 		gtk_tree_model_get(model, &iter, SYMBOLS_COLUMN_TAG, &tag, -1);
 		if (! tag)
 			return FALSE;
 
-		line = tag->atts.entry.line;
+		line = tag->line;
 		if (line > 0)
 		{
 			GeanyDocument *doc = document_get_current();
@@ -902,7 +902,7 @@ static gboolean taglist_go_to_selection(GtkTreeSelection *selection, guint keyva
 					change_focus_to_editor(doc, NULL);
 			}
 		}
-		tm_tag_unref(tag);
+		ctm_tag_unref(tag);
 	}
 	return FALSE;
 }

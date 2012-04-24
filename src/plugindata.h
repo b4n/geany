@@ -588,6 +588,7 @@ SearchFuncs;
 /* See tagmanager/include */
 typedef struct TagManagerFuncs
 {
+#if 0
 	gchar*			(*tm_get_real_path) (const gchar *file_name);
 	TMWorkObject*	(*tm_source_file_new) (const char *file_name, gboolean update, const char *name);
 	gboolean		(*tm_workspace_add_object) (TMWorkObject *work_object);
@@ -595,6 +596,7 @@ typedef struct TagManagerFuncs
 					 gboolean recurse, gboolean update_parent);
 	void			(*tm_work_object_free) (gpointer work_object);
 	gboolean		(*tm_workspace_remove_object) (TMWorkObject *w, gboolean do_free, gboolean update);
+#endif
 }
 TagManagerFuncs;
 

@@ -1,0 +1,8 @@
+The source tree includes:
+
+ctags:
+	The CTags parsers
+src:
+	The library implementation
+src/backends:
+	The data (tags) storing backends

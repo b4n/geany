@@ -237,7 +237,7 @@ static void main_init(void)
 	file_prefs.tab_order_beside		= FALSE;
 	main_status.quitting			= FALSE;
 	ignore_callback	= FALSE;
-	app->tm_workspace		= tm_get_workspace();
+	app->ctm_workspace		= ctm_workspace_get_default();
 	ui_prefs.recent_queue				= g_queue_new();
 	ui_prefs.recent_projects_queue		= g_queue_new();
 	main_status.opening_session_files	= FALSE;
@@ -1196,7 +1196,7 @@ void main_quit()
 	ui_finalize();
 	log_finalize();
 
-	tm_workspace_free(TM_WORK_OBJECT(app->tm_workspace));
+	ctm_workspace_unref(app->ctm_workspace);
 	g_free(app->configdir);
 	g_free(app->datadir);
 	g_free(app->docdir);
