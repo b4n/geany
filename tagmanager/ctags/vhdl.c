@@ -191,15 +191,15 @@ typedef enum {
 } vhdlKind;
 
 static kindOption VhdlKinds[] = {
-	{TRUE, 'c', "constant", "constant declarations"},
-	{TRUE, 't', "type", "type definitions"},
-	{TRUE, 'T', "subtype", "subtype definitions"},
-	{TRUE, 'r', "record", "record names"},
-	{TRUE, 'e', "entity", "entity declarations"},
-	{FALSE, 'C', "component", "component declarations"},
+	{TRUE, 'c', "variable", "constant declarations"},
+	{TRUE, 't', "typedef", "type definitions"},
+	{TRUE, 'T', "typedef", "subtype definitions"},
+	{TRUE, 'r', "struct", "record names"},
+	{TRUE, 'e', "class", "entity declarations"},
+	{TRUE, 'C', "member", "component declarations"},
 	{FALSE, 'd', "prototype", "prototypes"},
 	{TRUE, 'f', "function", "function prototypes and declarations"},
-	{TRUE, 'p', "procedure", "procedure prototypes and declarations"},
+	{TRUE, 'p', "function", "procedure prototypes and declarations"},
 	{TRUE, 'P', "package", "package definitions"},
 	{FALSE, 'l', "local", "local definitions"}
 };

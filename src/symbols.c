@@ -851,7 +851,7 @@ static void add_top_level_items(GeanyDocument *doc)
 			tag_list_add_groups(tag_store,
 				&(tv_iters.tag_namespace), _("Package"), "classviewer-namespace",
 				&(tv_iters.tag_class), _("Entities"), "classviewer-class",
-				&(tv_iters.tag_struct), _("Architectures"), "classviewer-struct",
+				&(tv_iters.tag_struct), _("Record"), "classviewer-struct",
 				&(tv_iters.tag_type), _("Types"), "classviewer-other",
 				&(tv_iters.tag_function), _("Functions / Procedures"), "classviewer-method",
 				&(tv_iters.tag_variable), _("Variables / Signals"), "classviewer-var",
