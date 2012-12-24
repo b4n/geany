@@ -662,69 +662,148 @@ static void clear_all_errors(void)
 }
 
 
-/* Replaces occurrences of %e and %p with the appropriate filenames and
- * %l with current line number. %d and %p replacements should be in UTF8 */
+/* Replaces %f, %d, %e, %l and %p placeholders in a shell-style string.
+ * 
+ * This functions reads @p src as a shell-style input, understanding quoting (with "" and '')
+ * as well as nested sub-commands (with `` and $(), up to 16 levels).  It makes sure the
+ * placeholder replacements are properly quoted.
+ * 
+ * Returns: an UTF-8 string with placeholders replaced. */
 static gchar *build_replace_placeholder(const GeanyDocument *doc, const gchar *src)
 {
 	GString *stack;
-	gchar *filename = NULL;
-	gchar *replacement;
-	gchar *executable = NULL;
-	gchar *ret_str; /* to be freed when not in use anymore */
-	gint line_num;
+	struct {
+		gchar quote;
+		gchar terminator;
+	} nesting[16] = {{ 0, 0 }};
+	guint level = 0;
+	/* replacements, %<letter> */
+	gchar *f = NULL; /* %f: basename */
+	gchar *d = NULL; /* %d: dirname */
+	gchar *e = NULL; /* %e: basename without extension */
+	gint   l = 0;    /* %l: current 1-based line number */
+	gchar *p = NULL; /* %p: project (absolute) base directory */
 
 	g_return_val_if_fail(doc == NULL || doc->is_valid, NULL);
 
-	stack = g_string_new(src);
+	if (src == NULL)
+		return NULL;
+
 	if (doc != NULL && doc->file_name != NULL)
 	{
-		filename = utils_get_utf8_from_locale(doc->file_name);
+		gchar *filename = utils_get_utf8_from_locale(doc->file_name);
 
-		/* replace %f with the filename (including extension) */
-		replacement = g_path_get_basename(filename);
-		utils_string_replace_all(stack, "%f", replacement);
-		g_free(replacement);
+		f = g_path_get_basename(filename);
+		d = g_path_get_dirname(filename);
+		e = utils_remove_ext_from_filename(f);
 
-		/* replace %d with the absolute path of the dir of the current file */
-		replacement = g_path_get_dirname(filename);
-		utils_string_replace_all(stack, "%d", replacement);
-		g_free(replacement);
-
-		/* replace %e with the filename (excluding extension) */
-		executable = utils_remove_ext_from_filename(filename);
-		replacement = g_path_get_basename(executable);
-		utils_string_replace_all(stack, "%e", replacement);
-		g_free(replacement);
-
-		/* replace %l with the current 1-based line number */
-		line_num = sci_get_current_line(doc->editor->sci) + 1;
-		replacement = g_strdup_printf("%i", line_num);
-		utils_string_replace_all(stack, "%l", replacement);
-		g_free(replacement);
+		g_free(filename);
 	}
-
-	/* replace %p with the current project's (absolute) base directory */
-	replacement = NULL; /* prevent double free if no replacement found */
+	if (doc != NULL)
+		l = sci_get_current_line(doc->editor->sci) + 1;
 	if (app->project)
+		p = project_get_base_path();
+
+	/* quote the replacements */
+	if (f) SETPTR(f, g_shell_quote(f));
+	if (d) SETPTR(d, g_shell_quote(d));
+	if (e) SETPTR(e, g_shell_quote(e));
+	if (p) SETPTR(p, g_shell_quote(p));
+
+	stack = g_string_new(NULL);
+	for (; *src; src++)
 	{
-		replacement = project_get_base_path();
+		if (*src == nesting[level].terminator)
+		{
+			g_string_append_c(stack, *src);
+			level--;
+			continue;
+		}
+
+		switch (*src)
+		{
+			case '`':
+				g_string_append_c(stack, *src);
+				if (nesting[level].quote != '\'' &&
+					level < G_N_ELEMENTS(nesting))
+				{
+					level ++;
+					nesting[level].quote = 0;
+					nesting[level].terminator = *src;
+				}
+				break;
+
+			case '$':
+				g_string_append_c(stack, *src);
+				if (nesting[level].quote != '\'' &&
+					level < G_N_ELEMENTS(nesting) &&
+					src[1] == '(')
+				{
+					src++;
+					g_string_append_c(stack, *src);
+					level ++;
+					nesting[level].quote = 0;
+					nesting[level].terminator = ')';
+				}
+				break;
+
+			case '"':
+			case '\'':
+				if (! nesting[level].quote)
+					nesting[level].quote = *src;
+				else if (nesting[level].quote == *src)
+					nesting[level].quote = 0;
+				g_string_append_c(stack, *src);
+				break;
+
+			case '%':
+				src++;
+				if (nesting[level].quote) /* close the quote */
+					g_string_append_c(stack, nesting[level].quote);
+				if (*src == 'f' && f)
+					g_string_append(stack, f);
+				else if (*src == 'd' && d)
+					g_string_append(stack, d);
+				else if (*src == 'e' && e)
+					g_string_append(stack, e);
+				else if (*src == 'l')
+					g_string_append_printf(stack, "%d", l);
+				else if (*src == 'p')
+				{
+					if (p)
+						g_string_append(stack, p);
+					else
+					{   /* fallback to %d */
+						ui_set_statusbar(FALSE, _("failed to substitute %%p, no project active"));
+						if (d)
+							g_string_append(stack, d);
+					}
+				}
+				else
+				{   /* just leave the placeholder */
+					g_string_append_c(stack, '%');
+					g_string_append_c(stack, *src);
+				}
+				if (nesting[level].quote) /* re-open quote */
+					g_string_append_c(stack, nesting[level].quote);
+				break;
+
+			case '\\':
+				g_string_append_c(stack, *src);
+				src++;
+			/* fallthrough */
+			default:
+				g_string_append_c(stack, *src);
+				break;
+		}
 	}
-	else if (strstr(stack->str, "%p"))
-	{   /* fall back to %d */
-		ui_set_statusbar(FALSE, _("failed to substitute %%p, no project active"));
-		if (doc != NULL && filename != NULL)
-			replacement = g_path_get_dirname(filename);
-	}
 
-	utils_string_replace_all(stack, "%p", replacement);
-	g_free(replacement);
+	g_free (f);
+	g_free (d);
+	g_free (e);
+	g_free (p);
 
-	ret_str = utils_get_utf8_from_locale(stack->str);
-	g_free(executable);
-	g_free(filename);
-	g_string_free(stack, TRUE);
-
-	return ret_str; /* don't forget to free src also if needed */
+	return g_string_free(stack, FALSE);
 }
 
 
