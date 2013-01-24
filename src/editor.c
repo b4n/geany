@@ -1258,7 +1258,8 @@ static void on_new_line_added(GeanyEditor *editor)
 		 *        no idea how to fix this, something like "don't touch if line doesn't have the
 		 *        indent_after_line indent" is not going to fix an improper unindentation from
 		 *        unindent_re or indent_re if it go triggered when matching and not when it stopped
-		 *        matching... */
+		 *        matching...
+		 * FIXME: actually id already fails because of the "only if match" clause */
 		autoindent_line(editor, line - 1, TRUE);
 		insert_indent_after_line(editor, line - 1);
 	}
