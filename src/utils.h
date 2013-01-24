@@ -51,6 +51,14 @@ G_BEGIN_DECLS
 		g_free(setptr_tmp);\
 	}
 
+/* unrefs a GRegex, but handles NULL gracefully */
+#define utils_regex_unref(re) \
+	do {\
+		GRegex *re_ = re;\
+		if (re_)\
+			g_regex_unref(re_);\
+	} while (0)
+
 /** Duplicates a string on the stack using @c g_alloca().
  * Like glibc's @c strdupa(), but portable.
  * @note You must include @c string.h yourself.

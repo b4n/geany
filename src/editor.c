@@ -98,9 +98,10 @@ static gchar indent[100];
 static void on_new_line_added(GeanyEditor *editor);
 static gboolean handle_xml(GeanyEditor *editor, gint pos, gchar ch);
 static void insert_indent_after_line(GeanyEditor *editor, gint line);
+static void autoindent_line(GeanyEditor *editor, gint line, gboolean only_if_matched);
+static void autoindent_match_brace(GeanyEditor *editor, gint pos);
 static void auto_multiline(GeanyEditor *editor, gint pos);
 static void auto_close_chars(ScintillaObject *sci, gint pos, gchar c);
-static void close_block(GeanyEditor *editor, gint pos);
 static void editor_highlight_braces(GeanyEditor *editor, gint cur_pos);
 static void read_current_word(GeanyEditor *editor, gint pos, gchar *word, gsize wordlen,
 		const gchar *wc, gboolean stem);
@@ -750,12 +751,20 @@ static void autocomplete_scope(GeanyEditor *editor)
 	}
 }
 
-
 static void on_char_added(GeanyEditor *editor, SCNotification *nt)
 {
 	ScintillaObject *sci = editor->sci;
 	gint pos = sci_get_current_position(sci);
 
+	/* FIXME: fasten this check
+	 * maybe something like file_type->priv->indent_triggers[nt->ch & 0xff],
+	 * with indent_triggers is an array initialized like
+	 * for (c = trigger_chars; *c; c++) indent_triggers[*c] = TRUE; */
+	if (strchr(editor->document->file_type->priv->indent_triggers, nt->ch))
+	{
+		autoindent_line(editor, sci_get_line_from_position(sci, pos), FALSE);
+		pos = sci_get_current_position(sci); /* fix pos after indent */
+	}
 	switch (nt->ch)
 	{
 		case '\r':
@@ -808,7 +817,7 @@ static void on_char_added(GeanyEditor *editor, SCNotification *nt)
 		case '}':
 		{	/* closing bracket handling */
 			if (editor->auto_indent)
-				close_block(editor, pos - 1);
+				autoindent_match_brace(editor, pos);
 			break;
 		}
 		/* scope autocompletion */
@@ -1243,6 +1252,9 @@ static void on_new_line_added(GeanyEditor *editor)
 	/* simple indentation */
 	if (editor->auto_indent)
 	{
+		/* apply indent of the just finished line, but only if a rule applies (so possible
+		 * user manual indent is kept most of the time) */
+		autoindent_line(editor, line - 1, TRUE);
 		insert_indent_after_line(editor, line - 1);
 	}
 
@@ -1305,136 +1317,96 @@ static void read_indent(GeanyEditor *editor, gint pos)
 }
 
 
-static gint get_brace_indent(ScintillaObject *sci, gint line)
-{
-	gint start = sci_get_position_from_line(sci, line);
-	gint end = sci_get_line_end_position(sci, line) - 1;
-	gint lexer = sci_get_lexer(sci);
-	gint count = 0;
-	gint pos;
-
-	for (pos = end; pos >= start && count < 1; pos--)
-	{
-		if (highlighting_is_code_style(lexer, sci_get_style_at(sci, pos)))
-		{
-			gchar c = sci_get_char_at(sci, pos);
-
-			if (c == '{')
-				count ++;
-			else if (c == '}')
-				count --;
-		}
-	}
-
-	return count > 0 ? 1 : 0;
-}
-
-
 /* gets the last code position on a line
- * warning: if there is no code position on the line, returns the start position */
+ * warning: if there is no code position on the line, returns -1 */
 static gint get_sci_line_code_end_position(ScintillaObject *sci, gint line)
 {
 	gint start = sci_get_position_from_line(sci, line);
 	gint lexer = sci_get_lexer(sci);
 	gint pos;
 
-	for (pos = sci_get_line_end_position(sci, line) - 1; pos > start; pos--)
+	for (pos = sci_get_line_end_position(sci, line) - 1; pos >= start; pos--)
 	{
 		gint style = sci_get_style_at(sci, pos);
 
 		if (highlighting_is_code_style(lexer, style) && ! isspace(sci_get_char_at(sci, pos)))
-			break;
+			return pos;
 	}
 
-	return pos;
+	return -1;
 }
 
 
-static gint get_python_indent(ScintillaObject *sci, gint line)
-{
-	gint last_char = get_sci_line_code_end_position(sci, line);
-
-	/* add extra indentation for Python after colon */
-	if (sci_get_char_at(sci, last_char) == ':' &&
-		sci_get_style_at(sci, last_char) == SCE_P_OPERATOR)
-	{
-		return 1;
-	}
-	return 0;
-}
-
-
-static gint get_xml_indent(ScintillaObject *sci, gint line)
-{
-	gboolean need_close = FALSE;
-	gint end = get_sci_line_code_end_position(sci, line);
-	gint pos;
-
-	/* don't indent if there's a closing tag to the right of the cursor */
-	pos = sci_get_current_position(sci);
-	if (sci_get_char_at(sci, pos) == '<' &&
-		sci_get_char_at(sci, pos + 1) == '/')
-		return 0;
-
-	if (sci_get_char_at(sci, end) == '>' &&
-		sci_get_char_at(sci, end - 1) != '/')
-	{
-		gint style = sci_get_style_at(sci, end);
-
-		if (style == SCE_H_TAG || style == SCE_H_TAGUNKNOWN)
-		{
-			gint start = sci_get_position_from_line(sci, line);
-			gchar *line_contents = sci_get_contents_range(sci, start, end + 1);
-			gchar *opened_tag_name = utils_find_open_xml_tag(line_contents, end + 1 - start);
-
-			if (NZV(opened_tag_name))
-			{
-				need_close = TRUE;
-				if (sci_get_lexer(sci) == SCLEX_HTML && utils_is_short_html_tag(opened_tag_name))
-					need_close = FALSE;
-			}
-			g_free(line_contents);
-			g_free(opened_tag_name);
-		}
-	}
-
-	return need_close ? 1 : 0;
-}
+#define REGEX_MATCH(re, buf, len) \
+	((re) && g_regex_match_full ((re), buf, len, 0, 0, NULL, NULL))
 
 
 static gint get_indent_size_after_line(GeanyEditor *editor, gint line)
 {
-	ScintillaObject *sci = editor->sci;
 	gint size;
 	const GeanyIndentPrefs *iprefs = editor_get_indent_prefs(editor);
 
 	g_return_val_if_fail(line >= 0, 0);
 
-	size = sci_get_line_indentation(sci, line);
+	size = sci_get_line_indentation(editor->sci, line);
 
 	if (iprefs->auto_indent_mode > GEANY_AUTOINDENT_BASIC)
 	{
-		gint additional_indent = 0;
+		gint start_pos = sci_get_position_from_line(editor->sci, line);
+		gint end_pos = get_sci_line_code_end_position(editor->sci, line);
 
-		if (lexer_has_braces(sci))
-			additional_indent = iprefs->width * get_brace_indent(sci, line);
-		else if (sci_get_lexer(sci) == SCLEX_PYTHON) /* Python/Cython */
-			additional_indent = iprefs->width * get_python_indent(sci, line);
-
-		/* HTML lexer "has braces" because of PHP and JavaScript.  If get_brace_indent() did not
-		 * recommend us to insert additional indent, we are probably not in PHP/JavaScript chunk and
-		 * should make the XML-related check */
-		if (additional_indent == 0 &&
-			(sci_get_lexer(sci) == SCLEX_HTML ||
-			sci_get_lexer(sci) == SCLEX_XML) &&
-			editor->document->file_type->priv->xml_indent_tags)
+		if (end_pos >= 0)
 		{
-			size += iprefs->width * get_xml_indent(sci, line);
-		}
+			gint len = end_pos - start_pos + 1;
+			const gchar *buf = (void *) SSM(editor->sci, SCI_GETRANGEPOINTER, start_pos, len);
 
-		size += additional_indent;
+			if (REGEX_MATCH(editor->document->file_type->priv->indent_next_regex, buf, len))
+				size += iprefs->width;
+			if (REGEX_MATCH(editor->document->file_type->priv->unindent_next_regex, buf, len))
+				size -= iprefs->width;
+		}
 	}
-	return size;
+	return MAX(0, size);
+}
+
+
+static gint get_indent_size_at_line(GeanyEditor *editor, gint line, gboolean *matched)
+{
+	gint size;
+	gboolean match = FALSE;
+	const GeanyIndentPrefs *iprefs = editor_get_indent_prefs(editor);
+
+	g_return_val_if_fail(line >= 0, 0);
+
+	size = line > 0 ? get_indent_size_after_line(editor, line - 1) : 0;
+
+	if (iprefs->auto_indent_mode > GEANY_AUTOINDENT_BASIC)
+	{
+		gint start_pos = sci_get_position_from_line(editor->sci, line);
+		gint end_pos = get_sci_line_code_end_position(editor->sci, line);
+
+		if (end_pos >= 0)
+		{
+			gint len = end_pos - start_pos + 1;
+			const gchar *buf = (const gchar *) SSM(editor->sci, SCI_GETRANGEPOINTER, start_pos, len);
+
+			if (REGEX_MATCH(editor->document->file_type->priv->indent_regex, buf, len))
+			{
+				size += iprefs->width;
+				match = TRUE;
+			}
+			if (REGEX_MATCH(editor->document->file_type->priv->unindent_regex, buf, len))
+			{
+				size -= iprefs->width;
+				match = TRUE;
+			}
+		}
+	}
+
+	if (matched)
+		*matched = match;
+
+	return MAX(0, size);
 }
 
 
@@ -1549,76 +1521,23 @@ static gint brace_match(ScintillaObject *sci, gint pos)
 }
 
 
-/* Called after typing '}'. */
-static void close_block(GeanyEditor *editor, gint pos)
+static void autoindent_match_brace(GeanyEditor *editor, gint pos)
 {
 	const GeanyIndentPrefs *iprefs = editor_get_indent_prefs(editor);
-	gint x = 0, cnt = 0;
-	gint line, line_len, eol_char_len;
-	gchar *text, *line_buf;
-	ScintillaObject *sci;
-	gint line_indent, last_indent;
 
-	if (iprefs->auto_indent_mode < GEANY_AUTOINDENT_CURRENTCHARS)
-		return;
-	g_return_if_fail(editor != NULL && editor->document->file_type != NULL);
-
-	sci = editor->sci;
-
-	if (! lexer_has_braces(sci))
-		return;
-
-	line = sci_get_line_from_position(sci, pos);
-	line_len = sci_get_line_length(sci, line);
-	/* set eol_char_len to 0 if on last line, because there is no EOL char */
-	eol_char_len = (line == (sci_get_line_count(sci) - 1)) ? 0 :
-								editor_get_eol_char_len(editor);
-
-	/* check that the line is empty, to not kill text in the line */
-	line_buf = sci_get_line(sci, line);
-	line_buf[line_len - eol_char_len] = '\0';
-	while (x < (line_len - eol_char_len))
+	if (lexer_has_braces(editor->sci) && iprefs->auto_indent_mode == GEANY_AUTOINDENT_MATCHBRACES)
 	{
-		if (isspace(line_buf[x]))
-			cnt++;
-		x++;
-	}
-	g_free(line_buf);
-
-	if ((line_len - eol_char_len - 1) != cnt)
-		return;
-
-	if (iprefs->auto_indent_mode == GEANY_AUTOINDENT_MATCHBRACES)
-	{
-		gint start_brace = brace_match(sci, pos);
+		gint start_brace = brace_match(editor->sci, pos - 1);
 
 		if (start_brace >= 0)
 		{
-			gint line_start;
-			gint brace_line = sci_get_line_from_position(sci, start_brace);
-			gint size = sci_get_line_indentation(sci, brace_line);
-			gchar *ind = get_whitespace(iprefs, size);
+			gint line = sci_get_line_from_position(editor->sci, pos);
+			gint brace_line = sci_get_line_from_position(editor->sci, start_brace);
+			gint size = sci_get_line_indentation(editor->sci, brace_line);
 
-			text = g_strconcat(ind, "}", NULL);
-			line_start = sci_get_position_from_line(sci, line);
-			sci_set_anchor(sci, line_start);
-			sci_replace_sel(sci, text);
-			g_free(text);
-			g_free(ind);
-			return;
+			sci_set_line_indentation(editor->sci, line, size);
 		}
-		/* fall through - unmatched brace (possibly because of TCL, PHP lexer bugs) */
 	}
-
-	/* GEANY_AUTOINDENT_CURRENTCHARS */
-	line_indent = sci_get_line_indentation(sci, line);
-	last_indent = sci_get_line_indentation(sci, line - 1);
-
-	if (line_indent < last_indent)
-		return;
-	line_indent -= iprefs->width;
-	line_indent = MAX(0, line_indent);
-	sci_set_line_indentation(sci, line, line_indent);
 }
 
 
@@ -3814,31 +3733,21 @@ void editor_select_indent_block(GeanyEditor *editor)
 }
 
 
-/* simple indentation to indent the current line with the same indent as the previous one */
+/* indent lines first_line..last_line according to the indentation rules */
 static void smart_line_indentation(GeanyEditor *editor, gint first_line, gint last_line)
 {
-	gint i, sel_start = 0, sel_end = 0;
+	gint line;
 
-	/* get previous line and use it for read_indent to use that line
-	 * (otherwise it would fail on a line only containing "{" in advanced indentation mode) */
-	read_indent(editor, sci_get_position_from_line(editor->sci, first_line - 1));
-
-	for (i = first_line; i <= last_line; i++)
+	for (line = first_line; line <= last_line; line++)
 	{
-		/* skip the first line or if the indentation of the previous and current line are equal */
-		if (i == 0 ||
-			SSM(editor->sci, SCI_GETLINEINDENTATION, i - 1, 0) ==
-			SSM(editor->sci, SCI_GETLINEINDENTATION, i, 0))
-			continue;
-
-		sel_start = SSM(editor->sci, SCI_POSITIONFROMLINE, i, 0);
-		sel_end = SSM(editor->sci, SCI_GETLINEINDENTPOSITION, i, 0);
-		if (sel_start < sel_end)
+		if (line > 0)
 		{
-			sci_set_selection(editor->sci, sel_start, sel_end);
-			sci_replace_sel(editor->sci, "");
+			/* set initial line indent manually so a rule requiring initial indent will match */
+			gint size = get_indent_size_after_line(editor, line - 1);
+			if (size != sci_get_line_indentation(editor->sci, line))
+				sci_set_line_indentation(editor->sci, line, size);
 		}
-		sci_insert_text(editor->sci, sel_start, indent);
+		autoindent_line(editor, line, FALSE);
 	}
 }
 
@@ -5093,6 +5002,16 @@ void editor_indent(GeanyEditor *editor, gboolean increase)
 
 	SSM(sci, SCI_SETCURRENTPOS, sci_get_position_from_line(sci, caret_line) + caret_offset, 0);
 	SSM(sci, SCI_SETANCHOR, sci_get_position_from_line(sci, anchor_line) + anchor_offset, 0);
+}
+
+
+/* auto-indents line \p line */
+static void autoindent_line(GeanyEditor *editor, gint line, gboolean only_if_matched)
+{
+	gboolean matched = FALSE;
+	gint size = get_indent_size_at_line(editor, line, &matched);
+	if ((matched || ! only_if_matched) && size != sci_get_line_indentation(editor->sci, line))
+		sci_set_line_indentation(editor->sci, line, size);
 }
 
 

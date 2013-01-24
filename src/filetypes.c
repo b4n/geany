@@ -1141,6 +1141,12 @@ static void filetype_free(gpointer data, G_GNUC_UNUSED gpointer user_data)
 	g_slist_foreach(ft->priv->tag_files, (GFunc) g_free, NULL);
 	g_slist_free(ft->priv->tag_files);
 
+	g_free(ft->priv->indent_triggers);
+	utils_regex_unref(ft->priv->indent_regex);
+	utils_regex_unref(ft->priv->indent_next_regex);
+	utils_regex_unref(ft->priv->unindent_regex);
+	utils_regex_unref(ft->priv->unindent_next_regex);
+
 	g_free(ft->priv);
 	g_free(ft);
 }
@@ -1155,6 +1161,25 @@ void filetypes_free_types(void)
 	g_ptr_array_foreach(filetypes_array, filetype_free, NULL);
 	g_ptr_array_free(filetypes_array, TRUE);
 	g_hash_table_destroy(filetypes_hash);
+}
+
+
+static GRegex *load_indent_regex(GKeyFile *config, GKeyFile *configh, const gchar *group, const gchar *key)
+{
+	GRegex *re = NULL;
+	gchar *pattern = utils_get_setting(string, configh, config, group, key, NULL);
+
+	if (NZV(pattern))
+	{
+		GError *err = NULL;
+		re = g_regex_new(pattern, G_REGEX_OPTIMIZE | G_REGEX_NO_AUTO_CAPTURE, 0, &err);
+		if (! re)
+		{
+			geany_debug("Failed to compile indentation regex \"%s\": %s", pattern, err->message);
+			g_error_free(err);
+		}
+	}
+	return re;
 }
 
 
@@ -1176,6 +1201,17 @@ static void load_indent_settings(GeanyFiletype *ft, GKeyFile *config, GKeyFile *
 			ft->indent_type = -1;
 			break;
 	}
+
+	/* load indent regex */
+	SETPTR(ft->priv->indent_triggers, utils_get_setting(string, configh, config, "indentation", "indent_triggers", ""));
+	utils_regex_unref(ft->priv->indent_regex);
+	utils_regex_unref(ft->priv->indent_next_regex);
+	utils_regex_unref(ft->priv->unindent_regex);
+	utils_regex_unref(ft->priv->unindent_next_regex);
+	ft->priv->indent_regex = load_indent_regex(configh, config, "indentation", "indent_regex");
+	ft->priv->indent_next_regex = load_indent_regex(configh, config, "indentation", "indent_next_regex");
+	ft->priv->unindent_regex = load_indent_regex(configh, config, "indentation", "unindent_regex");
+	ft->priv->unindent_next_regex = load_indent_regex(configh, config, "indentation", "unindent_next_regex");
 }
 
 

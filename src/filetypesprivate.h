@@ -35,6 +35,12 @@ typedef struct GeanyFiletypePrivate
 	gboolean	xml_indent_tags; /* XML tag autoindentation, for HTML and XML filetypes */
 	GSList		*tag_files;
 	gboolean	warn_color_scheme;
+
+	gchar		*indent_triggers;
+	GRegex		*indent_regex;
+	GRegex		*indent_next_regex;
+	GRegex		*unindent_regex;
+	GRegex		*unindent_next_regex;
 }
 GeanyFiletypePrivate;
 
