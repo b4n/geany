@@ -1253,7 +1253,12 @@ static void on_new_line_added(GeanyEditor *editor)
 	if (editor->auto_indent)
 	{
 		/* apply indent of the just finished line, but only if a rule applies (so possible
-		 * user manual indent is kept most of the time) */
+		 * user manual indent is kept most of the time)
+		 * FIXME: oh crap, it breaks brace matching, in case brace matching was actually useful...
+		 *        no idea how to fix this, something like "don't touch if line doesn't have the
+		 *        indent_after_line indent" is not going to fix an improper unindentation from
+		 *        unindent_re or indent_re if it go triggered when matching and not when it stopped
+		 *        matching... */
 		autoindent_line(editor, line - 1, TRUE);
 		insert_indent_after_line(editor, line - 1);
 	}
