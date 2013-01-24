@@ -49,6 +49,12 @@ context_action_cmd=
 # 0 is spaces, 1 is tabs, 2 is tab & spaces
 #type=1
 
+indent_triggers=}cei
+#indent_regex=
+indent_next_regex=({|(^|[][;{}()])\\s*(then|do|in|else))$
+unindent_regex=^\\s*(}|fi|esac|done|else)$
+#unindent_next_regex=
+
 [build_settings]
 # %f will be replaced by the complete filename
 # %e will be replaced by the filename without extension
