@@ -40,6 +40,17 @@ xml_indent_tags=true
 # 0 is spaces, 1 is tabs, 2 is tab & spaces
 #type=1
 
+# brace rules are for JavaScript/PHP/...
+# FIXME: how not to indent when the closing tag is just on the right of the
+#        cursor?  Because of auto-tag closing it may be annoying that the
+#        closing tag on the right of the cursor gets indented.
+indent_triggers=/}
+#indent_regex=
+indent_next_regex=(<[^/]\\w*( .*)?>|{)$
+unindent_regex=^\\s*(</|}$)
+# hack to fix indent_next on short tags
+unindent_next_regex=(area|base|basefont|br|col|command|embed|frame|hr|img|input|keygen|link|meta|param|source|track|wbr)>$
+
 [build_settings]
 # %f will be replaced by the complete filename
 # %e will be replaced by the filename without extension

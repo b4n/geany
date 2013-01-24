@@ -73,3 +73,12 @@ xml_indent_tags=true
 #width=4
 # 0 is spaces, 1 is tabs, 2 is tab & spaces
 #type=1
+
+# FIXME: how not to indent when the closing tag is just on the right of the
+#        cursor?  Because of auto-tag closing it may be annoying that the
+#        closing tag on the right of the cursor gets indented.
+indent_triggers=/
+#indent_regex=
+indent_next_regex=<[^/]\\w*( .*)?>$
+unindent_regex=^\\s*</
+#unindent_next_regex=
