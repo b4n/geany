@@ -762,7 +762,11 @@ static void on_char_added(GeanyEditor *editor, SCNotification *nt)
 	 * for (c = trigger_chars; *c; c++) indent_triggers[*c] = TRUE; */
 	if (strchr(editor->document->file_type->priv->indent_triggers, nt->ch))
 	{
-		autoindent_line(editor, sci_get_line_from_position(sci, pos), FALSE);
+		gint line = sci_get_line_from_position(sci, pos);
+		/* support \n and \r as triggers */
+		if ((nt->ch == '\r' && sci_get_eol_mode(sci) == SC_EOL_CR) || nt->ch == '\n')
+			line --;
+		autoindent_line(editor, line, FALSE);
 		pos = sci_get_current_position(sci); /* fix pos after indent */
 	}
 	switch (nt->ch)
