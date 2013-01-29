@@ -98,7 +98,7 @@ static gchar indent[100];
 static void on_new_line_added(GeanyEditor *editor);
 static gboolean handle_xml(GeanyEditor *editor, gint pos, gchar ch);
 static void insert_indent_after_line(GeanyEditor *editor, gint line);
-static void autoindent_line(GeanyEditor *editor, gint line, gboolean only_if_matched);
+static void autoindent_line(GeanyEditor *editor, gint line, gboolean because_newline);
 static void autoindent_match_brace(GeanyEditor *editor, gint pos);
 static void auto_multiline(GeanyEditor *editor, gint pos);
 static void auto_close_chars(ScintillaObject *sci, gint pos, gchar c);
@@ -1256,14 +1256,6 @@ static void on_new_line_added(GeanyEditor *editor)
 	/* simple indentation */
 	if (editor->auto_indent)
 	{
-		/* apply indent of the just finished line, but only if a rule applies (so possible
-		 * user manual indent is kept most of the time)
-		 * FIXME: oh crap, it breaks brace matching, in case brace matching was actually useful...
-		 *        no idea how to fix this, something like "don't touch if line doesn't have the
-		 *        indent_after_line indent" is not going to fix an improper unindentation from
-		 *        unindent_re or indent_re if it go triggered when matching and not when it stopped
-		 *        matching...
-		 * FIXME: actually id already fails because of the "only if match" clause */
 		autoindent_line(editor, line - 1, TRUE);
 		insert_indent_after_line(editor, line - 1);
 	}
@@ -1380,10 +1372,9 @@ static gint get_indent_size_after_line(GeanyEditor *editor, gint line)
 }
 
 
-static gint get_indent_size_at_line(GeanyEditor *editor, gint line, gboolean *matched)
+static gint get_indent_size_at_line(GeanyEditor *editor, gint line)
 {
 	gint size;
-	gboolean match = FALSE;
 	const GeanyIndentPrefs *iprefs = editor_get_indent_prefs(editor);
 
 	g_return_val_if_fail(line >= 0, 0);
@@ -1401,20 +1392,11 @@ static gint get_indent_size_at_line(GeanyEditor *editor, gint line, gboolean *ma
 			const gchar *buf = (const gchar *) SSM(editor->sci, SCI_GETRANGEPOINTER, start_pos, len);
 
 			if (REGEX_MATCH(editor->document->file_type->priv->indent_regex, buf, len))
-			{
 				size += iprefs->width;
-				match = TRUE;
-			}
 			if (REGEX_MATCH(editor->document->file_type->priv->unindent_regex, buf, len))
-			{
 				size -= iprefs->width;
-				match = TRUE;
-			}
 		}
 	}
-
-	if (matched)
-		*matched = match;
 
 	return MAX(0, size);
 }
@@ -5016,12 +4998,25 @@ void editor_indent(GeanyEditor *editor, gboolean increase)
 
 
 /* auto-indents line \p line */
-static void autoindent_line(GeanyEditor *editor, gint line, gboolean only_if_matched)
+static void autoindent_line(GeanyEditor *editor, gint line, gboolean because_newline)
 {
-	gboolean matched = FALSE;
-	gint size = get_indent_size_at_line(editor, line, &matched);
-	if ((matched || ! only_if_matched) && size != sci_get_line_indentation(editor->sci, line))
-		sci_set_line_indentation(editor->sci, line, size);
+	gboolean perform = TRUE;
+	gint line_indent = sci_get_line_indentation(editor->sci, line);
+	if (because_newline)
+	{
+		/* if triggered because of newline, only re-indent if line has it's initial indent,
+		 * so possible user manual indent is kept most of the time.
+		 * if the indentation should be rechecked after a newline, add \r\n to the triggers */
+		/* FIXME: is this ok? */
+		gint initial_indent = (line > 0) ? get_indent_size_after_line(editor, line - 1) : 0;
+		perform = (initial_indent == line_indent);
+	}
+	if (perform)
+	{
+		gint size = get_indent_size_at_line(editor, line);
+		if (size != line_indent) /* don't update indent if it is the same */
+			sci_set_line_indentation(editor->sci, line, size);
+	}
 }
 
 
