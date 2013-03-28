@@ -129,8 +129,7 @@ GeanyKeyBinding *keybindings_get_item(GeanyKeyGroup *group, gsize key_id)
 }
 
 
-/* This is used to set default keybindings on startup.
- * Menu accels are set in apply_kb_accel(). */
+/* This is used to set default keybindings on startup. */
 /** Fills a GeanyKeyBinding struct item.
  * @note Always set @a key and @a mod to 0, otherwise you will likely
  * cause conflicts with the user's custom, other plugin's keybindings or
@@ -175,7 +174,13 @@ GeanyKeyBinding *keybindings_set_item(GeanyKeyGroup *group, gsize key_id,
 	kb->default_mods = mod;
 	kb->callback = callback;
 	kb->menu_item = menu_item;
+	kb->accel_path = g_strconcat("<Geany-Main>/", kb->name, NULL);
 	kb->id = key_id;
+
+	gtk_accel_map_add_entry(kb->accel_path, kb->key, kb->mods);
+	if (kb->menu_item)
+		gtk_widget_set_accel_path(kb->menu_item, kb->accel_path, kb_accel_group);
+
 	return kb;
 }
 
@@ -700,11 +705,7 @@ static void load_user_kb(void)
 
 static void apply_kb_accel(GeanyKeyGroup *group, GeanyKeyBinding *kb, gpointer user_data)
 {
-	if (kb->key != 0 && kb->menu_item)
-	{
-		gtk_widget_add_accelerator(kb->menu_item, "activate", kb_accel_group,
-			kb->key, kb->mods, GTK_ACCEL_VISIBLE);
-	}
+	gtk_accel_map_change_entry(kb->accel_path, kb->key, kb->mods, FALSE);
 }
 
 
@@ -722,9 +723,7 @@ static void add_menu_accel(GeanyKeyGroup *group, guint kb_id, GtkWidget *menuite
 {
 	GeanyKeyBinding *kb = keybindings_get_item(group, kb_id);
 
-	if (kb->key != 0)
-		gtk_widget_add_accelerator(menuitem, "activate", kb_accel_group,
-			kb->key, kb->mods, GTK_ACCEL_VISIBLE);
+	gtk_widget_set_accel_path(menuitem, kb->accel_path, kb_accel_group);
 }
 
 
@@ -732,7 +731,6 @@ static void add_menu_accel(GeanyKeyGroup *group, guint kb_id, GtkWidget *menuite
 	add_menu_accel(group, kb_id, ui_lookup_widget(main_widgets.editor_menu, G_STRINGIFY(wid)))
 
 /* set the menu item accelerator shortcuts (just for visibility, they are handled anyway) */
-/* FIXME: update those during runtime */
 static void add_popup_menu_accels(void)
 {
 	GeanyKeyGroup *group;
@@ -2462,17 +2460,11 @@ static gboolean cb_func_insert_action(guint key_id)
 /* update key combination */
 void keybindings_update_combo(GeanyKeyBinding *kb, guint key, GdkModifierType mods)
 {
-	GtkWidget *widget = kb->menu_item;
-
-	if (widget && kb->key)
-		gtk_widget_remove_accelerator(widget, kb_accel_group, kb->key, kb->mods);
-
 	kb->key = key;
 	kb->mods = mods;
 
-	if (widget && kb->key)
-		gtk_widget_add_accelerator(widget, "activate", kb_accel_group,
-			kb->key, kb->mods, GTK_ACCEL_VISIBLE);
+	if (! gtk_accel_map_change_entry(kb->accel_path, kb->key, kb->mods, FALSE))
+		g_critical("Could not change accelerator for entry %s because of a conflict", kb->accel_path);
 }
 
 
@@ -2502,16 +2494,22 @@ GeanyKeyGroup *keybindings_set_group(GeanyKeyGroup *group, const gchar *section_
 void keybindings_free_group(GeanyKeyGroup *group)
 {
 	GeanyKeyBinding *kb;
+	guint i;
+
+	foreach_ptr_array(kb, i, group->key_items)
+	{
+		if (group->plugin)
+		{
+			g_free(kb->name);
+			g_free(kb->label);
+		}
+		g_free(kb->accel_path);
+	}
 
 	g_ptr_array_free(group->key_items, TRUE);
 
 	if (group->plugin)
 	{
-		foreach_c_array(kb, group->plugin_keys, group->plugin_key_count)
-		{
-			g_free(kb->name);
-			g_free(kb->label);
-		}
 		g_free(group->plugin_keys);
 		g_ptr_array_remove_fast(keybinding_groups, group);
 		g_free(group);

@@ -40,10 +40,12 @@ typedef struct GeanyKeyBinding
 	/** Function called when the key combination is pressed, or @c NULL to use the group callback
 	 * (preferred). @see plugin_set_key_group(). */
 	GeanyKeyCallback callback;
-	GtkWidget *menu_item;	/**< Optional widget to set an accelerator for, or @c NULL */
+	GtkWidget *menu_item;	/**< Optional widget to set an accelerator for, or @c NULL
+								 @deprecated 1.24 */
 	guint id;
 	guint default_key;
 	GdkModifierType default_mods;
+	gchar *accel_path;
 }
 GeanyKeyBinding;
 
