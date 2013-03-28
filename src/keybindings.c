@@ -177,6 +177,7 @@ GeanyKeyBinding *keybindings_set_item(GeanyKeyGroup *group, gsize key_id,
 	kb->accel_path = g_strconcat("<Geany-Main>/", kb->name, NULL);
 	kb->id = key_id;
 
+	g_object_set_data(G_OBJECT(gtk_accel_map_get()), kb->accel_path, kb);
 	gtk_accel_map_add_entry(kb->accel_path, kb->key, kb->mods);
 	if (kb->menu_item)
 		gtk_widget_set_accel_path(kb->menu_item, kb->accel_path, kb_accel_group);
@@ -624,6 +625,18 @@ static void init_default_kb(void)
 }
 
 
+static void on_accel_map_changed(GtkAccelMap *map, gchar *accel_path,
+		guint key, GdkModifierType mods, gpointer user_data)
+{
+	GeanyKeyBinding *kb = g_object_get_data(G_OBJECT(map), accel_path);
+
+	g_return_if_fail(kb != NULL);
+
+	kb->key = key;
+	kb->mods = mods;
+}
+
+
 void keybindings_init(void)
 {
 	memset(binding_ids, 0, sizeof binding_ids);
@@ -634,6 +647,7 @@ void keybindings_init(void)
 	gtk_window_add_accel_group(GTK_WINDOW(main_widgets.window), kb_accel_group);
 
 	g_signal_connect(main_widgets.window, "key-press-event", G_CALLBACK(on_key_press_event), NULL);
+	g_signal_connect(gtk_accel_map_get(), "changed", G_CALLBACK(on_accel_map_changed), NULL);
 }
 
 
