@@ -1,0 +1,11 @@
+# format=tagmanager
+ANOTHER_MACROÌ131072Í( WITH, MOAR )Ö0
+A_MACRO_TESTÌ65536Ö0
+FolderTreeÌ16384Ö0Ï@class
+LayoutTreeÌ16384Ö0Ï@class
+SampleTypedefObjCÌ4096Ö0Ïsomething
+aStructÌ2048Ö0
+aStructMemberÌ64ÎaStructÖ0Ïint
+anotherStructMemberÌ64ÎaStructÖ0Ïchar
+getDiskSizeÌ16384Ö0ÏFileSize
+parentFolderÌ16384Ö0ÏtreeName treeName
