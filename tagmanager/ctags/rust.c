@@ -493,7 +493,7 @@ typedef struct RustParserContext {
 
 /* Used to centralise tag creation, and be able to add
  * more information to it in the future */
-static void addTag (vString * const ident, const char* arglist, int kind, const RustParserContext* ctx, const RustParserContext* parent)
+static void addTag (const vString *const ident, const char* arglist, int kind, const RustParserContext* ctx, const RustParserContext* parent)
 {
 	tagEntryInfo tag;
 	initTagEntry (&tag, vStringValue (ident));
