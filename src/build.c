@@ -802,7 +802,15 @@ static GPid build_spawn_cmd(GeanyDocument *doc, const gchar *cmd, const gchar *d
 	SETPTR(current_dir_entered, NULL);
 
 #ifdef G_OS_WIN32
-	argv = g_strsplit(cmd, " ", 0);
+	/* Parse arguments similar to /bin/sh - should be OK on Windows too */
+	if (!g_shell_parse_argv(cmd, NULL, &argv, &error))
+	{
+		geany_debug("build command spawning failed: %s", error->message);
+		ui_set_statusbar(TRUE, _("Process failed (%s)"), error->message);
+		g_error_free(error);
+		error = NULL;
+		return (GPid) 0;
+	}
 #else
 	argv = g_new0(gchar *, 4);
 	argv[0] = g_strdup("/bin/sh");
