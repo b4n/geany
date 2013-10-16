@@ -3421,7 +3421,7 @@ static gboolean in_block_comment(gint lexer, gint style)
 			return (style == SCE_RUST_COMMENTBLOCK ||
 				style == SCE_RUST_COMMENTLINE ||
 				style == SCE_RUST_COMMENTBLOCKDOC ||
-				SCE_RUST_COMMENTLINEDOC);
+				style == SCE_RUST_COMMENTLINEDOC);
 
 		default:
 			return FALSE;
