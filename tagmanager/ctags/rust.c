@@ -426,6 +426,8 @@ static void skipUntil (lexerState *lexer, int goal_tokens[], int num_goal_tokens
 					angle_level -= 2;
 				break;
 			/* TOKEN_LSHIFT is never interpreted as two <'s in valid Rust code */
+			default:
+				break;
 		}
 		/* Has to be after the token switch to catch the case when we start with the initial level token */
 		if (num_goal_tokens == 0 && angle_level == 0 && paren_level == 0 && brace_level == 0)
