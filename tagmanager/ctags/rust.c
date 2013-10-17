@@ -178,11 +178,13 @@ static void scanWhitespace (lexerState *lexer)
 		advanceChar(lexer);
 }
 
-/* Line comments start with two /'s and continue until the next \n
- * (NOT any other newline character!). Block comments are identical to
- * the ones in C/C++ */
+/* Normal line comments start with two /'s and continue until the next \n
+ * (NOT any other newline character!). Additionally, a shebang in the beginning
+ * of the file also counts as a line comment.
+ * Block comments are identical to the ones in C/C++ */
 static void scanComments (lexerState *lexer)
 {
+	/* // or #! */
 	if (lexer->next_c == '/' || lexer->next_c == '!')
 	{
 		advanceNChar(lexer, 2);
