@@ -779,7 +779,7 @@ static void add_top_level_items(GeanyDocument *doc)
 		/*case GEANY_FILETYPES_RUST:
 		{
 			tag_list_add_groups(tag_store,
-				&(tv_iters.tag_namespace), _("Module"), "classviewer-namespace",
+				&(tv_iters.tag_namespace), _("Modules"), "classviewer-namespace",
 				&(tv_iters.tag_struct), _("Structures"), "classviewer-struct",
 				&(tv_iters.tag_interface), _("Traits"), "classviewer-class",
 				&(tv_iters.tag_class), _("Implementations"), "classviewer-class",
