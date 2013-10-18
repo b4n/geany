@@ -790,7 +790,7 @@ static void parseBlock (lexerState *lexer, boolean delim, int kind, vString *sco
 	{
 		if (lexer->cur_token == TOKEN_IDENT)
 		{
-			int old_scope_len = vStringLength(scope);
+			size_t old_scope_len = vStringLength(scope);
 			if (strcmp(lexer->token_str->buffer, "fn") == 0)
 			{
 				parseFn(lexer, scope, kind);
