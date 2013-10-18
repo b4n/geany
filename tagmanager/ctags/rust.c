@@ -79,7 +79,7 @@ typedef struct {
 	/* Tokens */
 	int cur_token;
 	vString* token_str;
-	int line;
+	unsigned long line;
 	MIOPos pos;
 } lexerState;
 
@@ -365,7 +365,7 @@ static void deInitLexer (lexerState *lexer)
 	lexer->token_str = NULL;
 }
 
-static void addTag (vString* ident, const char* type, const char* arg_list, int kind, int line, MIOPos pos, vString *scope, int parent_kind)
+static void addTag (vString* ident, const char* type, const char* arg_list, int kind, unsigned long line, MIOPos pos, vString *scope, int parent_kind)
 {
 	tagEntryInfo tag;
 	initTagEntry(&tag, ident->buffer);
@@ -448,7 +448,7 @@ static void parseFn (lexerState *lexer, vString *scope, int parent_kind)
 	int kind = (parent_kind == K_TRAIT || parent_kind == K_IMPL) ? K_METHOD : K_FN;
 	vString *name;
 	vString *arg_list;
-	int line;
+	unsigned long line;
 	MIOPos pos;
 	int paren_level = 0;
 	boolean found_paren = FALSE;
@@ -597,7 +597,7 @@ static void parseQualifiedType (lexerState *lexer, vString* name)
  */
 static void parseImpl (lexerState *lexer, vString *scope, int parent_kind)
 {
-	int line;
+	unsigned long line;
 	MIOPos pos;
 	vString *name;
 
