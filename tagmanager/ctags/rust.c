@@ -131,7 +131,7 @@ static void writeCurTokenToStr (lexerState *lexer, vString *out_str)
 			vStringCatS(out_str, ">>");
 			break;
 		default:
-			vStringPut(out_str, lexer->cur_token);
+			vStringPut(out_str, (char) lexer->cur_token);
 	}
 }
 
@@ -205,7 +205,7 @@ static void scanIdentifier (lexerState *lexer)
 	vStringClear(lexer->token_str);
 	do
 	{
-		vStringPut(lexer->token_str, lexer->cur_c);
+		vStringPut(lexer->token_str, (char) lexer->cur_c);
 		advanceChar(lexer);
 	} while(!fileEOF() && isIdentifierContinue(lexer->cur_c));
 }
@@ -224,7 +224,7 @@ static void scanString (lexerState *lexer)
 		if (lexer->cur_c == '\\' && lexer->next_c == '"')
 			advanceChar(lexer);
 		if (vStringLength(lexer->token_str) < MAX_STRING_LENGTH)
-			vStringPut(lexer->token_str, lexer->cur_c);
+			vStringPut(lexer->token_str, (char) lexer->cur_c);
 		advanceChar(lexer);
 	}
 	advanceChar(lexer);
@@ -249,7 +249,7 @@ static void scanRawString (lexerState *lexer)
 	while (!fileEOF())
 	{
 		if (vStringLength(lexer->token_str) < MAX_STRING_LENGTH)
-			vStringPut(lexer->token_str, lexer->cur_c);
+			vStringPut(lexer->token_str, (char) lexer->cur_c);
 		/* Count how many trailing hashes there are. If the number is equal or more
 		 * than the number of leading hashes, break. */
 		if (lexer->cur_c == '"')
@@ -261,7 +261,7 @@ static void scanRawString (lexerState *lexer)
 				num_trailing_hashes++;
 
 				if (vStringLength(lexer->token_str) < MAX_STRING_LENGTH)
-					vStringPut(lexer->token_str, lexer->cur_c);
+					vStringPut(lexer->token_str, (char) lexer->cur_c);
 				advanceChar(lexer);
 			}
 			if (num_trailing_hashes == num_initial_hashes)
