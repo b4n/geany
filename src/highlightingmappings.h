@@ -1309,7 +1309,7 @@ static const HLStyle highlighting_styles_RUST[] =
 	{ SCE_RUST_WORD7,				"word7",					FALSE },
 	{ SCE_RUST_STRING,				"string",					FALSE },
 	{ SCE_RUST_STRINGR,				"stringraw",				FALSE },
-	{ SCE_RUST_CHARACTER,			"charcter",					FALSE },
+	{ SCE_RUST_CHARACTER,			"character",				FALSE },
 	{ SCE_RUST_OPERATOR,			"operator",					FALSE },
 	{ SCE_RUST_IDENTIFIER,			"identifier",				FALSE },
 	{ SCE_RUST_LIFETIME,			"lifetime",					FALSE },
