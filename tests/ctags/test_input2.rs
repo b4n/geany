@@ -16,7 +16,8 @@ fn free_func() {
 }
 
 impl SomeLongStructName {
-	fn fooo();
+	fn fooo() {
+	}
 	fn baaz() {
 	}
 }
@@ -33,7 +34,6 @@ mod veg{
 
 
 mod mineral {
-	fn 
 	fn granite() {
 	}
 	fn limestone() {

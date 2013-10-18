@@ -6,11 +6,11 @@ another_functionÌ16Í(a:int,b:int,c:int)->intÎvegÖ0
 baazÌ128Í()ÎSomeLongStructNameÖ0
 blue_valueÌ8Îfruit::SomeStructÖ0
 chalkÌ16Í()ÎmineralÖ0
-fnÌ16Ígranite()ÎmineralÖ0
 foo_bar_test_funcÌ16Í(apples:fruit::SomeStruct,(oranges,lemon):(int,int))->intÖ0
 foooÌ128Í()ÎSomeLongStructNameÖ0
 free_funcÌ16Í()Ö0
 fruitÌ256Ö0
+graniteÌ16Í()ÎmineralÖ0
 green_valueÌ8Îfruit::SomeStructÖ0
 limestoneÌ16Í()ÎmineralÖ0
 mineralÌ256Ö0

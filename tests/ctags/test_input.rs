@@ -1,3 +1,4 @@
+#[feature(globs)];
 use std::*;
 use test_input2::*;
 mod test_input2;
