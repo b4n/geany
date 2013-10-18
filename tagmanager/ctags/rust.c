@@ -353,6 +353,9 @@ static void initLexer (lexerState *lexer)
 {
 	advanceNChar(lexer, 2);
 	lexer->token_str = vStringNew();
+
+	if (lexer->cur_c == '#' && lexer->next_c == '!')
+		scanComments(lexer);
 	advanceToken(lexer, TRUE);
 }
 
@@ -865,9 +868,6 @@ static void findRustTags (void)
 	lexerState lexer;
 	vString* scope = vStringNew();
 	initLexer(&lexer);
-
-	if (lexer.cur_c == '#' && lexer.next_c == '!')
-		scanComments(&lexer);
 
 	parseBlock(&lexer, FALSE, K_NONE, scope);
 	vStringDelete(scope);
