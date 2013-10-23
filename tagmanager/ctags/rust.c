@@ -181,7 +181,8 @@ static void scanWhitespace (lexerState *lexer)
 /* Normal line comments start with two /'s and continue until the next \n
  * (NOT any other newline character!). Additionally, a shebang in the beginning
  * of the file also counts as a line comment.
- * Block comments are identical to the ones in C/C++ */
+ * Block comments start with / followed by a * and end with a * followed by a /.
+ * Unlike in C/C++ they nest. */
 static void scanComments (lexerState *lexer)
 {
 	/* // or #! */
@@ -193,10 +194,25 @@ static void scanComments (lexerState *lexer)
 	}
 	else if (lexer->next_c == '*')
 	{
+		int level = 1;
 		advanceNChar(lexer, 2);
-		while (!fileEOF() && !(lexer->cur_c == '*' && lexer->next_c == '/'))
-			advanceChar(lexer);
-		advanceNChar(lexer, 2);
+		while (!fileEOF() && level > 0)
+		{
+			if (lexer->cur_c == '*' && lexer->next_c == '/')
+			{
+				level--;
+				advanceNChar(lexer, 2);
+			}
+			else if (lexer->cur_c == '/' && lexer->next_c == '*')
+			{
+				level++;
+				advanceNChar(lexer, 2);
+			}
+			else
+			{
+				advanceChar(lexer);
+			}
+		}
 	}
 }
 

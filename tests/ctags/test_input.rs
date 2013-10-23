@@ -11,6 +11,11 @@ mod test_input2;
 
 // fn ignored_in_comment() {}
 
+/* /*
+ * */
+ fn ignored_in_nested_comment() {}
+ */
+
 macro_rules! test_macro
 {
 	() => {1}
