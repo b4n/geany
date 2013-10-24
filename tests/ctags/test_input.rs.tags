@@ -7,6 +7,7 @@ FooÌ1Ö0
 FooÌ2048Ö0
 Foo2Ì2048Ö0
 ParametrizedTraitÌ32Ö0
+S1Ì2048Ö0
 SuperTraitTestÌ32Ö0
 TestableÌ32Ö0
 TraitedStructTestÌ1Ö0
@@ -22,6 +23,8 @@ gfuncÌ16Í<X:Testable+DoZ>(x:&X)Ö0
 mainÌ16Í()Ö0
 my_methodÌ128Í(&self,_:int)ÎFooÖ0
 nestedÌ16Í()ÎmainÖ0
+only_fieldÌ8ÎS1Ö0
+sizeÌ16384Ö0
 some2Ì16Í(a:Animal)Ö0
 testÌ128Í(&self)ÎFooÖ0
 testÌ128Í(&self)ÎParametrizedTraitÖ0
