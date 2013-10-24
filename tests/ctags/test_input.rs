@@ -16,6 +16,12 @@ mod test_input2;
  fn ignored_in_nested_comment() {}
  */
 
+static size: uint = 1;
+
+struct S1 {
+	only_field: [int, ..size]
+}
+
 macro_rules! test_macro
 {
 	() => {1}

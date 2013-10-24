@@ -401,15 +401,17 @@ static void addTag (vString* ident, const char* type, const char* arg_list, int 
 }
 
 /* Skip tokens until one of the goal tokens is hit. Escapes when level = 0 if there are no goal tokens.
- * Keeps track of balanced <>'s, ()'s and {}'s and ignores the goal tokens within those pairings */
+ * Keeps track of balanced <>'s, ()'s, []'s, and {}'s and ignores the goal tokens within those pairings */
 static void skipUntil (lexerState *lexer, int goal_tokens[], int num_goal_tokens)
 {
 	int angle_level = 0;
 	int paren_level = 0;
 	int brace_level = 0;
+	int bracket_level = 0;
 	while (lexer->cur_token != TOKEN_EOF)
 	{
-		if (angle_level == 0 && paren_level == 0 && brace_level == 0)
+		if (angle_level == 0 && paren_level == 0 && brace_level == 0
+		    && bracket_level == 0)
 		{
 			int ii = 0;
 			for(ii = 0; ii < num_goal_tokens; ii++)
@@ -433,6 +435,9 @@ static void skipUntil (lexerState *lexer, int goal_tokens[], int num_goal_tokens
 			case '{':
 				brace_level++;
 				break;
+			case '[':
+				bracket_level++;
+				break;
 			case '>':
 				angle_level--;
 				break;
@@ -441,6 +446,9 @@ static void skipUntil (lexerState *lexer, int goal_tokens[], int num_goal_tokens
 				break;
 			case '}':
 				brace_level--;
+				break;
+			case ']':
+				bracket_level--;
 				break;
 			case TOKEN_RSHIFT:
 				if (angle_level >= 2)
@@ -451,7 +459,8 @@ static void skipUntil (lexerState *lexer, int goal_tokens[], int num_goal_tokens
 				break;
 		}
 		/* Has to be after the token switch to catch the case when we start with the initial level token */
-		if (num_goal_tokens == 0 && angle_level == 0 && paren_level == 0 && brace_level == 0)
+		if (num_goal_tokens == 0 && angle_level == 0 && paren_level == 0 && brace_level == 0
+		    && bracket_level == 0)
 			break;
 		advanceToken(lexer, TRUE);
 	}
