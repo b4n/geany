@@ -291,8 +291,10 @@ static void scanRawString (lexerState *lexer)
 				break;
 			}
 		}
-
-		advanceChar(lexer);
+		else
+		{
+			advanceChar(lexer);
+		}
 	}
 }
 

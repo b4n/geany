@@ -47,7 +47,7 @@ fn main() {
 	let _ = "fn ignored_in_string() {}
 	";
 
-	let _ = r##"fn ignored_in_raw_string() {}"##;
+	let _ = r##"fn ignored_in_raw_string() {}""##;
 
 	fn nested() {}
 }
