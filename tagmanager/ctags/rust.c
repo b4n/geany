@@ -24,7 +24,7 @@
 /*
 *   MACROS
 */
-#define MAX_STRING_LENGTH 10
+#define MAX_STRING_LENGTH 64
 
 /*
 *   DATA DECLARATIONS
