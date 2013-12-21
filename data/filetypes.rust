@@ -18,7 +18,7 @@ operator=operator
 identifier=identifier_1
 lifetime=parameter
 macro=preprocessor
-lexerror=string_eol
+lexerror=error
 
 [keywords]
 # all items must be in one line
