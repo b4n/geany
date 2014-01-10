@@ -683,14 +683,14 @@ static void parseType (lexerState *lexer, vString *scope, int parent_kind)
 	addTag(lexer->token_str, NULL, NULL, K_TYPE, lexer->line, lexer->pos, scope, parent_kind);
 }
 
-/* Structs or enums are very similar syntax-wise.
+/* Structs and enums are very similar syntax-wise.
  * It is possible to parse variants a bit more cleverly (e.g. make tuple variants functions and
  * struct variants structs) but it'd be too clever and the signature wouldn't make too much sense without
  * the enum's definition (e.g. for the type bounds)
  *
- * Struct/Trait format:
- * "struct/trait" <ident>[<type_bounds>] "{" [<ident>,]+ "}"
- * "struct/trait" <ident>[<type_bounds>] ";"
+ * Struct/Enum format:
+ * "struct/enum" <ident>[<type_bounds>] "{" [<ident>,]+ "}"
+ * "struct/enum" <ident>[<type_bounds>] ";"
  * */
 static void parseStructOrEnum (lexerState *lexer, vString *scope, int parent_kind, boolean is_struct)
 {
