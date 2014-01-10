@@ -567,24 +567,19 @@ static void parseMod (lexerState *lexer, vString *scope, int parent_kind)
 static void parseTrait (lexerState *lexer, vString *scope, int parent_kind)
 {
 	int goal_tokens[] = {'{'};
-	vString *name;
 
 	advanceToken(lexer, TRUE);
 	if (lexer->cur_token != TOKEN_IDENT)
 		return;
 
-	name = vStringNewCopy(lexer->token_str);
-
-	addTag(name, NULL, NULL, K_TRAIT, lexer->line, lexer->pos, scope, parent_kind);
-	addToScope(scope, name);
+	addTag(lexer->token_str, NULL, NULL, K_TRAIT, lexer->line, lexer->pos, scope, parent_kind);
+	addToScope(scope, lexer->token_str);
 
 	advanceToken(lexer, TRUE);
 
 	skipUntil(lexer, goal_tokens, 1);
 
 	parseBlock(lexer, TRUE, K_TRAIT, scope);
-
-	vStringDelete(name);
 }
 
 /* Skips type blocks of the form <T:T<T>, ...> */
