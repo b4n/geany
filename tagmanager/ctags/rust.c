@@ -687,15 +687,13 @@ static void parseStructOrEnum (lexerState *lexer, vString *scope, int parent_kin
 	int kind = is_struct ? K_STRUCT : K_ENUM;
 	int field_kind = is_struct ? K_FIELD : K_VARIANT;
 	int goal_tokens1[] = {';', '{'};
-	vString *name;
 
 	advanceToken(lexer, TRUE);
 	if (lexer->cur_token != TOKEN_IDENT)
 		return;
-	name = vStringNewCopy(lexer->token_str);
 
-	addTag(name, NULL, NULL, kind, lexer->line, lexer->pos, scope, parent_kind);
-	addToScope(scope, name);
+	addTag(lexer->token_str, NULL, NULL, kind, lexer->line, lexer->pos, scope, parent_kind);
+	addToScope(scope, lexer->token_str);
 
 	skipUntil(lexer, goal_tokens1, 2);
 
@@ -728,8 +726,6 @@ static void parseStructOrEnum (lexerState *lexer, vString *scope, int parent_kin
 		}
 		vStringDelete(field_name);
 	}
-
-	vStringDelete(name);
 }
 
 /* Skip the body of the macro. Can't use skipUntil here as
