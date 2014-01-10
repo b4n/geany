@@ -776,7 +776,7 @@ static void add_top_level_items(GeanyDocument *doc)
 				NULL);
 			break;
 		}
-		/*case GEANY_FILETYPES_RUST:
+		case GEANY_FILETYPES_RUST:
 		{
 			tag_list_add_groups(tag_store,
 				&(tv_iters.tag_namespace), _("Modules"), "classviewer-namespace",
@@ -791,7 +791,7 @@ static void add_top_level_items(GeanyDocument *doc)
 				&(tv_iters.tag_other), _("Other"), "classviewer-other", NULL,
 				NULL);
 			break;
-		}*/
+		}
 		case GEANY_FILETYPES_PERL:
 		{
 			tag_list_add_groups(tag_store,
