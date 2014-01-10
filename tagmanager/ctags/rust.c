@@ -562,7 +562,7 @@ static void parseMod (lexerState *lexer, vString *scope, int parent_kind)
 }
 
 /* Trait format:
- * "trait" [<type_bounds>] <ident> "{" [<body>] "}"
+ * "trait" <ident> [<type_bounds>] "{" [<body>] "}"
  */
 static void parseTrait (lexerState *lexer, vString *scope, int parent_kind)
 {
