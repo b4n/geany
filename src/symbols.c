@@ -784,7 +784,7 @@ static void add_top_level_items(GeanyDocument *doc)
 				&(tv_iters.tag_interface), _("Traits"), "classviewer-class",
 				&(tv_iters.tag_class), _("Implementations"), "classviewer-class",
 				&(tv_iters.tag_function), _("Functions"), "classviewer-method",
-				&(tv_iters.tag_type), _("Types"), "classviewer-struct",
+				&(tv_iters.tag_type), _("Typedefs / Enums"), "classviewer-struct",
 				&(tv_iters.tag_variable), _("Variables"), "classviewer-var",
 				&(tv_iters.tag_macro), _("Macros"), "classviewer-macro",
 				&(tv_iters.tag_member), _("Methods"), "classviewer-member",
