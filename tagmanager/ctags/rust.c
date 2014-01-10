@@ -709,7 +709,11 @@ static void parseStructOrEnum (lexerState *lexer, vString *scope, int parent_kin
 				{
 					advanceToken(lexer, TRUE);
 					if (lexer->cur_token != TOKEN_IDENT)
-						break;
+					{
+						/* Something's up with this field, skip to the next one */
+						skipUntil(lexer, goal_tokens2, 2);
+						continue;
+					}
 				}
 
 				vStringClear(field_name);
