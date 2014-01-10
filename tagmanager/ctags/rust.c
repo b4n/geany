@@ -544,21 +544,16 @@ static void parseFn (lexerState *lexer, vString *scope, int parent_kind)
  * "mod" <ident> ";"*/
 static void parseMod (lexerState *lexer, vString *scope, int parent_kind)
 {
-	vString *name;
 	advanceToken(lexer, TRUE);
 	if (lexer->cur_token != TOKEN_IDENT)
 		return;
 
-	name = vStringNewCopy(lexer->token_str);
-
-	addTag(name, NULL, NULL, K_MOD, lexer->line, lexer->pos, scope, parent_kind);
-	addToScope(scope, name);
+	addTag(lexer->token_str, NULL, NULL, K_MOD, lexer->line, lexer->pos, scope, parent_kind);
+	addToScope(scope, lexer->token_str);
 
 	advanceToken(lexer, TRUE);
 
 	parseBlock(lexer, TRUE, K_MOD, scope);
-
-	vStringDelete(name);
 }
 
 /* Trait format:
