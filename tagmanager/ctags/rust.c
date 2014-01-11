@@ -31,7 +31,6 @@
 */
 
 typedef enum {
-	K_NONE,
 	K_MOD,
 	K_STRUCT,
 	K_TRAIT,
@@ -43,11 +42,11 @@ typedef enum {
 	K_MACRO,
 	K_FIELD,
 	K_VARIANT,
-	K_METHOD
+	K_METHOD,
+	K_NONE
 } RustKind;
 
 static kindOption rustKinds[] = {
-	{TRUE, 'm', "namespace", "module"},
 	{TRUE, 'n', "namespace", "module"},
 	{TRUE, 's', "struct", "structural type"},
 	{TRUE, 'i', "interface", "trait interface"},
@@ -385,6 +384,8 @@ static void deInitLexer (lexerState *lexer)
 
 static void addTag (vString* ident, const char* type, const char* arg_list, int kind, unsigned long line, MIOPos pos, vString *scope, int parent_kind)
 {
+	if (kind == K_NONE)
+		return;
 	tagEntryInfo tag;
 	initTagEntry(&tag, ident->buffer);
 
@@ -397,8 +398,11 @@ static void addTag (vString* ident, const char* type, const char* arg_list, int 
 
 	tag.extensionFields.arglist = arg_list;
 	tag.extensionFields.varType = type;
-	tag.extensionFields.scope[0] = rustKinds[parent_kind].name;
-	tag.extensionFields.scope[1] = scope->buffer;
+	if (parent_kind != K_NONE)
+	{
+		tag.extensionFields.scope[0] = rustKinds[parent_kind].name;
+		tag.extensionFields.scope[1] = scope->buffer;
+	}
 	makeTagEntry(&tag);
 }
 
