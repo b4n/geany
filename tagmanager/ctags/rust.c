@@ -52,7 +52,7 @@ static kindOption rustKinds[] = {
 	{TRUE, 'i', "interface", "trait interface"},
 	{TRUE, 'c', "class", "implementation"},
 	{TRUE, 'f', "function", "Function"},
-	{TRUE, 'g', "enum", "Enum "},
+	{TRUE, 'g', "enum", "Enum"},
 	{TRUE, 't', "typedef", "Type Alias"},
 	{TRUE, 'v', "variable", "Global variable"},
 	{TRUE, 'M', "macro", "Macro Definition"},
