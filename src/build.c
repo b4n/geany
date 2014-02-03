@@ -65,7 +65,8 @@
 
 /* g_spawn_async_with_pipes doesn't work on Windows */
 #ifdef G_OS_WIN32
-#define SYNC_SPAWN
+/* GIOChannels for pipes on Windows always block, so we need to buffer on our side */
+# define BLOCKING_PIPE_IO
 #endif
 
 /* Number of editor indicators to draw - limited as this can affect performance */
@@ -73,6 +74,10 @@
 
 
 GeanyBuildInfo build_info = {GEANY_GBG_FT, 0, 0, NULL, GEANY_FILETYPES_NONE, NULL, 0};
+#if !defined(SYNC_SPAWN) && defined(BLOCKING_PIPE_IO)
+static GString *build_buffer_stdout = NULL;
+static GString *build_buffer_stderr = NULL;
+#endif
 
 static gchar *current_dir_entered = NULL;
 
@@ -853,10 +858,22 @@ static GPid build_spawn_cmd(GeanyDocument *doc, const gchar *cmd, const gchar *d
 	}
 
 	/* use GIOChannels to monitor stdout and stderr */
+# ifdef BLOCKING_PIPE_IO
+	if (! build_buffer_stdout)
+		build_buffer_stdout = g_string_sized_new(32);
+	if (! build_buffer_stderr)
+		build_buffer_stderr = g_string_sized_new(32);
+
+	utils_set_up_io_channel(stdout_fd, G_IO_IN | G_IO_PRI | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
+		FALSE, build_iofunc, build_buffer_stdout);
+	utils_set_up_io_channel(stderr_fd, G_IO_IN | G_IO_PRI | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
+		FALSE, build_iofunc, build_buffer_stderr);
+# else /* !BLOCKING_PIPE_IO */
 	utils_set_up_io_channel(stdout_fd, G_IO_IN | G_IO_PRI | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
 		TRUE, build_iofunc, GINT_TO_POINTER(0));
 	utils_set_up_io_channel(stderr_fd, G_IO_IN | G_IO_PRI | G_IO_ERR | G_IO_HUP | G_IO_NVAL,
 		TRUE, build_iofunc, GINT_TO_POINTER(1));
+# endif /* BLOCKING_PIPE_IO */
 #endif
 
 	g_strfreev(argv);
@@ -1115,6 +1132,61 @@ static void process_build_output_line(const gchar *str, gint color)
 
 
 #ifndef SYNC_SPAWN
+# ifdef BLOCKING_PIPE_IO
+static void flush_build_buffer(GString *buffer)
+{
+	if (buffer->len > 0)
+	{
+		gint color = (buffer == build_buffer_stderr) ? COLOR_DARK_RED : COLOR_BLACK;
+
+		process_build_output_line(buffer->str, color);
+		g_string_truncate(buffer, 0);
+	}
+}
+
+
+static gboolean build_iofunc(GIOChannel *ioc, GIOCondition cond, gpointer data)
+{
+	GString *buf = data;
+
+	if (cond & (G_IO_IN | G_IO_PRI))
+	{
+		GIOStatus st;
+		gchar c;
+
+		do
+		{
+			st = g_io_channel_read_chars(ioc, &c, 1, NULL, NULL);
+			if (st == G_IO_STATUS_NORMAL)
+			{
+				g_string_append_c(buf, c);
+				if (c == '\n')
+				{
+					flush_build_buffer(buf);
+					/* break; */
+				}
+			}
+		}
+		while ((st == G_IO_STATUS_NORMAL && g_io_channel_get_buffer_condition(ioc) & G_IO_IN) ||
+			(cond & G_IO_HUP && (st == G_IO_STATUS_NORMAL || st == G_IO_STATUS_AGAIN)));
+
+		if (st == G_IO_STATUS_ERROR || st == G_IO_STATUS_EOF)
+		{
+			flush_build_buffer(buf);
+			return FALSE;
+		}
+	}
+	if (cond & (G_IO_ERR | G_IO_HUP | G_IO_NVAL))
+	{
+		flush_build_buffer(buf);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+# else /* ! BLOCKING_PIPE_IO */
+
 static gboolean build_iofunc(GIOChannel *ioc, GIOCondition cond, gpointer data)
 {
 	if (cond & (G_IO_IN | G_IO_PRI))
@@ -1136,6 +1208,7 @@ static gboolean build_iofunc(GIOChannel *ioc, GIOCondition cond, gpointer data)
 
 	return TRUE;
 }
+# endif /* BLOCKING_PIPE_IO */
 #endif
 
 
