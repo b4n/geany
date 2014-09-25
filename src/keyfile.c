@@ -500,8 +500,6 @@ static void save_dialog_prefs(GKeyFile *config)
 	{
 		gchar *tmp_string;
 
-		if (!g_key_file_has_key(config, "VTE", "emulation", NULL))	/* hidden */
-			g_key_file_set_string(config, "VTE", "emulation", vc->emulation);
 		if (!g_key_file_has_key(config, "VTE", "send_selection_unsafe", NULL))	/* hidden */
 			g_key_file_set_boolean(config, "VTE", "send_selection_unsafe",
 				vc->send_selection_unsafe);
@@ -853,7 +851,6 @@ static void load_dialog_prefs(GKeyFile *config)
 			/* fallback to root */
 			vte_info.dir = g_strdup("/");
 
-		vc->emulation = utils_get_setting_string(config, "VTE", "emulation", "xterm");
 		vc->send_selection_unsafe = utils_get_setting_boolean(config, "VTE",
 			"send_selection_unsafe", FALSE);
 		vc->image = utils_get_setting_string(config, "VTE", "image", "");

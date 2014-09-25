@@ -104,7 +104,6 @@ struct VteFunctions
 	gboolean (*vte_terminal_get_has_selection) (VteTerminal *terminal);
 	void (*vte_terminal_copy_clipboard) (VteTerminal *terminal);
 	void (*vte_terminal_paste_clipboard) (VteTerminal *terminal);
-	void (*vte_terminal_set_emulation) (VteTerminal *terminal, const gchar *emulation);
 	void (*vte_terminal_set_color_foreground) (VteTerminal *terminal, const GdkColor *foreground);
 	void (*vte_terminal_set_color_bold) (VteTerminal *terminal, const GdkColor *foreground);
 	void (*vte_terminal_set_color_background) (VteTerminal *terminal, const GdkColor *background);
@@ -324,7 +323,6 @@ void vte_close(void)
 	gtk_widget_destroy(vc->vte);
 	gtk_widget_destroy(vc->menu);
 	g_object_unref(vc->menu);
-	g_free(vc->emulation);
 	g_free(vc->shell);
 	g_free(vc->image);
 	g_free(vc->font);
@@ -469,7 +467,6 @@ static gboolean vte_register_symbols(GModule *mod)
 	BIND_REQUIRED_SYMBOL(vte_terminal_get_has_selection);
 	BIND_REQUIRED_SYMBOL(vte_terminal_copy_clipboard);
 	BIND_REQUIRED_SYMBOL(vte_terminal_paste_clipboard);
-	BIND_REQUIRED_SYMBOL(vte_terminal_set_emulation);
 	BIND_REQUIRED_SYMBOL(vte_terminal_set_color_foreground);
 	BIND_REQUIRED_SYMBOL(vte_terminal_set_color_bold);
 	BIND_REQUIRED_SYMBOL(vte_terminal_set_color_background);
@@ -503,7 +500,6 @@ void vte_apply_user_settings(void)
 	vf->vte_terminal_set_scrollback_lines(VTE_TERMINAL(vc->vte), vc->scrollback_lines);
 	vf->vte_terminal_set_scroll_on_keystroke(VTE_TERMINAL(vc->vte), vc->scroll_on_key);
 	vf->vte_terminal_set_scroll_on_output(VTE_TERMINAL(vc->vte), vc->scroll_on_out);
-	vf->vte_terminal_set_emulation(VTE_TERMINAL(vc->vte), vc->emulation);
 	font_desc = pango_font_description_from_string(vc->font);
 	vf->vte_terminal_set_font(VTE_TERMINAL(vc->vte), font_desc);
 	pango_font_description_free(font_desc);
