@@ -379,39 +379,19 @@ GString *symbols_get_macro_list(gint lang)
 }
 
 
-/* Note: if tags is sorted, we can use bsearch or tm_tags_find() to speed this up. */
-static TMTag *
-symbols_find_tm_tag(const GPtrArray *tags, const gchar *tag_name)
-{
-	guint i;
-	g_return_val_if_fail(tags != NULL, NULL);
-
-	for (i = 0; i < tags->len; ++i)
-	{
-		if (utils_str_equal(TM_TAG(tags->pdata[i])->name, tag_name))
-			return TM_TAG(tags->pdata[i]);
-	}
-	return NULL;
-}
-
-
 static TMTag *find_work_object_tag(const TMWorkObject *workobj,
 		const gchar *tag_name, guint type)
 {
-	GPtrArray *tags;
-	TMTag *tmtag;
-
-	if (G_LIKELY(workobj != NULL))
+	if (G_LIKELY(workobj != NULL && workobj->tags_array != NULL))
 	{
-		tags = tm_tags_extract(workobj->tags_array, type);
-		if (tags != NULL)
+		guint i;
+
+		for (i = 0; i < workobj->tags_array->len; ++i)
 		{
-			tmtag = symbols_find_tm_tag(tags, tag_name);
-
-			g_ptr_array_free(tags, TRUE);
-
-			if (tmtag != NULL)
-				return tmtag;
+			TMTag *tag = TM_TAG(workobj->tags_array->pdata[i]);
+			
+			if (tag->type & type && utils_str_equal(tag->name, tag_name))
+				return tag;
 		}
 	}
 	return NULL;	/* not found */
