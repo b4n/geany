@@ -379,63 +379,18 @@ GString *symbols_get_macro_list(gint lang)
 }
 
 
-/* Note: if tags is sorted, we can use bsearch or tm_tags_find() to speed this up. */
-static TMTag *
-symbols_find_tm_tag(const GPtrArray *tags, const gchar *tag_name)
-{
-	guint i;
-	g_return_val_if_fail(tags != NULL, NULL);
-
-	for (i = 0; i < tags->len; ++i)
-	{
-		if (utils_str_equal(TM_TAG(tags->pdata[i])->name, tag_name))
-			return TM_TAG(tags->pdata[i]);
-	}
-	return NULL;
-}
-
-
 static TMTag *find_work_object_tag(const TMWorkObject *workobj,
 		const gchar *tag_name, guint type)
 {
-	GPtrArray *tags;
-	TMTag *tmtag;
-
 	if (G_LIKELY(workobj != NULL))
 	{
-		tags = tm_tags_extract(workobj->tags_array, type);
-		if (tags != NULL)
+		int count = 0;
+		TMTag **tags = tm_tags_find (workobj->tags_array, tag_name, FALSE, TRUE, &count);
+
+		for (int i = 0; i < count; ++i)
 		{
-			tmtag = symbols_find_tm_tag(tags, tag_name);
-
-			g_ptr_array_free(tags, TRUE);
-
-			if (tmtag != NULL)
-				return tmtag;
-		}
-	}
-	return NULL;	/* not found */
-}
-
-
-static TMTag *find_workspace_tag(const gchar *tag_name, guint type)
-{
-	guint j;
-	const GPtrArray *work_objects = NULL;
-
-	if (app->tm_workspace != NULL)
-		work_objects = app->tm_workspace->work_objects;
-
-	if (work_objects != NULL)
-	{
-		for (j = 0; j < work_objects->len; j++)
-		{
-			TMWorkObject *workobj = TM_WORK_OBJECT(work_objects->pdata[j]);
-			TMTag *tmtag;
-
-			tmtag = find_work_object_tag(workobj, tag_name, type);
-			if (tmtag != NULL)
-				return tmtag;
+			if (tags[i]->type & type)
+				return tags[i];
 		}
 	}
 	return NULL;	/* not found */
@@ -1945,7 +1900,7 @@ static gboolean goto_tag(const gchar *name, gboolean definition)
 
 	/* if not found, look in the workspace */
 	if (tmtag == NULL)
-		tmtag = find_workspace_tag(name, type);
+		tmtag = find_work_object_tag(TM_WORK_OBJECT(app->tm_workspace), name, type);
 
 	if (tmtag != NULL)
 	{
