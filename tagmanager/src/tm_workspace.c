@@ -484,7 +484,9 @@ TMWorkObject *tm_workspace_find_object(TMWorkObject *work_object, const char *fi
 
 void tm_workspace_recreate_tags_array(void)
 {
-	guint i, j;
+	guint i;
+	guint tags_count = 0;
+	guint tags_added = 0;
 	TMWorkObject *w;
 	TMTagAttrType sort_attrs[] = { tm_tag_attr_name_t, tm_tag_attr_file_t
 		, tm_tag_attr_scope_t, tm_tag_attr_type_t, tm_tag_attr_arglist_t, 0};
@@ -495,10 +497,18 @@ void tm_workspace_recreate_tags_array(void)
 
 	if ((NULL == theWorkspace) || (NULL == theWorkspace->work_objects))
 		return;
+
+	for (i=0; i < theWorkspace->work_objects->len; ++i)
+	{
+		w = TM_WORK_OBJECT(theWorkspace->work_objects->pdata[i]);
+		if (w && w->tags_array)
+			tags_count += w->tags_array->len;
+	}
+
 	if (NULL != theWorkspace->work_object.tags_array)
-		g_ptr_array_set_size(theWorkspace->work_object.tags_array, 0);
+		g_ptr_array_set_size(theWorkspace->work_object.tags_array, tags_count);
 	else
-		theWorkspace->work_object.tags_array = g_ptr_array_new();
+		theWorkspace->work_object.tags_array = g_ptr_array_sized_new(tags_count);
 
 #ifdef TM_DEBUG
 	g_message("Total %d objects", theWorkspace->work_objects->len);
@@ -511,11 +521,11 @@ void tm_workspace_recreate_tags_array(void)
 #endif
 		if ((NULL != w) && (NULL != w->tags_array) && (w->tags_array->len > 0))
 		{
-			for (j = 0; j < w->tags_array->len; ++j)
-			{
-				g_ptr_array_add(theWorkspace->work_object.tags_array,
-					  w->tags_array->pdata[j]);
-			}
+			GPtrArray *const dst = theWorkspace->work_object.tags_array;
+			GPtrArray *const src = w->tags_array;
+
+			memcpy(&dst->pdata[tags_added], src->pdata, src->len * sizeof *src->pdata);
+			tags_added += src->len;
 		}
 	}
 #ifdef TM_DEBUG
