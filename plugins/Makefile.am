@@ -12,8 +12,8 @@ plugins_include_HEADERS = \
 	geanyfunctions.h
 
 # systems without python should continue to build OK
-geanyfunctions.h: genapi.py ../src/plugins.c
-	python genapi.py || true
+geanyfunctions.h: $(srcdir)/genapi.py $(top_srcdir)/src/plugins.c
+	srcdir="$(srcdir)" python $(srcdir)/genapi.py || true
 
 all: geanyfunctions.h
 

@@ -31,12 +31,13 @@ Creates macros for each plugin API function pointer, e.g.:
 
 
 import re
+import os
 import sys
 
 
 def get_function_names():
     names = []
-    filep = open('../src/plugins.c')
+    filep = open(os.path.join(os.getenv('srcdir') or '.', '../src/plugins.c'))
     while 1:
         line = filep.readline()
         if line == "":
