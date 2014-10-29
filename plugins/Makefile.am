@@ -18,49 +18,15 @@ geanyfunctions.h: $(srcdir)/genapi.py $(top_srcdir)/src/plugins.c
 all: geanyfunctions.h
 
 
-demoplugin_la_LDFLAGS    = -module -avoid-version
-classbuilder_la_LDFLAGS  = -module -avoid-version
-htmlchars_la_LDFLAGS     = -module -avoid-version
-export_la_LDFLAGS        = -module -avoid-version
-saveactions_la_LDFLAGS   = -module -avoid-version
-filebrowser_la_LDFLAGS   = -module -avoid-version
-splitwindow_la_LDFLAGS   = -module -avoid-version
+demoplugin_la_LDFLAGS    = -module -avoid-version -no-undefined
+classbuilder_la_LDFLAGS  = -module -avoid-version -no-undefined
+htmlchars_la_LDFLAGS     = -module -avoid-version -no-undefined
+export_la_LDFLAGS        = -module -avoid-version -no-undefined
+saveactions_la_LDFLAGS   = -module -avoid-version -no-undefined
+filebrowser_la_LDFLAGS   = -module -avoid-version -no-undefined
+splitwindow_la_LDFLAGS   = -module -avoid-version -no-undefined
 
 if PLUGINS
-
-if MINGW
-# build Geany for Windows on non-Windows systems (cross-compile)
-# (this is a little hack'ish and surely can be improved)
-DLL_LD_FLAGS = -module -avoid-version
-MINGW_CFLAGS = \
-			-DGEANY_DATADIR=\"data\" \
-			-DHAVE_CONFIG_H \
-			-DGTK \
-			-I$(top_srcdir) \
-			-I$(top_srcdir)/src \
-			-I$(top_srcdir)/tagmanager/src \
-			-I$(top_srcdir)/scintilla/include \
-			$(GTK_CFLAGS) \
-			$(PLUGIN_CFLAGS)
-
-.PHONY: all clean
-
-all-local: \
-	classbuilder.dll \
-	htmlchars.dll \
-	export.dll \
-	saveactions.dll \
-	splitwindow.dll \
-	filebrowser.dll
-
-.c.dll:
-	$(CC) $(MINGW_CFLAGS) -o $@.o -c $<
-	$(CC) -shared $@.o $(GTK_LIBS) $(DLL_LD_FLAGS) -o $@
-
-clean:
-	rm -f *.o *.dll
-
-else
 
 # Plugins to be installed
 plugin_LTLIBRARIES = \
@@ -99,11 +65,16 @@ saveactions_la_LIBADD   = $(GTK_LIBS)
 filebrowser_la_LIBADD   = $(GTK_LIBS)
 splitwindow_la_LIBADD   = $(GTK_LIBS)
 
-endif # MINGW
 endif # PLUGINS
 
-AM_CPPFLAGS = \
-	-DDATADIR=\"$(datadir)\" \
+if MINGW
+# FIXME: why is this define different than the non-MINGW one?
+AM_CPPFLAGS = -DGEANY_DATADIR=\"data\"
+else
+AM_CPPFLAGS = -DDATADIR=\"$(datadir)\"
+endif
+
+AM_CPPFLAGS += \
 	-DGTK \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/tagmanager/src \
@@ -115,6 +86,12 @@ AM_CPPFLAGS = \
 # This part allows people to build their own plugins in here.
 # Yes, it's a mess.
 #
+if MINGW
+SUFFIXES = .c .dll
+.c.dll:
+	$(CC) $(MINGW_CFLAGS) -o $@.o -c $<
+	$(CC) -shared $@.o $(GTK_LIBS) $(DLL_LD_FLAGS) -o $@
+else
 SUFFIXES = .c .so
 .c.so:
 	$(LIBTOOL) --mode=compile $(CC) -DHAVE_CONFIG_H -I$(top_srcdir) $(AM_CPPFLAGS) $(CFLAGS) -c $< -o tmp$@.lo $(PLUGIN_CFLAGS)
@@ -122,3 +99,4 @@ SUFFIXES = .c .so
 	@rm -f tmp$@.lo tmp$@.o libtmp$@.la
 	@cp .libs/libtmp$@.so* $@
 	@rm -f .libs/libtmp$@.*
+endif
