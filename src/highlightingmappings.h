@@ -624,6 +624,17 @@ static const HLKeyword highlighting_keywords_FORTH[] =
 #define highlighting_properties_FORTRAN		highlighting_properties_F77
 
 
+/* Go */
+#define highlighting_lexer_GO		SCLEX_CPP
+#define highlighting_styles_GO		highlighting_styles_C
+static const HLKeyword highlighting_keywords_GO[] =
+{
+	{ 0, "primary",		FALSE },
+	{ 1, "secondary",	FALSE }
+};
+#define highlighting_properties_GO	highlighting_properties_C
+
+
 /* Haskell */
 #define highlighting_lexer_HASKELL			SCLEX_HASKELL
 static const HLStyle highlighting_styles_HASKELL[] =
