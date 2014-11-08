@@ -627,11 +627,7 @@ static const HLKeyword highlighting_keywords_FORTH[] =
 /* Go */
 #define highlighting_lexer_GO		SCLEX_CPP
 #define highlighting_styles_GO		highlighting_styles_C
-static const HLKeyword highlighting_keywords_GO[] =
-{
-	{ 0, "primary",		FALSE },
-	{ 1, "secondary",	FALSE }
-};
+#define highlighting_keywords_GO	highlighting_keywords_C
 #define highlighting_properties_GO	highlighting_properties_C
 
 
