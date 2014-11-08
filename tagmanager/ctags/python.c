@@ -122,7 +122,7 @@ static void makeFunctionTag (vString *const function,
 
 	tag.kindName = PythonKinds[K_FUNCTION].name;
 	tag.kind = PythonKinds[K_FUNCTION].letter;
-	tag.extensionFields.arglist = arglist;
+	tag.extensionFields.signature = arglist;
 	/* add argument list of __init__() methods to the class tag */
 	if (strcmp (vStringValue (function), "__init__") == 0 && parent != NULL)
 	{
