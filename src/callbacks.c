@@ -631,7 +631,7 @@ G_MODULE_EXPORT void on_replace_tabs_activate(GtkMenuItem *menuitem, gpointer us
 
 	g_return_if_fail(doc != NULL);
 
-	editor_replace_tabs(doc->editor);
+	editor_replace_tabs(doc->editor, FALSE);
 }
 
 
@@ -1729,7 +1729,7 @@ G_MODULE_EXPORT void on_replace_spaces_activate(GtkMenuItem *menuitem, gpointer 
 
 	g_return_if_fail(doc != NULL);
 
-	editor_replace_spaces(doc->editor);
+	editor_replace_spaces(doc->editor, FALSE);
 }
 
 

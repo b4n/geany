@@ -4318,7 +4318,7 @@ void editor_fold_all(GeanyEditor *editor)
 }
 
 
-void editor_replace_tabs(GeanyEditor *editor)
+void editor_replace_tabs(GeanyEditor *editor, gboolean ignore_selection)
 {
 	gint search_pos, pos_in_line, current_tab_true_length;
 	gint tab_len;
@@ -4329,8 +4329,16 @@ void editor_replace_tabs(GeanyEditor *editor)
 
 	sci_start_undo_action(editor->sci);
 	tab_len = sci_get_tab_width(editor->sci);
-	ttf.chrg.cpMin = 0;
-	ttf.chrg.cpMax = sci_get_length(editor->sci);
+	if (sci_has_selection(editor->sci) && !ignore_selection)
+	{
+		ttf.chrg.cpMin = sci_get_selection_start(editor->sci);
+		ttf.chrg.cpMax = sci_get_selection_end(editor->sci);
+	}
+	else
+	{
+		ttf.chrg.cpMin = 0;
+		ttf.chrg.cpMax = sci_get_length(editor->sci);
+	}
 	ttf.lpstrText = (gchar*) "\t";
 
 	while (TRUE)
@@ -4355,8 +4363,9 @@ void editor_replace_tabs(GeanyEditor *editor)
 }
 
 
-/* Replaces all occurrences all spaces of the length of a given tab_width. */
-void editor_replace_spaces(GeanyEditor *editor)
+/* Replaces all occurrences all spaces of the length of a given tab_width,
+ * optionally restricting the search to the current selection. */
+void editor_replace_spaces(GeanyEditor *editor, gboolean ignore_selection)
 {
 	gint search_pos;
 	static gdouble tab_len_f = -1.0; /* keep the last used value */
@@ -4380,8 +4389,16 @@ void editor_replace_spaces(GeanyEditor *editor)
 	text = g_strnfill(tab_len, ' ');
 
 	sci_start_undo_action(editor->sci);
-	ttf.chrg.cpMin = 0;
-	ttf.chrg.cpMax = sci_get_length(editor->sci);
+	if (sci_has_selection(editor->sci) && !ignore_selection)
+	{
+		ttf.chrg.cpMin = sci_get_selection_start(editor->sci);
+		ttf.chrg.cpMax = sci_get_selection_end(editor->sci);
+	}
+	else
+	{
+		ttf.chrg.cpMin = 0;
+		ttf.chrg.cpMax = sci_get_length(editor->sci);
+	}
 	ttf.lpstrText = text;
 
 	while (TRUE)
