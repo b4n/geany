@@ -4476,8 +4476,9 @@ void editor_strip_trailing_spaces(GeanyEditor *editor, gboolean ignore_selection
 
 	if (sci_has_selection(editor->sci) && !ignore_selection)
 	{
+		editor_select_lines(editor, FALSE);
 		start_line = sci_get_line_from_position(editor->sci, sci_get_selection_start(editor->sci));
-		end_line = sci_get_line_from_position(editor->sci, sci_get_selection_end(editor->sci)) + 1;
+		end_line = sci_get_line_from_position(editor->sci, sci_get_selection_end(editor->sci));
 	}
 	else
 	{
