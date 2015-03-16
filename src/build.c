@@ -715,7 +715,8 @@ static gchar *build_replace_placeholder(const GeanyDocument *doc, const gchar *s
 	stack = g_string_new(NULL);
 	for (; *src; src++)
 	{
-		if (*src == nesting[level].terminator)
+		if (*src == nesting[level].terminator &&
+			! nesting[level].quote)
 		{
 			g_string_append_c(stack, *src);
 			level--;
