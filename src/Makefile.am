@@ -81,7 +81,6 @@ libgeany_la_SOURCES = \
 	msgwindow.c msgwindow.h \
 	navqueue.c navqueue.h \
 	notebook.c notebook.h \
-	osx.c osx.h \
 	plugins.c plugins.h \
 	pluginutils.c pluginutils.h \
 	prefix.c prefix.h \
@@ -153,6 +152,10 @@ AM_CPPFLAGS += \
 	-DGEANY_PREFIX=\""$(prefix)"\"
 
 libgeany_la_SOURCES += vte.c vte.h
+
+if MAC_INTEGRATION
+libgeany_la_SOURCES += osx.c osx.h
+endif
 
 endif
 

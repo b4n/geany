@@ -15,4 +15,5 @@ AC_DEFUN([GEANY_CHECK_MAC_INTEGRATION],
 			[PKG_CHECK_MODULES(MAC_INTEGRATION, gtk-mac-integration-gtk3)], 
 			[PKG_CHECK_MODULES(MAC_INTEGRATION, gtk-mac-integration-gtk2)])
 	])
+	AM_CONDITIONAL([MAC_INTEGRATION], [test "x$geany_enable_mac_integration" = "xyes"])
 ])
