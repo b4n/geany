@@ -262,7 +262,7 @@ void plugin_configure_single(GtkWidget *parent);
 void plugin_help(void);
 void plugin_cleanup(void);
 
-gboolean geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version);
+void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version);
 
 #endif
 
@@ -281,7 +281,7 @@ typedef struct _GeanyPluginHooks
 	/** Array of plugin-provided signal handlers (@see PluginCallback) */
 	PluginCallback *callbacks;
 	/** Called to initialize the plugin, when the user activates it (must not be @c NULL) */
-	void        (*init)      (GeanyPlugin *plugin, gpointer pdata);
+	gboolean    (*init)      (GeanyPlugin *plugin, gpointer pdata);
 	/** plugins configure dialog, optional (can be @c NULL) */
 	GtkWidget*  (*configure) (GeanyPlugin *plugin, GtkDialog *dialog, gpointer pdata);
 	/** Called when the plugin should show some help, optional (can be @c NULL) */
