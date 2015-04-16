@@ -268,13 +268,12 @@ static gint cmp_plugin_names(gconstpointer a, gconstpointer b)
  * @param min_api_version The minimum API version required by the plugin
  * @param abi_version The exact ABI version the plugin is compiled against (pass GEANY_ABI_VERSION)
  * @hooks hooks A statically allocated @ref GeanyPluginHooks structure
- * @param pdata A data pointer to store plugin-specific data, will be passed to the plugin's hooks
  *
  * @since 1.25
  **/
 GEANY_API_SYMBOL
 gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version, gint min_api_version,
-                               gint abi_version, GeanyPluginHooks *hooks, gpointer pdata)
+                               gint abi_version, GeanyPluginHooks *hooks)
 {
 	Plugin *p;
 
@@ -290,7 +289,6 @@ gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version, gint min_a
 	 * we have to inspect the plugin's api so that we don't misinterpret
 	 * function pointers the plugin doesn't know anything about. */
 	p->hooks.n = *hooks;
-	p->hooks_data = pdata;
 
 	/* Only init and cleanup hooks are truly mandatory. */
 	if (! hooks->init || ! hooks->cleanup)
@@ -522,6 +520,8 @@ plugin_new(const gchar *fname, gboolean load_plugin, gboolean add_to_list)
 	return plugin;
 
 err:
+	if (plugin->hooks_data_destroy)
+		plugin->hooks_data_destroy(plugin->hooks_data);
 	if (! g_module_close(module))
 		g_warning("%s: %s", fname, g_module_error());
 	g_free(plugin->filename);
@@ -643,6 +643,8 @@ plugin_free(Plugin *plugin)
 
 	plugin_list = g_list_remove(plugin_list, plugin);
 
+	if (plugin->hooks_data_destroy)
+		plugin->hooks_data_destroy(plugin->hooks_data);
 	g_free(plugin->filename);
 	g_free(plugin);
 	plugin = NULL;

@@ -292,7 +292,8 @@ typedef struct _GeanyPluginHooks
 GeanyPluginHooks;
 
 gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version, gint min_api_version,
-                               gint abi_version, GeanyPluginHooks *hooks, gpointer pdata);
+                               gint abi_version, GeanyPluginHooks *hooks);
+void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify free_func);
 
 /* Deprecated aliases */
 #ifndef GEANY_DISABLE_DEPRECATED
