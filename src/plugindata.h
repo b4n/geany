@@ -108,17 +108,6 @@ typedef struct PluginInfo
 PluginInfo;
 
 
-/** Basic information for the plugin and identification.
- * @see geany_plugin. */
-typedef struct GeanyPlugin
-{
-	PluginInfo	*info;	/**< Fields set in plugin_set_info(). */
-
-	struct GeanyPluginPrivate *priv;	/* private */
-}
-GeanyPlugin;
-
-
 /** Sets the plugin name and some other basic information about a plugin.
  *
  * @note If you want some of the arguments to be translated, see @ref PLUGIN_SET_TRANSLATABLE_INFO()
@@ -248,6 +237,16 @@ GeanyData;
 
 #define geany			geany_data	/**< Simple macro for @c geany_data that reduces typing. */
 
+/** Basic information for the plugin and identification.
+ * @see geany_plugin. */
+typedef struct GeanyPlugin
+{
+	PluginInfo	*info;	/**< Fields set in plugin_set_info(). */
+	GeanyData	*geany_data;	/**< Pointer to global GeanyData intance */
+
+	struct GeanyPluginPrivate *priv;	/* private */
+}
+GeanyPlugin;
 
 #ifndef GEANY_PRIVATE
 
@@ -263,7 +262,37 @@ void plugin_configure_single(GtkWidget *parent);
 void plugin_help(void);
 void plugin_cleanup(void);
 
+gboolean geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version);
+
 #endif
+
+/** Hooks that need to be implemented for every plugin.
+ *
+ * These hooks should be registered by the plugin within Geany's call to
+ * geany_load_module() by calling geany_plugin_register() with an instance of this type.
+ *
+ * Geany will then call the hook at appropriate times. Every hook gets passed the user-defined
+ * data pointer as well as the corresponding GeanyPlugin instance pointer.
+ *
+ * @since 1.25
+ **/
+typedef struct _GeanyPluginHooks
+{
+	/** Array of plugin-provided signal handlers (@see PluginCallback) */
+	PluginCallback *callbacks;
+	/** Called to initialize the plugin, when the user activates it (must not be @c NULL) */
+	void        (*init)      (GeanyPlugin *plugin, gpointer pdata);
+	/** plugins configure dialog, optional (can be @c NULL) */
+	GtkWidget*  (*configure) (GeanyPlugin *plugin, GtkDialog *dialog, gpointer pdata);
+	/** Called when the plugin should show some help, optional (can be @c NULL) */
+	void        (*help)      (GeanyPlugin *plugin, gpointer pdata);
+	/** Called when the plugin is disabled or when Geany exits (must not be @c NULL) */
+	void        (*cleanup)   (GeanyPlugin *plugin, gpointer pdata);
+}
+GeanyPluginHooks;
+
+gboolean geany_plugin_register(GeanyPlugin *plugin, gint api_version, gint min_api_version,
+                               gint abi_version, GeanyPluginHooks *hooks, gpointer pdata);
 
 /* Deprecated aliases */
 #ifndef GEANY_DISABLE_DEPRECATED

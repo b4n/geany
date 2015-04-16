@@ -310,7 +310,7 @@ GeanyKeyGroup *plugin_set_key_group(GeanyPlugin *plugin,
 
 static void on_pref_btn_clicked(gpointer btn, Plugin *p)
 {
-	p->configure_single(main_widgets.window);
+	p->hooks.l.configure_single(main_widgets.window);
 }
 
 
@@ -318,10 +318,16 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 {
 	GtkWidget *page = NULL;	/* some plugins don't have prefs */
 
-	if (p->configure)
+	if (!PLUGIN_IS_LEGACY(p))
 	{
-		page = p->configure(GTK_DIALOG(dialog));
+		if (p->hooks.n.configure)
+			page = p->hooks.n.configure(&p->public, GTK_DIALOG(dialog), p->hooks_data);
+	}
+	else if (p->hooks.l.configure)
+		page = p->hooks.l.configure(GTK_DIALOG(dialog));
 
+	if (page)
+	{
 		if (! GTK_IS_WIDGET(page))
 		{
 			geany_debug("Invalid widget returned from plugin_configure() in plugin \"%s\"!",
@@ -338,7 +344,7 @@ static GtkWidget *create_pref_page(Plugin *p, GtkWidget *dialog)
 			gtk_box_pack_start(GTK_BOX(page), align, TRUE, TRUE, 0);
 		}
 	}
-	else if (p->configure_single)
+	else if (PLUGIN_IS_LEGACY(p) && p->hooks.l.configure_single)
 	{
 		GtkWidget *align = gtk_alignment_new(0.5, 0.5, 0, 0);
 		GtkWidget *btn;
@@ -421,12 +427,12 @@ void plugin_show_configure(GeanyPlugin *plugin)
 	}
 	p = plugin->priv;
 
-	if (p->configure)
+	if (!PLUGIN_IS_LEGACY(p) || p->hooks.l.configure)
 		configure_plugins(p);
 	else
 	{
-		g_return_if_fail(p->configure_single);
-		p->configure_single(main_widgets.window);
+		g_return_if_fail(p->hooks.l.configure_single);
+		p->hooks.l.configure_single(main_widgets.window);
 	}
 }
 
