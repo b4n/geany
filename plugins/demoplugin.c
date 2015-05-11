@@ -207,13 +207,6 @@ static void demo_cleanup(GeanyPlugin *plugin, gpointer data)
 
 void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version)
 {
-	GeanyPluginHooks hooks = {
-		.init = demo_init,
-		.configure = demo_configure,
-		.cleanup = demo_cleanup,
-		.callbacks = demo_callbacks,
-	};
-
 	/* main_locale_init() must be called for your package before any localization can be done */
 	main_locale_init(LOCALEDIR, GETTEXT_PACKAGE);
 	plugin->info->name = _("Demo");
@@ -221,5 +214,11 @@ void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_vers
 	plugin->info->version = "0.3";
 	plugin->info->author =  _("The Geany developer team");
 
-	geany_plugin_register(plugin, GEANY_API_VERSION, 224, GEANY_API_VERSION, &hooks);
+	plugin->hooks->init = demo_init;
+	plugin->hooks->configure = demo_configure;
+	plugin->hooks->help = NULL; /* This demo has no help but it is an option */
+	plugin->hooks->cleanup = demo_cleanup;
+	plugin->hooks->callbacks = demo_callbacks;
+
+	GEANY_PLUGIN_REGISTER(plugin, 224);
 }
