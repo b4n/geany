@@ -43,7 +43,10 @@ static gchar *welcome_text = NULL;
 static gboolean on_editor_notify(GObject *object, GeanyEditor *editor,
 								 SCNotification *nt, gpointer data)
 {
-	GeanyData *geany_data = data;
+	/* Geany passes the plugin's GeanyPlugin pointer as user_data if it did not set
+	 * it explicitely. This is specific to PluginCallbacks. */
+	GeanyPlugin *plugin = data;
+	GeanyData *geany_data = plugin->geany_data;
 
 	/* For detailed documentation about the SCNotification struct, please see
 	 * http://www.scintilla.org/ScintillaDoc.html#Notifications. */
@@ -136,8 +139,6 @@ static gboolean demo_init(GeanyPlugin *plugin, gpointer data)
 	main_menu_item = demo_item;
 
 	welcome_text = g_strdup(_("Hello World!"));
-
-	demo_callbacks[0].user_data = geany_data;
 
 	return TRUE;
 }
