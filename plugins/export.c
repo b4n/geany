@@ -31,16 +31,6 @@
 #include "geanyplugin.h"
 
 
-GeanyData		*geany_data;
-
-PLUGIN_VERSION_CHECK(GEANY_API_VERSION)
-PLUGIN_SET_INFO(_("Export"), _("Exports the current file into different formats."), VERSION,
-	_("The Geany developer team"))
-
-
-static GtkWidget *main_menu_item = NULL;
-
-
 #define ROTATE_RGB(color) \
 	(((color) & 0xFF0000) >> 16) + ((color) & 0x00FF00) + (((color) & 0x0000FF) << 16)
 #define TEMPLATE_HTML "\
@@ -100,19 +90,20 @@ enum
 	DATE_TYPE_HTML
 };
 
-typedef void (*ExportFunc) (GeanyDocument *doc, const gchar *filename,
+typedef void (*ExportFunc) (GeanyPlugin *plugin, GeanyDocument *doc, const gchar *filename,
 	gboolean use_zoom, gboolean insert_line_numbers);
 typedef struct
 {
+	GeanyPlugin *plugin;
 	GeanyDocument *doc;
 	gboolean have_zoom_level_checkbox;
 	ExportFunc export_func;
 } ExportInfo;
 
 static void on_file_save_dialog_response(GtkDialog *dialog, gint response, gpointer user_data);
-static void write_html_file(GeanyDocument *doc, const gchar *filename,
+static void write_html_file(GeanyPlugin *plugin, GeanyDocument *doc, const gchar *filename,
 	gboolean use_zoom, gboolean insert_line_numbers);
-static void write_latex_file(GeanyDocument *doc, const gchar *filename,
+static void write_latex_file(GeanyPlugin *plugin, GeanyDocument *doc, const gchar *filename,
 	gboolean use_zoom, gboolean insert_line_numbers);
 
 
@@ -149,7 +140,7 @@ static gchar *get_tex_style(gint style)
 }
 
 
-static void create_file_save_as_dialog(const gchar *extension, ExportFunc func,
+static void create_file_save_as_dialog(GeanyPlugin *plugin, const gchar *extension, ExportFunc func,
 									   gboolean show_zoom_level_checkbox)
 {
 	GtkWidget *dialog, *vbox;
@@ -162,11 +153,12 @@ static void create_file_save_as_dialog(const gchar *extension, ExportFunc func,
 	g_return_if_fail(doc != NULL);
 
 	exi = g_new(ExportInfo, 1);
+	exi->plugin = plugin;
 	exi->doc = doc;
 	exi->export_func = func;
 	exi->have_zoom_level_checkbox = FALSE;
 
-	dialog = gtk_file_chooser_dialog_new(_("Export File"), GTK_WINDOW(geany->main_widgets->window),
+	dialog = gtk_file_chooser_dialog_new(_("Export File"), GTK_WINDOW(plugin->geany_data->main_widgets->window),
 				GTK_FILE_CHOOSER_ACTION_SAVE, NULL, NULL);
 	gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
 	gtk_window_set_destroy_with_parent(GTK_WINDOW(dialog), TRUE);
@@ -209,7 +201,7 @@ static void create_file_save_as_dialog(const gchar *extension, ExportFunc func,
 	g_signal_connect(dialog, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 	g_signal_connect(dialog, "response", G_CALLBACK(on_file_save_dialog_response), exi);
 
-	gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(geany->main_widgets->window));
+	gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(plugin->geany_data->main_widgets->window));
 
 	/* if the current document has a filename we use it as the default. */
 	gtk_file_chooser_unselect_all(GTK_FILE_CHOOSER(dialog));
@@ -239,7 +231,7 @@ static void create_file_save_as_dialog(const gchar *extension, ExportFunc func,
 	}
 	else
 	{
-		const gchar *default_open_path = geany->prefs->default_open_path;
+		const gchar *default_open_path = plugin->geany_data->prefs->default_open_path;
 		gchar *fname = g_strconcat(GEANY_STRING_UNTITLED, extension, NULL);
 
 		gtk_file_chooser_unselect_all(GTK_FILE_CHOOSER(dialog));
@@ -258,15 +250,15 @@ static void create_file_save_as_dialog(const gchar *extension, ExportFunc func,
 }
 
 
-static void on_menu_create_latex_activate(GtkMenuItem *menuitem, gpointer user_data)
+static void on_menu_create_latex_activate(GtkMenuItem *menuitem, gpointer plugin)
 {
-	create_file_save_as_dialog(".tex", write_latex_file, FALSE);
+	create_file_save_as_dialog(plugin, ".tex", write_latex_file, FALSE);
 }
 
 
-static void on_menu_create_html_activate(GtkMenuItem *menuitem, gpointer user_data)
+static void on_menu_create_html_activate(GtkMenuItem *menuitem, gpointer plugin)
 {
-	create_file_save_as_dialog(".html", write_html_file, TRUE);
+	create_file_save_as_dialog(plugin, ".html", write_html_file, TRUE);
 }
 
 
@@ -333,7 +325,7 @@ static void on_file_save_dialog_response(GtkDialog *dialog, gint response, gpoin
 				return;
 		}
 
-		exi->export_func(exi->doc, new_filename, use_zoom_level, insert_line_numbers);
+		exi->export_func(exi->plugin, exi->doc, new_filename, use_zoom_level, insert_line_numbers);
 
 		g_free(utf8_filename);
 		g_free(new_filename);
@@ -360,7 +352,7 @@ static gint get_line_number_width(GeanyDocument *doc)
 }
 
 
-static void write_latex_file(GeanyDocument *doc, const gchar *filename,
+static void write_latex_file(GeanyPlugin *plugin, GeanyDocument *doc, const gchar *filename,
 	gboolean use_zoom, gboolean insert_line_numbers)
 {
 	GeanyEditor *editor = doc->editor;
@@ -561,7 +553,7 @@ static void write_latex_file(GeanyDocument *doc, const gchar *filename,
 }
 
 
-static void write_html_file(GeanyDocument *doc, const gchar *filename,
+static void write_html_file(GeanyPlugin *plugin, GeanyDocument *doc, const gchar *filename,
 	gboolean use_zoom, gboolean insert_line_numbers)
 {
 	GeanyEditor *editor = doc->editor;
@@ -591,7 +583,7 @@ static void write_html_file(GeanyDocument *doc, const gchar *filename,
 	}
 
 	/* read Geany's font and font size */
-	font_desc = pango_font_description_from_string(geany->interface_prefs->editor_font);
+	font_desc = pango_font_description_from_string(plugin->geany_data->interface_prefs->editor_font);
 	font_name = pango_font_description_get_family(font_desc);
 	/*font_size = pango_font_description_get_size(font_desc) / PANGO_SCALE;*/
 	/* take the zoom level also into account */
@@ -739,7 +731,7 @@ static void write_html_file(GeanyDocument *doc, const gchar *filename,
 }
 
 
-void plugin_init(GeanyData *data)
+static gboolean export_init(GeanyPlugin *plugin, gpointer user_data)
 {
 	GtkWidget *menu_export;
 	GtkWidget *menu_export_menu;
@@ -747,7 +739,7 @@ void plugin_init(GeanyData *data)
 	GtkWidget *menu_create_latex;
 
 	menu_export = gtk_image_menu_item_new_with_mnemonic(_("_Export"));
-	gtk_container_add(GTK_CONTAINER(geany->main_widgets->tools_menu), menu_export);
+	gtk_container_add(GTK_CONTAINER(plugin->geany_data->main_widgets->tools_menu), menu_export);
 
 	menu_export_menu = gtk_menu_new ();
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_export), menu_export_menu);
@@ -756,24 +748,40 @@ void plugin_init(GeanyData *data)
 	menu_create_html = gtk_menu_item_new_with_mnemonic(_("As _HTML..."));
 	gtk_container_add(GTK_CONTAINER (menu_export_menu), menu_create_html);
 
-	g_signal_connect(menu_create_html, "activate", G_CALLBACK(on_menu_create_html_activate), NULL);
+	g_signal_connect(menu_create_html, "activate", G_CALLBACK(on_menu_create_html_activate), plugin);
 
 	/* LaTeX */
 	menu_create_latex = gtk_menu_item_new_with_mnemonic(_("As _LaTeX..."));
 	gtk_container_add(GTK_CONTAINER (menu_export_menu), menu_create_latex);
 
 	g_signal_connect(menu_create_latex, "activate",
-		G_CALLBACK(on_menu_create_latex_activate), NULL);
+		G_CALLBACK(on_menu_create_latex_activate), plugin);
 
 	/* disable menu_item when there are no documents open */
 	ui_add_document_sensitive(menu_export);
-	main_menu_item = menu_export;
 
 	gtk_widget_show_all(menu_export);
+
+	geany_plugin_set_data(plugin, menu_export, (GDestroyNotify) gtk_widget_destroy);
+
+	return TRUE;
 }
 
 
-void plugin_cleanup(void)
+static void export_cleanup(GeanyPlugin *plugin, gpointer data)
 {
-	gtk_widget_destroy(main_menu_item);
+}
+
+
+void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version)
+{
+	plugin->info->name = _("Export");
+	plugin->info->description = _("Exports the current file into different formats.");
+	plugin->info->version = VERSION;
+	plugin->info->author = _("The Geany developer team");
+
+	plugin->hooks->init = export_init;
+	plugin->hooks->cleanup = export_cleanup;
+
+	GEANY_PLUGIN_REGISTER(plugin, GEANY_API_VERSION);
 }
