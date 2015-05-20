@@ -28,17 +28,6 @@
 
 #include "geanyplugin.h"
 
-GeanyData		*geany_data;
-
-
-PLUGIN_VERSION_CHECK(GEANY_API_VERSION)
-
-PLUGIN_SET_INFO(_("Class Builder"), _("Creates source files for new class types."), VERSION,
-	"Alexander Rodin, Ondrej Donek, the Geany developer team")
-
-
-static GtkWidget *main_menu_item = NULL;
-
 
 enum
 {
@@ -420,7 +409,7 @@ static GtkWidget *cc_table_attach_option_entry(GtkWidget *table, const gchar *te
 	return entry;
 }
 
-static void show_dialog_create_class(gint type)
+static void show_dialog_create_class(GeanyPlugin *plugin, gint type)
 {
 	CreateClassDialog *cc_dlg;
 	GtkWidget *main_box, *table, *label, *hdr_hbox;
@@ -431,7 +420,7 @@ static void show_dialog_create_class(gint type)
 	cc_dlg->class_type = type;
 
 	cc_dlg->dialog = gtk_dialog_new_with_buttons(_("Create Class"),
-			GTK_WINDOW(geany->main_widgets->window),
+			GTK_WINDOW(plugin->geany_data->main_widgets->window),
 			GTK_DIALOG_MODAL,
 			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 			GTK_STOCK_OK, GTK_RESPONSE_OK,
@@ -1057,29 +1046,29 @@ static gboolean create_class(CreateClassDialog *cc_dlg)
 
 static void
 on_menu_create_cpp_class_activate      (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+                                        gpointer         plugin)
 {
-	show_dialog_create_class(GEANY_CLASS_TYPE_CPP);
+	show_dialog_create_class(plugin, GEANY_CLASS_TYPE_CPP);
 }
 
 
 static void
 on_menu_create_gtk_class_activate      (GtkMenuItem     *menuitem,
-                                        gpointer         user_data)
+                                        gpointer         plugin)
 {
-	show_dialog_create_class(GEANY_CLASS_TYPE_GTK);
+	show_dialog_create_class(plugin, GEANY_CLASS_TYPE_GTK);
 }
 
 
 static void
 on_menu_create_php_class_activate	(GtkMenuItem	*menuitem,
-					 gpointer	user_data)
+									 gpointer	plugin)
 {
-	show_dialog_create_class(GEANY_CLASS_TYPE_PHP);
+	show_dialog_create_class(plugin, GEANY_CLASS_TYPE_PHP);
 }
 
 
-void plugin_init(GeanyData *data)
+static gboolean classbuilder_init(GeanyPlugin *plugin, gpointer user_data)
 {
 	GtkWidget *menu_create_class1;
 	GtkWidget *menu_create_class1_menu;
@@ -1088,7 +1077,7 @@ void plugin_init(GeanyData *data)
 	GtkWidget *menu_create_php_class;
 
 	menu_create_class1 = ui_image_menu_item_new (GTK_STOCK_ADD, _("Create Cla_ss"));
-	gtk_container_add (GTK_CONTAINER (geany->main_widgets->tools_menu), menu_create_class1);
+	gtk_container_add (GTK_CONTAINER (plugin->geany_data->main_widgets->tools_menu), menu_create_class1);
 
 	menu_create_class1_menu = gtk_menu_new ();
 	gtk_menu_item_set_submenu (GTK_MENU_ITEM (menu_create_class1), menu_create_class1_menu);
@@ -1104,21 +1093,36 @@ void plugin_init(GeanyData *data)
 
 	g_signal_connect(menu_create_cpp_class, "activate",
 		G_CALLBACK (on_menu_create_cpp_class_activate),
-		NULL);
+		plugin);
 	g_signal_connect(menu_create_gtk_class, "activate",
 		G_CALLBACK (on_menu_create_gtk_class_activate),
-		NULL);
+		plugin);
 	g_signal_connect(menu_create_php_class, "activate",
 		G_CALLBACK (on_menu_create_php_class_activate),
-		NULL);
+		plugin);
 
 	gtk_widget_show_all(menu_create_class1);
 
-	main_menu_item = menu_create_class1;
+	geany_plugin_set_data(plugin, menu_create_class1, (GDestroyNotify) gtk_widget_destroy);
+
+	return TRUE;
 }
 
 
-void plugin_cleanup(void)
+static void classbuilder_cleanup(GeanyPlugin *plugin, gpointer user_data)
 {
-	gtk_widget_destroy(main_menu_item);
+}
+
+
+void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version)
+{
+	plugin->info->name = _("Class Builder");
+	plugin->info->description = _("Creates source files for new class types.");
+	plugin->info->version = VERSION;
+	plugin->info->author = "Alexander Rodin, Ondrej Donek, the Geany developer team";
+
+	plugin->hooks->init = classbuilder_init;
+	plugin->hooks->cleanup = classbuilder_cleanup;
+
+	GEANY_PLUGIN_REGISTER(plugin, GEANY_API_VERSION);
 }
