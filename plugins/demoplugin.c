@@ -35,9 +35,20 @@
 #include "geanyplugin.h"	/* plugin API, always comes first */
 #include "Scintilla.h"	/* for the SCNotification struct */
 
-static GtkWidget *main_menu_item = NULL;
-/* text to be shown in the plugin dialog */
-static gchar *welcome_text = NULL;
+typedef struct
+{
+	GeanyPlugin *plugin;
+
+	GtkWidget *main_menu_item;
+	/* text to be shown in the plugin dialog */
+	gchar *welcome_text;
+} Demo;
+
+typedef struct
+{
+	Demo *self;
+	GtkWidget *entry;
+} DemoConfigureData;
 
 
 static gboolean on_editor_notify(GObject *object, GeanyEditor *editor,
@@ -104,17 +115,17 @@ static void
 item_activate(GtkMenuItem *menuitem, gpointer gdata)
 {
 	GtkWidget *dialog;
-	GeanyPlugin *plugin = gdata;
-	GeanyData *geany_data = plugin->geany_data;
+	Demo *self = gdata;
+	GeanyData *geany_data = self->plugin->geany_data;
 
 	dialog = gtk_message_dialog_new(
 		GTK_WINDOW(geany_data->main_widgets->window),
 		GTK_DIALOG_DESTROY_WITH_PARENT,
 		GTK_MESSAGE_INFO,
 		GTK_BUTTONS_OK,
-		"%s", welcome_text);
+		"%s", self->welcome_text);
 	gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(dialog),
-		_("(From the %s plugin)"), plugin->info->name);
+		_("(From the %s plugin)"), self->plugin->info->name);
 
 	gtk_dialog_run(GTK_DIALOG(dialog));
 	gtk_widget_destroy(dialog);
@@ -126,19 +137,24 @@ static gboolean demo_init(GeanyPlugin *plugin, gpointer data)
 {
 	GtkWidget *demo_item;
 	GeanyData *geany_data = plugin->geany_data;
+	Demo *self = g_malloc(sizeof *self);
+
+	self->plugin = plugin;
 
 	/* Add an item to the Tools menu */
 	demo_item = gtk_menu_item_new_with_mnemonic(_("_Demo Plugin"));
 	gtk_widget_show(demo_item);
 	gtk_container_add(GTK_CONTAINER(geany_data->main_widgets->tools_menu), demo_item);
-	g_signal_connect(demo_item, "activate", G_CALLBACK(item_activate), plugin);
+	g_signal_connect(demo_item, "activate", G_CALLBACK(item_activate), self);
 
 	/* make the menu item sensitive only when documents are open */
 	ui_add_document_sensitive(demo_item);
 	/* keep a pointer to the menu item, so we can remove it when the plugin is unloaded */
-	main_menu_item = demo_item;
+	self->main_menu_item = demo_item;
 
-	welcome_text = g_strdup(_("Hello World!"));
+	self->welcome_text = g_strdup(_("Hello World!"));
+
+	geany_plugin_set_data(plugin, self, g_free);
 
 	return TRUE;
 }
@@ -148,14 +164,12 @@ static gboolean demo_init(GeanyPlugin *plugin, gpointer data)
 static void
 on_configure_response(GtkDialog *dialog, gint response, gpointer user_data)
 {
+	DemoConfigureData *conf = user_data;
 	/* catch OK or Apply clicked */
 	if (response == GTK_RESPONSE_OK || response == GTK_RESPONSE_APPLY)
 	{
-		/* We only have one pref here, but for more you would use a struct for user_data */
-		GtkWidget *entry = GTK_WIDGET(user_data);
-
-		g_free(welcome_text);
-		welcome_text = g_strdup(gtk_entry_get_text(GTK_ENTRY(entry)));
+		g_free(conf->self->welcome_text);
+		conf->self->welcome_text = g_strdup(gtk_entry_get_text(GTK_ENTRY(conf->entry)));
 		/* maybe the plugin should write here the settings into a file
 		 * (e.g. using GLib's GKeyFile API)
 		 * all plugin specific files should be created in:
@@ -171,7 +185,11 @@ on_configure_response(GtkDialog *dialog, gint response, gpointer user_data)
  *       dialog. */
 static GtkWidget *demo_configure(GeanyPlugin *plugin, GtkDialog *dialog, gpointer data)
 {
-	GtkWidget *label, *entry, *vbox;
+	GtkWidget *label, *vbox;
+	Demo *self = data;
+	DemoConfigureData *conf = g_malloc(sizeof *conf);
+
+	conf->self = self;
 
 	/* example configuration dialog */
 	vbox = gtk_vbox_new(FALSE, 6);
@@ -179,17 +197,18 @@ static GtkWidget *demo_configure(GeanyPlugin *plugin, GtkDialog *dialog, gpointe
 	/* add a label and a text entry to the dialog */
 	label = gtk_label_new(_("Welcome text to show:"));
 	gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
-	entry = gtk_entry_new();
-	if (welcome_text != NULL)
-		gtk_entry_set_text(GTK_ENTRY(entry), welcome_text);
+	conf->entry = gtk_entry_new();
+	if (self->welcome_text != NULL)
+		gtk_entry_set_text(GTK_ENTRY(conf->entry), self->welcome_text);
 
 	gtk_container_add(GTK_CONTAINER(vbox), label);
-	gtk_container_add(GTK_CONTAINER(vbox), entry);
+	gtk_container_add(GTK_CONTAINER(vbox), conf->entry);
 
 	gtk_widget_show_all(vbox);
 
 	/* Connect a callback for when the user clicks a dialog button */
-	g_signal_connect(dialog, "response", G_CALLBACK(on_configure_response), entry);
+	g_signal_connect_data(dialog, "response", G_CALLBACK(on_configure_response),
+						  conf, (GClosureNotify) g_free, 0);
 	return vbox;
 }
 
@@ -199,10 +218,11 @@ static GtkWidget *demo_configure(GeanyPlugin *plugin, GtkDialog *dialog, gpointe
  * Be sure to leave Geany as it was before demo_init(). */
 static void demo_cleanup(GeanyPlugin *plugin, gpointer data)
 {
+	Demo *self = data;
 	/* remove the menu item added in demo_init() */
-	gtk_widget_destroy(main_menu_item);
+	gtk_widget_destroy(self->main_menu_item);
 	/* release other allocated strings and objects */
-	g_free(welcome_text);
+	g_free(self->welcome_text);
 }
 
 void geany_load_module(GeanyPlugin *plugin, GModule *module, gint geany_api_version)
