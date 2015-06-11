@@ -117,7 +117,7 @@ static void prepare_taglist(GtkWidget *tree, GtkTreeStore *store)
 	column = gtk_tree_view_column_new();
 
 	gtk_tree_view_column_pack_start(column, icon_renderer, FALSE);
-  	gtk_tree_view_column_set_attributes(column, icon_renderer, "pixbuf", SYMBOLS_COLUMN_ICON, NULL);
+	gtk_tree_view_column_set_attributes(column, icon_renderer, "icon-name", SYMBOLS_COLUMN_ICON, NULL);
   	g_object_set(icon_renderer, "xalign", 0.0, NULL);
 
   	gtk_tree_view_column_pack_start(column, text_renderer, TRUE);
@@ -227,7 +227,7 @@ void sidebar_update_tag_list(GeanyDocument *doc, gboolean update)
 		if (doc->priv->tag_tree == NULL)
 		{
 			doc->priv->tag_store = gtk_tree_store_new(
-				SYMBOLS_N_COLUMNS, GDK_TYPE_PIXBUF, G_TYPE_STRING, TM_TYPE_TAG, G_TYPE_STRING);
+				SYMBOLS_N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, TM_TYPE_TAG, G_TYPE_STRING);
 			doc->priv->tag_tree = gtk_tree_view_new();
 			prepare_taglist(doc->priv->tag_tree, doc->priv->tag_store);
 			gtk_widget_show(doc->priv->tag_tree);

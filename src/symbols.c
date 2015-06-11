@@ -502,21 +502,6 @@ static void init_tag_iters(void)
 }
 
 
-static GdkPixbuf *get_tag_icon(const gchar *icon_name)
-{
-	static GtkIconTheme *icon_theme = NULL;
-	static gint x = -1;
-
-	if (G_UNLIKELY(x < 0))
-	{
-		gint dummy;
-		icon_theme = gtk_icon_theme_get_default();
-		gtk_icon_size_lookup(GTK_ICON_SIZE_MENU, &x, &dummy);
-	}
-	return gtk_icon_theme_load_icon(icon_theme, icon_name, x, 0, NULL);
-}
-
-
 static gboolean find_toplevel_iter(GtkTreeStore *store, GtkTreeIter *iter, const gchar *title)
 {
 	GtkTreeModel *model = GTK_TREE_MODEL(store);
@@ -557,14 +542,8 @@ tag_list_add_groups(GtkTreeStore *tree_store, ...)
 	va_start(args, tree_store);
 	for (; iter = va_arg(args, GtkTreeIter*), iter != NULL;)
 	{
-		gchar *title = va_arg(args, gchar*);
-		gchar *icon_name = va_arg(args, gchar *);
-		GdkPixbuf *icon = NULL;
-
-		if (icon_name)
-		{
-			icon = get_tag_icon(icon_name);
-		}
+		gchar *title = va_arg(args, const gchar*);
+		const gchar *icon_name = va_arg(args, const gchar *);
 
 		g_assert(title != NULL);
 		g_ptr_array_add(top_level_iter_names, title);
@@ -572,12 +551,9 @@ tag_list_add_groups(GtkTreeStore *tree_store, ...)
 		if (!find_toplevel_iter(tree_store, iter, title))
 			gtk_tree_store_append(tree_store, iter, NULL);
 
-		if (G_IS_OBJECT(icon))
-		{
-			gtk_tree_store_set(tree_store, iter, SYMBOLS_COLUMN_ICON, icon, -1);
-			g_object_unref(icon);
-		}
-		gtk_tree_store_set(tree_store, iter, SYMBOLS_COLUMN_NAME, title, -1);
+		gtk_tree_store_set(tree_store, iter,
+				SYMBOLS_COLUMN_NAME, title,
+				SYMBOLS_COLUMN_ICON, icon_name, -1);
 	}
 	va_end(args);
 }
@@ -1158,13 +1134,13 @@ static GtkTreeIter *get_tag_type_iter(TMTagType tag_type)
 }
 
 
-static GdkPixbuf *get_child_icon(GtkTreeStore *tree_store, GtkTreeIter *parent)
+static gchar *get_child_icon(GtkTreeStore *tree_store, GtkTreeIter *parent)
 {
-	GdkPixbuf *icon = NULL;
+	gchar *icon = NULL;
 
 	if (parent == &tv_iters.tag_other)
 	{
-		return get_tag_icon("classviewer-var");
+		return g_strdup("classviewer-var");
 	}
 	/* copy parent icon */
 	gtk_tree_model_get(GTK_TREE_MODEL(tree_store), parent,
@@ -1479,7 +1455,7 @@ static void update_tree_tags(GeanyDocument *doc, GList **tags)
 			const gchar *name;
 			const gchar *parent_name;
 			gchar *tooltip;
-			GdkPixbuf *icon = get_child_icon(store, parent);
+			gchar *icon = get_child_icon(store, parent);
 
 			parent_name = get_parent_name(tag, doc->file_type->id);
 			if (parent_name)
@@ -1533,8 +1509,7 @@ static void update_tree_tags(GeanyDocument *doc, GList **tags)
 					SYMBOLS_COLUMN_TAG, tag,
 					-1);
 			g_free(tooltip);
-			if (G_LIKELY(icon))
-				g_object_unref(icon);
+			g_free(icon);
 
 			update_parents_table(parents_table, tag, parent_name, &iter);
 
