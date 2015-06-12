@@ -105,6 +105,137 @@ static void sidebar_tabs_show_hide(GtkNotebook *notebook, GtkWidget *child,
 								   guint page_num, gpointer data);
 
 
+typedef GtkCellRendererPixbufClass GeanyCellRendererPixbufCachedClass;
+typedef struct _GeanyCellRendererPixbufCached
+{
+	GtkCellRendererPixbuf parent;
+	gchar *icon_name;
+	GHashTable *cache;
+}
+GeanyCellRendererPixbufCached;
+
+static GType geany_cell_renderer_pixbuf_cached_get_type(void) G_GNUC_CONST;
+
+G_DEFINE_TYPE(GeanyCellRendererPixbufCached,
+			  geany_cell_renderer_pixbuf_cached,
+			  GTK_TYPE_CELL_RENDERER_PIXBUF)
+
+enum
+{
+	PROP_0,
+	PROP_ICON_NAME
+};
+
+static void
+geany_cell_renderer_pixbuf_cached_get_size (GtkCellRenderer *cell,
+											GtkWidget       *widget,
+											GdkRectangle    *cell_area,
+											gint            *x_offset,
+											gint            *y_offset,
+											gint            *width,
+											gint            *height)
+{
+	GeanyCellRendererPixbufCached *self = (GeanyCellRendererPixbufCached *) cell;
+
+	if (self->icon_name)
+	{
+		GdkPixbuf *pix = g_hash_table_lookup(self->cache, self->icon_name);
+
+		if (! pix)
+		{
+			GdkScreen *screen = gtk_widget_get_screen(widget);
+			GtkIconTheme *icon_theme = gtk_icon_theme_get_for_screen(screen);
+			GtkSettings *settings = gtk_settings_get_for_screen(screen);
+			gint w, h;
+			guint stock_size;
+
+			g_object_get(cell, "stock-size", &stock_size, NULL);
+			if (! gtk_icon_size_lookup_for_settings(settings, stock_size, &w, &h))
+			{
+				g_warning ("Invalid icon size %u\n", stock_size);
+				w = h = 24;
+			}
+
+			pix = gtk_icon_theme_load_icon(icon_theme, self->icon_name, MIN (w, h),
+										   GTK_ICON_LOOKUP_USE_BUILTIN, NULL);
+			g_hash_table_insert(self->cache, g_strdup(self->icon_name), pix);
+		}
+		g_object_set(cell, "pixbuf", pix, NULL);
+		/* clear the icon name now we have set the pixbuf */
+		g_free(self->icon_name);
+		self->icon_name = NULL;
+	}
+
+	GTK_CELL_RENDERER_CLASS (geany_cell_renderer_pixbuf_cached_parent_class)->get_size (cell, widget, cell_area, x_offset, y_offset, width, height);
+}
+
+static void geany_cell_renderer_pixbuf_cached_set_property(GObject *object, guint prop_id,
+														   const GValue *value, GParamSpec *pspec)
+{
+	GeanyCellRendererPixbufCached *self = (GeanyCellRendererPixbufCached *) object;
+
+	switch (prop_id)
+	{
+		case PROP_ICON_NAME:
+			g_free(self->icon_name);
+			self->icon_name = g_value_dup_string(value);
+			break;
+		default:
+			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+			break;
+	}
+}
+
+static void geany_cell_renderer_pixbuf_cached_get_property(GObject *object, guint prop_id,
+														   GValue *value, GParamSpec *pspec)
+{
+	GeanyCellRendererPixbufCached *self = (GeanyCellRendererPixbufCached *) object;
+
+	switch (prop_id)
+	{
+		case PROP_ICON_NAME:
+			g_value_set_string(value, self->icon_name);
+			break;
+		default:
+			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+			break;
+	}
+}
+
+static void geany_cell_renderer_pixbuf_cached_finalize(GObject *object)
+{
+	GeanyCellRendererPixbufCached *self = (GeanyCellRendererPixbufCached *) object;
+
+	if (self->cache)
+	{
+		g_hash_table_destroy(self->cache);
+		self->cache = NULL;
+	}
+	g_free(self->icon_name);
+	self->icon_name = NULL;
+}
+
+static void geany_cell_renderer_pixbuf_cached_class_init(GeanyCellRendererPixbufCachedClass *klass)
+{
+	GObjectClass *object_class = G_OBJECT_CLASS (klass);
+	GtkCellRendererClass *cell_class = GTK_CELL_RENDERER_CLASS (klass);
+
+	object_class->set_property = geany_cell_renderer_pixbuf_cached_set_property;
+	object_class->get_property = geany_cell_renderer_pixbuf_cached_get_property;
+	object_class->finalize = geany_cell_renderer_pixbuf_cached_finalize;
+
+	cell_class->get_size = geany_cell_renderer_pixbuf_cached_get_size;
+
+	g_object_class_override_property(object_class, PROP_ICON_NAME, "icon-name");
+}
+
+static void geany_cell_renderer_pixbuf_cached_init(GeanyCellRendererPixbufCached *self)
+{
+	self->cache = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_object_unref);
+	self->icon_name = NULL;
+}
+
+
 /* the prepare_* functions are document-related, but I think they fit better here than in document.c */
 static void prepare_taglist(GtkWidget *tree, GtkTreeStore *store)
 {
@@ -113,7 +244,7 @@ static void prepare_taglist(GtkWidget *tree, GtkTreeStore *store)
 	GtkTreeSelection *selection;
 
 	text_renderer = gtk_cell_renderer_text_new();
-	icon_renderer = gtk_cell_renderer_pixbuf_new();
+	icon_renderer = g_object_new(geany_cell_renderer_pixbuf_cached_get_type(), NULL);
 	column = gtk_tree_view_column_new();
 
 	gtk_tree_view_column_pack_start(column, icon_renderer, FALSE);
