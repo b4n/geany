@@ -1446,7 +1446,7 @@ static gint get_matching_parenthesis_indent(ScintillaObject *sci, gint line)
 }
 
 
-static gboolean line_has_unmatched_brace(ScintillaObject *sci, gint line)
+static gint line_unmatched_parentheses(ScintillaObject *sci, gint line)
 {
 	gint start, end;
 	gint lexer;
@@ -1467,7 +1467,7 @@ static gboolean line_has_unmatched_brace(ScintillaObject *sci, gint line)
 		}
 	}
 
-	return n != 0;
+	return n;
 }
 
 
@@ -1478,7 +1478,7 @@ static gint get_parenthesis_indent(ScintillaObject *sci, gint line,
 	gint size = -1;
 
 	/* don't play with parentheses indentation if last line have no parenthesis */
-	if (line_has_unmatched_brace(sci, line))
+	if (line_unmatched_parentheses(sci, line) != 0)
 	{
 		gint parenthesis_witdh = get_open_parenthesis_indent(sci, line);
 
@@ -1745,9 +1745,15 @@ static void close_block(GeanyEditor *editor, gint pos)
 		{
 			gint line_start;
 			gint brace_line = sci_get_line_from_position(sci, start_brace);
-			gint size = sci_get_line_indentation(sci, brace_line);
-			gchar *ind = get_whitespace(iprefs, size, 0);
+			gint size = -1;
+			gchar *ind;
 
+			if (line_unmatched_parentheses(sci, brace_line) < 0)
+				size = get_matching_parenthesis_indent(sci, brace_line);
+			if (size < 0)
+				size = sci_get_line_indentation(sci, brace_line);
+
+			ind = get_whitespace(iprefs, size, 0);
 			text = g_strconcat(ind, "}", NULL);
 			line_start = sci_get_position_from_line(sci, line);
 			sci_set_anchor(sci, line_start);
