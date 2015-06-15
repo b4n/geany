@@ -1169,7 +1169,7 @@ get_whitespace(const GeanyIndentPrefs *iprefs, gint width, gint align)
 	if (width == 0)
 		return g_strdup("");
 
-	if (FALSE /* FIXME */) /* don't align with spaces */
+	if (! iprefs->align_with_spaces)
 		align = 0;
 
 	if (iprefs->type == GEANY_INDENT_TYPE_SPACES)
@@ -1559,7 +1559,7 @@ static gboolean get_indent_size_after_line(GeanyEditor *editor, gint line, gint 
 	{
 		gint additional_indent = 0;
 
-		if (TRUE) /* FIXME: */
+		if (iprefs->paren_align)
 		{
 			gint parenthesis_witdh = get_parenthesis_indent(sci, line, iprefs);
 
@@ -1759,7 +1759,7 @@ static void close_block(GeanyEditor *editor, gint pos)
 			gint size = -1;
 			gchar *ind;
 
-			if (line_unmatched_parentheses(sci, brace_line) < 0)
+			if (iprefs->paren_align && line_unmatched_parentheses(sci, brace_line) < 0)
 				size = get_matching_parenthesis_indent(sci, brace_line);
 			if (size < 0)
 				size = sci_get_line_indentation(sci, brace_line);
