@@ -19,8 +19,8 @@ install:
 before_script:
   - export CFLAGS="-g -O2 -Werror=pointer-arith -Werror=aggregate-return -Werror=implicit-function-declaration"
 script:
-  - NOCONFIGURE=1 ./autogen.sh
   - >
+    NOCONFIGURE=1 ./autogen.sh || exit 1;
     if [ -n "$MINGW" ]; then
       arg=-2; [ "$GTK3" = yes ] && arg=-3;
       unset CC CXX;
