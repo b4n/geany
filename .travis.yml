@@ -20,6 +20,7 @@ addons:
     - binutils-mingw-w64-i686
 compiler:
   - gcc
+  - clang
 env:
   - GTK3=no
   - GTK3=yes
