@@ -23,8 +23,13 @@ compiler:
 env:
   - GTK3=no
   - GTK3=yes
-  - GTK3=no MINGW=yes
-  - GTK3=yes MINGW=yes
+# extra matrix for cross compilation
+matrix:
+  include:
+    - compiler: i686-w64-mingw32-gcc
+      env: MINGW=yes GTK3=no
+    - compiler: i686-w64-mingw32-gcc
+      env: MINGW=yes GTK3=yes
 before_script:
   - export CFLAGS="-g -O2 -Werror=pointer-arith -Werror=aggregate-return -Werror=implicit-function-declaration"
 script:
