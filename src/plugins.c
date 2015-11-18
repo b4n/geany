@@ -613,6 +613,10 @@ static gpointer plugin_load_gmodule(GeanyPlugin *proxy, GeanyPlugin *subplugin, 
 	g_module_symbol(module, "geany_load_module", (void *) &p_geany_load_module);
 	if (p_geany_load_module)
 	{
+		/* set this here already so plugins can call i.e. plugin_module_make_resident()
+		 * right from their geany_load_module() */
+		subplugin->priv->proxy_data = module;
+
 		/* This is a new style plugin. It should fill in plugin->info and then call
 		 * geany_plugin_register() in its geany_load_module() to successfully load.
 		 * The ABI and API checks are performed by geany_plugin_register() (i.e. by us).
@@ -1478,6 +1482,9 @@ static void pm_plugin_toggled(GtkCellRendererToggle *cell, gchar *pth, gpointer 
 		/* save shortcuts (only need this group, but it doesn't take long) */
 		keybindings_write_to_file();
 
+	/* plugin_new() below may cause a tree view refresh with invalid p - set to NULL */
+	gtk_tree_store_set(pm_widgets.store, &store_iter,
+		PLUGIN_COLUMN_PLUGIN, NULL, -1);
 	plugin_free(p);
 
 	/* reload plugin module and initialize it if item is checked */

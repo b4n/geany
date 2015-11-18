@@ -4,21 +4,21 @@
 # This file is distributed under the same license as the geany package.
 #
 # André Glória <gloria_dot_andre_at_gmail_dot_com> 2009 - 2014
-# Pedro Albuquerque <palbuquerque73@openmailbox.com>, 2015.
+# Pedro Albuquerque <palbuquerque73@gmail.com>, 2015.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Geany 1.25\n"
+"Project-Id-Version: Geany 1.26\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-20 22:41+0200\n"
-"PO-Revision-Date: 2015-10-19 13:41+0100\n"
-"Last-Translator: Pedro Albuquerque <palbuquerque73@openmailbox.com>\n"
-"Language-Team: Português <palbuquerque73@openmailbox.com>\n"
+"POT-Creation-Date: 2015-11-02 02:36+0000\n"
+"PO-Revision-Date: 2015-11-02 08:53+0000\n"
+"Last-Translator: Pedro Albuquerque <palbuquerque73@gmail.com>\n"
+"Language-Team: Português <palbuquerque73@gmail.com>\n"
 "Language: pt\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\\n\n"
 "X-Launchpad-Export-Date: 2010-03-08 13:33+0000\n"
 "X-Generator: Gtranslator 2.91.6\n"
 
@@ -1662,7 +1662,7 @@ msgstr "Gr_Avar como..."
 msgid "Sa_ve All"
 msgstr "Gra_Var tudo"
 
-#: ../data/geany.glade.h:345 ../src/document.c:1627 ../src/document.c:3554
+#: ../data/geany.glade.h:345 ../src/document.c:1661 ../src/document.c:3588
 #: ../src/sidebar.c:718
 msgid "_Reload"
 msgstr "_Recarregar"
@@ -1701,7 +1701,7 @@ msgstr "_Copiar linha(s) atual(is)"
 
 #: ../data/geany.glade.h:354 ../src/keybindings.c:380
 msgid "_Delete Current Line(s)"
-msgstr "_Apagar linha(s) atual(is)"
+msgstr "_Eliminar linha(s) atual(is)"
 
 #: ../data/geany.glade.h:355 ../src/keybindings.c:377
 msgid "D_uplicate Line or Selection"
@@ -2124,8 +2124,8 @@ msgstr "Propriedades do projeto"
 msgid "Filename:"
 msgstr "Nome do ficheiro:"
 
-#: ../data/geany.glade.h:460 ../src/project.c:169 ../plugins/classbuilder.c:467
-#: ../plugins/classbuilder.c:477
+#: ../data/geany.glade.h:460 ../src/project.c:169
+#: ../plugins/classbuilder.c:467 ../plugins/classbuilder.c:477
 msgid "Name:"
 msgstr "Nome:"
 
@@ -2338,7 +2338,7 @@ msgstr "Processo falhou, sem pasta de trabalho"
 msgid "%s (in directory: %s)"
 msgstr "%s (na pasta: %s)"
 
-#: ../src/build.c:780 ../src/build.c:913 ../src/search.c:1719
+#: ../src/build.c:780
 #, c-format
 msgid "Process failed (%s)"
 msgstr "Erro no processo (%s)"
@@ -2361,6 +2361,15 @@ msgid ""
 msgstr ""
 "Ficheiro não executado porque o terminal pode conter dados inseridos (prima "
 "Ctrl+C ou Enter para o limpar)."
+
+#: ../src/build.c:912
+#, c-format
+msgid ""
+"Cannot execute terminal command \"%s\": %s. Check the path setting in "
+"Preferences."
+msgstr ""
+"Impossível executar o comando de terminal \"%s\": %s; verifique a definição "
+"do caminho nas Preferências."
 
 #: ../src/build.c:1020
 msgid "Compilation failed."
@@ -2535,8 +2544,22 @@ msgstr "Sem mais mensagens."
 msgid "Could not open file %s (File not found)"
 msgstr "Impossível abrir o ficheiro %s (ficheiro não encontrado)"
 
-#: ../src/dialogs.c:160 ../src/document.c:2274 ../src/document.c:2339
-#: ../src/document.c:2347
+#: ../src/callbacks.c:1473
+msgid "Check the path setting in Filetype configuration."
+msgstr "Verifique a definição de caminho na configuração de tipo de ficheiro."
+
+#: ../src/callbacks.c:1478
+msgid "Check the path setting in Preferences."
+msgstr "Verifique a definição do caminho nas Preferências."
+
+#. G_SHELL_ERROR is parsing error, it may be caused by %s word with quotes
+#: ../src/callbacks.c:1491
+#, c-format
+msgid "Cannot execute context action command \"%s\": %s. %s"
+msgstr "Impossível executar o comando de ação contextual \"%s\": %s. %s"
+
+#: ../src/dialogs.c:160 ../src/document.c:2308 ../src/document.c:2373
+#: ../src/document.c:2381
 #, c-format
 msgid "\"%s\" was not found."
 msgstr "\"%s\" não foi encontrado."
@@ -2619,7 +2642,7 @@ msgstr ""
 "Abre o ficheiro em modo só de leitura. Se escolher mais do que um ficheiro, "
 "todos serão abertos em modo só de leitura."
 
-#: ../src/dialogs.c:534 ../src/document.c:2025
+#: ../src/dialogs.c:534 ../src/document.c:2059
 msgid "Overwrite?"
 msgstr "Sobrescrever?"
 
@@ -2783,24 +2806,44 @@ msgstr "Ficheiro %s aberto (%d%s)."
 msgid ", read-only"
 msgstr ", só de leitura"
 
+#: ../src/document.c:1627
+msgid "Discard history"
+msgstr "Descartar histórico"
+
 #: ../src/document.c:1628
+msgid ""
+"The buffer's previous state is stored in the history and undoing restores "
+"it. You can disable this by discarding the history upon reload. This message "
+"will not be displayed again but Your choice can be changed in the various "
+"preferences."
+msgstr ""
+"O estado anterior do buffer é armazenado no histórico e desfazer restaura-o. "
+"Pode desativar isto descartando o histórico quando recarrega. Esta mensagem "
+"não será mostrada novamente mas a sua escolha pode ser alterada nas várias "
+"preferências."
+
+#: ../src/document.c:1632
+msgid "The file has been reloaded."
+msgstr "O documento foi recarregado."
+
+#: ../src/document.c:1662
 msgid "Any unsaved changes will be lost."
 msgstr "Quaisquer alterações não gravadas serão perdidas."
 
-#: ../src/document.c:1629
+#: ../src/document.c:1663
 msgid "Undo history will be lost."
 msgstr "Histórico de desfazer será perdido."
 
-#: ../src/document.c:1630
+#: ../src/document.c:1664
 #, c-format
 msgid "Are you sure you want to reload '%s'?"
 msgstr "Tem a certeza que quer recarregar '%s'?"
 
-#: ../src/document.c:1736
+#: ../src/document.c:1770
 msgid "Error renaming file."
 msgstr "Erro ao renomear o ficheiro."
 
-#: ../src/document.c:1857
+#: ../src/document.c:1891
 #, c-format
 msgid ""
 "An error occurred while converting the file from UTF-8 in \"%s\". The file "
@@ -2809,7 +2852,7 @@ msgstr ""
 "Ocorreu um erro ao converter o ficheiro de UTF-8 para \"%s\". O ficheiro "
 "continua por gravar."
 
-#: ../src/document.c:1878
+#: ../src/document.c:1912
 #, c-format
 msgid ""
 "Error message: %s\n"
@@ -2818,56 +2861,56 @@ msgstr ""
 "Mensagem de erro: %s\n"
 "O erro ocorreu em \"%s\" (linha: %d, coluna: %d)."
 
-#: ../src/document.c:1882
+#: ../src/document.c:1916
 #, c-format
 msgid "Error message: %s."
 msgstr "Mensagem de erro: %s."
 
-#: ../src/document.c:1942
+#: ../src/document.c:1976
 #, c-format
 msgid "Failed to open file '%s' for writing: fopen() failed: %s"
 msgstr ""
 "Falha ao abrir o ficheiro '%s' para escrita: a função fopen() falhou: %s"
 
-#: ../src/document.c:1960
+#: ../src/document.c:1994
 #, c-format
 msgid "Failed to write file '%s': fwrite() failed: %s"
 msgstr "Falha ao escrever o ficheiro '%s': a função fwrite() falhou: %s"
 
-#: ../src/document.c:1974
+#: ../src/document.c:2008
 #, c-format
 msgid "Failed to close file '%s': fclose() failed: %s"
 msgstr "Falha ao fechar o ficheiro '%s': a função fclose() falhou: %s"
 
-#: ../src/document.c:2024 ../src/document.c:3555
+#: ../src/document.c:2058 ../src/document.c:3589
 msgid "_Overwrite"
 msgstr "S_Obrescrever"
 
-#: ../src/document.c:2026 ../src/document.c:3558
+#: ../src/document.c:2060 ../src/document.c:3592
 #, c-format
 msgid "The file '%s' on the disk is more recent than the current buffer."
 msgstr "O ficheiro '%s' em disco é mais recente que o da memória atual."
 
-#: ../src/document.c:2034 ../src/document.c:3607
+#: ../src/document.c:2068 ../src/document.c:3641
 msgid "Try to resave the file?"
 msgstr "Tentar novamente gravar o ficheiro?"
 
-#: ../src/document.c:2035 ../src/document.c:3608
+#: ../src/document.c:2069 ../src/document.c:3642
 #, c-format
 msgid "File \"%s\" was not found on disk!"
 msgstr "O ficheiro \"%s\" não foi encontrado no disco!"
 
-#: ../src/document.c:2098
+#: ../src/document.c:2132
 #, c-format
 msgid "Cannot save read-only document '%s'!"
 msgstr "Impossível gravar o documento '%s'. É só de leitura!"
 
-#: ../src/document.c:2166
+#: ../src/document.c:2200
 #, c-format
 msgid "Error saving file (%s)."
 msgstr "Erro ao gravar o ficheiro (%s)."
 
-#: ../src/document.c:2171
+#: ../src/document.c:2205
 #, c-format
 msgid ""
 "%s\n"
@@ -2878,33 +2921,33 @@ msgstr ""
 "\n"
 "O ficheiro em disco pode agora estar truncado!"
 
-#: ../src/document.c:2173
+#: ../src/document.c:2207
 msgid "Error saving file."
 msgstr "Erro ao gravar ficheiro."
 
-#: ../src/document.c:2197
+#: ../src/document.c:2231
 #, c-format
 msgid "File %s saved."
 msgstr "Ficheiro %s gravado."
 
-#: ../src/document.c:2347
+#: ../src/document.c:2381
 msgid "Wrap search and find again?"
 msgstr "Terminar procura e localizar de novo?"
 
-#: ../src/document.c:2436 ../src/search.c:1365 ../src/search.c:1418
+#: ../src/document.c:2470 ../src/search.c:1365 ../src/search.c:1418
 #: ../src/search.c:2221 ../src/search.c:2222
 #, c-format
 msgid "No matches found for \"%s\"."
 msgstr "Ocorrências de \"%s\" não encontradas."
 
-#: ../src/document.c:2442
+#: ../src/document.c:2476
 #, c-format
 msgid "%s: replaced %d occurrence of \"%s\" with \"%s\"."
 msgid_plural "%s: replaced %d occurrences of \"%s\" with \"%s\"."
 msgstr[0] "%s: substituída %d ocorrência de \"%s\" por \"%s\"."
 msgstr[1] "%s: substituídas %d ocorrências de \"%s\" por \"%s\"."
 
-#: ../src/document.c:3557
+#: ../src/document.c:3591
 msgid "Do you want to reload it?"
 msgstr "Quer recarregá-lo?"
 
@@ -3150,7 +3193,7 @@ msgstr "Má expressão regular para ficheiros do tipo %s: %s"
 msgid "untitled"
 msgstr "sem título"
 
-#: ../src/highlighting.c:1226 ../src/libmain.c:844 ../src/socket.c:171
+#: ../src/highlighting.c:1226 ../src/libmain.c:841 ../src/socket.c:171
 #: ../src/templates.c:234
 #, c-format
 msgid "Could not find file '%s'."
@@ -3288,7 +3331,7 @@ msgstr "Refazer"
 
 #: ../src/keybindings.c:384
 msgid "Delete to line end"
-msgstr "Apagar até ao final da linha"
+msgstr "Eliminar até ao final da linha"
 
 #: ../src/keybindings.c:387
 msgid "_Transpose Current Line"
@@ -3690,11 +3733,11 @@ msgstr "Atalhos de teclado"
 msgid "The following keyboard shortcuts are configurable:"
 msgstr "Os seguintes atalhos de teclado são configuráveis:"
 
-#: ../src/keyfile.c:1018
+#: ../src/keyfile.c:1020
 msgid "Type here what you want, use it as a notice/scratch board"
 msgstr "Escreva aqui o que quiser, use como um caderno de rascunhos"
 
-#: ../src/keyfile.c:1245
+#: ../src/keyfile.c:1247
 msgid "Failed to load one or more session files."
 msgstr "Falha ao carregar um ou mais ficheiros de sessão."
 
@@ -3819,7 +3862,7 @@ msgstr ""
 "A pasta de configurações antiga \"%s\" não pode ser movida para \"%s\" (%s). "
 "Por favor, mova a pasta manualmente para a nova localização."
 
-#: ../src/libmain.c:748
+#: ../src/libmain.c:745
 #, c-format
 msgid ""
 "Configuration directory could not be created (%s).\n"
@@ -4082,10 +4125,14 @@ msgstr ""
 
 #: ../src/printing.c:615
 #, c-format
-msgid "Printing of \"%s\" failed (return code: %s)."
-msgstr "A impressão de \"%s\" falhou (código devolvido: %s)."
+msgid ""
+"Cannot execute print command \"%s\": %s. Check the path setting in "
+"Preferences."
+msgstr ""
+"Erro ao executar o comando de impressao \"%s\": %s. Verifique a definição do "
+"caminho nas Preferências."
 
-#: ../src/printing.c:621
+#: ../src/printing.c:622
 #, c-format
 msgid "File %s printed."
 msgstr "O ficheiro %s foi imprimido."
@@ -4428,6 +4475,14 @@ msgstr "A procurar..."
 msgid "%s %s -- %s (in directory: %s)"
 msgstr "%s %s -- %s (na pasta: %s)"
 
+#: ../src/search.c:1718
+#, c-format
+msgid ""
+"Cannot execute grep tool \"%s\": %s. Check the path setting in Preferences."
+msgstr ""
+"Erro ao executar o comando grep \"%s\": %s. Verifique a definição do caminho "
+"nas Preferências."
+
 #: ../src/search.c:1758
 #, c-format
 msgid "Could not open directory (%s)"
@@ -4464,36 +4519,31 @@ msgstr ""
 "executada por outro utilizador.\n"
 "Isto originou um erro fatal e o Geany será agora encerrado."
 
+#: ../src/spawn.c:90 ../src/spawn.c:140 ../src/spawn.c:184
+msgid "Text ended before matching quote was found"
+msgstr "O texto terminou antes da aspa correspondente ser encontrada"
+
 #. TL note: from glib
-#: ../src/spawn.c:109
-#, c-format
+#: ../src/spawn.c:126
 msgid "Text was empty (or contained only whitespace)"
 msgstr "O texto estava vazio (ou só continha espaços)"
 
-#. TL note: from glib
-#: ../src/spawn.c:124 ../src/spawn.c:170
-#, c-format
-msgid "Text ended before matching quote was found for %c. (The text was '%s')"
-msgstr ""
-"O texto terminou antes da aspa correspondente a %c ser encontrada (o texto "
-"era \"%s\")."
-
-#: ../src/spawn.c:132 ../src/spawn.c:146
-#, c-format
+#: ../src/spawn.c:147 ../src/spawn.c:161
 msgid "A quoted Windows program name must be entirely inside the quotes"
 msgstr ""
 "Um nome citado de um programa Windows tem de estar inteiramente entre aspas"
 
-#. or SPAWN error?
-#: ../src/spawn.c:241
-#, c-format
-msgid "Program '%s' not found"
-msgstr "Programa \"%s\" não encontrado"
+#: ../src/spawn.c:254
+msgid "Program not found"
+msgstr "Programa não encontrado"
 
-#: ../src/spawn.c:278
-#, c-format
-msgid "TerminateProcess() failed: %s"
-msgstr "Falha no TerminateProcess(): %s"
+#: ../src/spawn.c:668
+msgid "Failed to change to the working directory"
+msgstr "Falha ao alterar a pasta de trabalho"
+
+#: ../src/spawn.c:673
+msgid "Unknown error executing child process"
+msgstr "Erro desconhecido ao executar processo filho"
 
 #: ../src/stash.c:1150
 msgid "Name"
@@ -4886,6 +4936,15 @@ msgstr "Ordenar por _Aparência"
 msgid "Failed to convert template file \"%s\" to UTF-8"
 msgstr "Falha ao converter o modelo de ficheiro \"%s\" para UTF-8"
 
+#: ../src/templates.c:620
+#, c-format
+msgid ""
+"Cannot execute command \"%s\" from the template: %s. Check the path in the "
+"template."
+msgstr ""
+"Impossível executar o comando \"%s\" do modelo : %s. Verifique o caminho no "
+"modelo."
+
 #. custom actions defined in toolbar_init(): "New", "Open", "SearchEntry", "GotoEntry", "Build"
 #: ../src/toolbar.c:58
 msgid "Save the current file"
@@ -4921,7 +4980,7 @@ msgstr "Colar o conteúdo da área de transferência"
 
 #: ../src/toolbar.c:67
 msgid "Delete the current selection"
-msgstr "Apagar a seleção atual"
+msgstr "Eliminar a seleção atual"
 
 #: ../src/toolbar.c:68
 msgid "Undo the last modification"
@@ -5061,10 +5120,14 @@ msgstr ""
 msgid "The executed custom command exited with an unsuccessful exit code."
 msgstr "O comando personalizado executado terminou com um código de insucesso."
 
-#: ../src/tools.c:243
+#: ../src/tools.c:242
 #, c-format
-msgid "Custom command failed: %s"
-msgstr "Comando personalizado falhou: %s"
+msgid ""
+"Cannot execute custom command \"%s\": %s. Check the path setting in Custom "
+"Commands."
+msgstr ""
+"Impossível executar o comando personalizado \"%s\": %s. Verifique a "
+"definição do caminho nos comandos personalizados."
 
 #: ../src/tools.c:357 ../src/tools.c:620
 msgid "Set Custom Commands"
@@ -5471,8 +5534,9 @@ msgstr "Caracteres HTML"
 msgid "Inserts HTML character entities like '&amp;'."
 msgstr "Insere entidades de caracteres HTML como o '&amp;'."
 
-#: ../plugins/htmlchars.c:40 ../plugins/export.c:38 ../plugins/filebrowser.c:51
-#: ../plugins/saveactions.c:44 ../plugins/splitwindow.c:35
+#: ../plugins/htmlchars.c:40 ../plugins/export.c:38
+#: ../plugins/filebrowser.c:51 ../plugins/saveactions.c:44
+#: ../plugins/splitwindow.c:35
 msgid "The Geany developer team"
 msgstr "A equipa responsável pelo Geany"
 
@@ -5864,6 +5928,15 @@ msgstr "Lado a lado"
 msgid "Top and Bottom"
 msgstr "Topo e base"
 
+#~ msgid "Printing of \"%s\" failed (return code: %s)."
+#~ msgstr "A impressão de \"%s\" falhou (código devolvido: %s)."
+
+#~ msgid "TerminateProcess() failed: %s"
+#~ msgstr "Falha no TerminateProcess(): %s"
+
+#~ msgid "Custom command failed: %s"
+#~ msgstr "Comando personalizado falhou: %s"
+
 #~ msgid ""
 #~ "Could not execute the file in the VTE because it probably contains a "
 #~ "command."
@@ -5884,12 +5957,6 @@ msgstr "Topo e base"
 #~ msgstr ""
 #~ "Impossível encontrar o terminal \"%s\" (verifique o caminho para o "
 #~ "terminal nas Preferências)"
-
-#~ msgid ""
-#~ "Cannot execute grep tool '%s'; check the path setting in Preferences."
-#~ msgstr ""
-#~ "Erro ao executar o comando grep '%s'; verifique a definição do caminho "
-#~ "nas Preferências."
 
 #~ msgid "Cannot parse extra options: %s"
 #~ msgstr "Incapaz de interpretar opões extra: %s"

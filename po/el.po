@@ -7,10 +7,10 @@
 # Michael Misirlis <mmisirlis@gmail.com>, 2015
 msgid ""
 msgstr ""
-"Project-Id-Version: Geany 1.25\n"
+"Project-Id-Version: Geany 1.26\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-09-23 02:36+0000\n"
-"PO-Revision-Date: 2015-09-28 16:06+0200\n"
+"POT-Creation-Date: 2015-11-04 02:36+0000\n"
+"PO-Revision-Date: 2015-11-04 13:35+0200\n"
 "Last-Translator: Michael Misirlis <mmisirlis@gmail.com>\n"
 "Language-Team: Greek\n"
 "Language: el\n"
@@ -92,7 +92,7 @@ msgstr "αόρατο"
 msgid "_Insert \"include <...>\""
 msgstr "_Εισαγωγή \"include <...>\""
 
-#: ../data/geany.glade.h:16 ../src/keybindings.c:433
+#: ../data/geany.glade.h:16 ../src/keybindings.c:492
 msgid "Insert Alternative _White Space"
 msgstr "Εισαγωγή Εναλλακτικού _White Space"
 
@@ -161,7 +161,7 @@ msgstr "Κορυφή"
 msgid "Bottom"
 msgstr "Κάτω μέρος"
 
-#: ../data/geany.glade.h:31 ../src/keybindings.c:443
+#: ../data/geany.glade.h:31 ../src/keybindings.c:502
 msgid "Preferences"
 msgstr "Ιδιότητες"
 
@@ -1135,7 +1135,7 @@ msgstr "<b>Virtual spaces</b>"
 msgid "Display"
 msgstr "Εμφάνιση"
 
-#: ../data/geany.glade.h:228 ../src/keybindings.c:248 ../src/prefs.c:1605
+#: ../data/geany.glade.h:228 ../src/keybindings.c:307 ../src/prefs.c:1605
 msgid "Editor"
 msgstr "Επεξεργαστής"
 
@@ -1222,7 +1222,7 @@ msgstr "Διαγραφή λωρίδων κενών και tab"
 msgid "Removes trailing spaces and tabs and the end of lines"
 msgstr "Διαγράφει τις λωρίδες των κενών και των tab στο τέλος των γραμμών"
 
-#: ../data/geany.glade.h:246 ../src/keybindings.c:588
+#: ../data/geany.glade.h:246 ../src/keybindings.c:647
 msgid "Replace tabs with space"
 msgstr "Αντικατάσταση των tab με κενά"
 
@@ -1310,7 +1310,7 @@ msgstr ""
 msgid "<b>Commands</b>"
 msgstr "<b>Εντολές</b>"
 
-#: ../data/geany.glade.h:265 ../src/keybindings.c:260 ../src/prefs.c:1609
+#: ../data/geany.glade.h:265 ../src/keybindings.c:319 ../src/prefs.c:1609
 msgid "Tools"
 msgstr "Εργαλεία"
 
@@ -1409,7 +1409,7 @@ msgstr "Α_λλαγή"
 msgid "<b>Keyboard shortcuts</b>"
 msgstr "<b>Συντομεύσεις πλήκτων</b>"
 
-#: ../data/geany.glade.h:286 ../src/plugins.c:1522 ../src/plugins.c:1557
+#: ../data/geany.glade.h:286 ../src/plugins.c:1891 ../src/plugins.c:1928
 #: ../src/prefs.c:1613
 msgid "Keybindings"
 msgstr "Συνδυασμοί πλήκτων"
@@ -1689,7 +1689,7 @@ msgstr "Αποθήκευση _Ως..."
 msgid "Sa_ve All"
 msgstr "Αποθήκευση Ό_λων"
 
-#: ../data/geany.glade.h:345 ../src/document.c:1572 ../src/document.c:3511
+#: ../data/geany.glade.h:345 ../src/document.c:1661 ../src/document.c:3588
 #: ../src/sidebar.c:718
 msgid "_Reload"
 msgstr "_Επαναφόρτωση"
@@ -1718,27 +1718,27 @@ msgstr "_Κλείσιμο Όλων"
 msgid "Co_mmands"
 msgstr "Εν_τολές"
 
-#: ../data/geany.glade.h:352 ../src/keybindings.c:368
+#: ../data/geany.glade.h:352 ../src/keybindings.c:427
 msgid "Cu_t Current Line(s)"
 msgstr "Απο_κοπή τρέχον γραμμής(ών)"
 
-#: ../data/geany.glade.h:353 ../src/keybindings.c:365
+#: ../data/geany.glade.h:353 ../src/keybindings.c:424
 msgid "_Copy Current Line(s)"
 msgstr "Α_ντιγραφή τρέχον γραμμής(ών)"
 
-#: ../data/geany.glade.h:354 ../src/keybindings.c:321
+#: ../data/geany.glade.h:354 ../src/keybindings.c:380
 msgid "_Delete Current Line(s)"
 msgstr "Διαγραφή τρέχον γ_ραμμής(ών)"
 
-#: ../data/geany.glade.h:355 ../src/keybindings.c:318
+#: ../data/geany.glade.h:355 ../src/keybindings.c:377
 msgid "D_uplicate Line or Selection"
 msgstr "Αντίγρα_φο της Γραμμής ή της Επιλογής"
 
-#: ../data/geany.glade.h:356 ../src/keybindings.c:378
+#: ../data/geany.glade.h:356 ../src/keybindings.c:437
 msgid "S_elect Current Line(s)"
 msgstr "Επιλο_γή τρέχον γραμμής(ών)"
 
-#: ../data/geany.glade.h:357 ../src/keybindings.c:381
+#: ../data/geany.glade.h:357 ../src/keybindings.c:440
 msgid "Se_lect Current Paragraph"
 msgstr "Επιλογή Τρέχο_υσας Παραγράφου"
 
@@ -1750,15 +1750,15 @@ msgstr "_Μετακίνηση γραμμής(ών) Πάνω"
 msgid "M_ove Line(s) Down"
 msgstr "Μ_ετακίνηση γραμμής(ών) Κάτω"
 
-#: ../data/geany.glade.h:360 ../src/keybindings.c:420
+#: ../data/geany.glade.h:360 ../src/keybindings.c:479
 msgid "_Send Selection to Terminal"
 msgstr "Απ_οστολή Επιλογής στο Τερματικό"
 
-#: ../data/geany.glade.h:361 ../src/keybindings.c:422
+#: ../data/geany.glade.h:361 ../src/keybindings.c:481
 msgid "_Reflow Lines/Block"
 msgstr "_Αναδιάταξη Γραμμών/Μπλοκ"
 
-#: ../data/geany.glade.h:362 ../src/keybindings.c:392
+#: ../data/geany.glade.h:362 ../src/keybindings.c:451
 msgid "T_oggle Case of Selection"
 msgstr "Ενα_λλαγή Πεζών/Κεφαλαίων των Επιλεγμένων"
 
@@ -1782,7 +1782,7 @@ msgstr "Αύξηση Εσο_χής"
 msgid "_Decrease Indent"
 msgstr "_Μείωση Εσοχής"
 
-#: ../data/geany.glade.h:368 ../src/keybindings.c:411
+#: ../data/geany.glade.h:368 ../src/keybindings.c:470
 msgid "S_mart Line Indent"
 msgstr "Έ_ξυπνη εσοχή γραμμής"
 
@@ -1798,7 +1798,7 @@ msgstr "Εισαγωγή Σχολί_ων"
 msgid "Preference_s"
 msgstr "Ιδιότητ_ες"
 
-#: ../data/geany.glade.h:372 ../src/keybindings.c:446
+#: ../data/geany.glade.h:372 ../src/keybindings.c:505
 msgid "P_lugin Preferences"
 msgstr "Ιδιότητες _Πρόσθετων"
 
@@ -1830,11 +1830,11 @@ msgstr "Επόμενο _Μήνυμα"
 msgid "Pr_evious Message"
 msgstr "Πρ_οηγούμενο Μήνυμα"
 
-#: ../data/geany.glade.h:380 ../src/keybindings.c:495
+#: ../data/geany.glade.h:380 ../src/keybindings.c:554
 msgid "Go to Ne_xt Marker"
 msgstr "Πήγαινε στον Επό_μενο Δείκτη"
 
-#: ../data/geany.glade.h:381 ../src/keybindings.c:498
+#: ../data/geany.glade.h:381 ../src/keybindings.c:557
 msgid "Go to Pre_vious Marker"
 msgstr "Πήγαινε στον Π_ροηγούμενο Δείκτη"
 
@@ -1842,15 +1842,15 @@ msgstr "Πήγαινε στον Π_ροηγούμενο Δείκτη"
 msgid "_Go to Line..."
 msgstr "Πήγαιν_ε στη Γραμμή..."
 
-#: ../data/geany.glade.h:383 ../src/keybindings.c:458
+#: ../data/geany.glade.h:383 ../src/keybindings.c:517
 msgid "Find Next _Selection"
 msgstr "Αναζήτηση Επ_όμενου Επιλεγμένου"
 
-#: ../data/geany.glade.h:384 ../src/keybindings.c:460
+#: ../data/geany.glade.h:384 ../src/keybindings.c:519
 msgid "Find Pre_vious Selection"
 msgstr "Αναζήτηση Π_ροηγούμενου Επιλεγμένου"
 
-#: ../data/geany.glade.h:385 ../src/keybindings.c:477
+#: ../data/geany.glade.h:385 ../src/keybindings.c:536
 msgid "_Mark All"
 msgstr "Μαρκάρισμα _Όλων"
 
@@ -2006,7 +2006,7 @@ msgstr "Μετατροπή και Καθορισμός σε _LF (Unix)"
 msgid "Convert and Set to CR (Classic _Mac)"
 msgstr "Μετατροπή και Καθορισμός σε CR (Τυπικό Mac)"
 
-#: ../data/geany.glade.h:424 ../src/keybindings.c:586
+#: ../data/geany.glade.h:424 ../src/keybindings.c:645
 msgid "_Clone"
 msgstr "_Κλωνοποίηση"
 
@@ -2186,7 +2186,7 @@ msgstr ""
 "μια νέα διαδρομή, ή ένας υπάρχον φάκελος. Μπορείτε να χρησιμοποιήσετε "
 "διαδρομές σχετικές με το όνομα του έργου."
 
-#: ../data/geany.glade.h:466 ../src/keybindings.c:258
+#: ../data/geany.glade.h:466 ../src/keybindings.c:317
 msgid "Project"
 msgstr "Έργο"
 
@@ -2365,7 +2365,7 @@ msgstr "Η διαδικασία απέτυχε, δεν υπάρχει ο φάκ�
 msgid "%s (in directory: %s)"
 msgstr "%s (στο φάκελο: %s)"
 
-#: ../src/build.c:780 ../src/build.c:913 ../src/search.c:1719
+#: ../src/build.c:780
 #, c-format
 msgid "Process failed (%s)"
 msgstr "Η διαδικασία απέτυχε (%s)"
@@ -2389,6 +2389,15 @@ msgid ""
 msgstr ""
 "Το αρχείο δεν εκτελέστηκε λόγω του ότι το τερματικό μπορεί να έχει κάποια "
 "είσοδο (πατήστε τα πλήκτρα Ctrl+C ή Enter για να το καθαρίσετε)."
+
+#: ../src/build.c:912
+#, c-format
+msgid ""
+"Cannot execute terminal command \"%s\": %s. Check the path setting in "
+"Preferences."
+msgstr ""
+"Δεν ήταν δυνατόν να εκτελεστεί η εντολή τερματικού \"%s\": %s. Ελέγξτε τη "
+"ρύθμιση διαδρομής στις Ιδιότητες."
 
 #: ../src/build.c:1020
 msgid "Compilation failed."
@@ -2547,7 +2556,7 @@ msgid_plural "%d files saved."
 msgstr[0] "%d αρχείο αποθηκεύτηκε."
 msgstr[1] "%d αρχεία αποθηκεύτηκαν."
 
-#: ../src/callbacks.c:895 ../src/keybindings.c:486
+#: ../src/callbacks.c:895 ../src/keybindings.c:545
 msgid "Go to Line"
 msgstr "Μετάβαση στη Γραμμή"
 
@@ -2571,8 +2580,22 @@ msgstr "Δεν υπάρχουν άλλα στοιχεία μηνυμάτων."
 msgid "Could not open file %s (File not found)"
 msgstr "Δεν ήταν δυνατόν το άνοιγμα του αρχείου %s (το αρχείο δεν βρέθηκε)"
 
-#: ../src/dialogs.c:160 ../src/document.c:2231 ../src/document.c:2296
-#: ../src/document.c:2304
+#: ../src/callbacks.c:1473
+msgid "Check the path setting in Filetype configuration."
+msgstr "Ελέγξτε τις ρυθμίσεις διαδρομής στις ρυθμίσεις Τύπου Αρχείων."
+
+#: ../src/callbacks.c:1478
+msgid "Check the path setting in Preferences."
+msgstr "Ελέγξτε τη ρύθμιση διαδρομής στις Ιδιότητες."
+
+#. G_SHELL_ERROR is parsing error, it may be caused by %s word with quotes
+#: ../src/callbacks.c:1491
+#, c-format
+msgid "Cannot execute context action command \"%s\": %s. %s"
+msgstr "Αδυναμία εκτέλεσης εντολής δράσης πλαισίου \"%s\": %s. %s"
+
+#: ../src/dialogs.c:160 ../src/document.c:2308 ../src/document.c:2373
+#: ../src/document.c:2381
 #, c-format
 msgid "\"%s\" was not found."
 msgstr "\"%s\" δεν βρέθηκε."
@@ -2655,7 +2678,7 @@ msgstr ""
 "Ανοίγει το αρχείο μόνο για ανάγνωση. Αν επιλέξετε περισσότερα από ένα αρχεία "
 "για άνοιγμα, όλα τα αρχεία θα ανοιχτούν μόνο για ανάγνωση."
 
-#: ../src/dialogs.c:534 ../src/document.c:1982
+#: ../src/dialogs.c:534 ../src/document.c:2059
 msgid "Overwrite?"
 msgstr "Αντικατάσταση;"
 
@@ -2736,27 +2759,27 @@ msgstr "(με BOM)"
 msgid "(without BOM)"
 msgstr "(χωρίς BOM)"
 
-#: ../src/document.c:740
+#: ../src/document.c:744
 #, c-format
 msgid "File %s closed."
 msgstr "Το αρχείο %s έκλεισε."
 
-#: ../src/document.c:896
+#: ../src/document.c:900
 #, c-format
 msgid "New file \"%s\" opened."
 msgstr "Ανοίχθηκε νέο αρχείο \"%s\"."
 
-#: ../src/document.c:948 ../src/document.c:1597
+#: ../src/document.c:974
 #, c-format
 msgid "Could not open file %s (%s)"
 msgstr "Δεν ήταν δυνατόν το άνοιγμα αρχείου %s (%s)"
 
-#: ../src/document.c:968
+#: ../src/document.c:1023
 #, c-format
 msgid "The file \"%s\" is not valid %s."
 msgstr "Το αρχείο \"%s\" δεν είναι έγκυρο %s."
 
-#: ../src/document.c:974
+#: ../src/document.c:1029
 #, c-format
 msgid ""
 "The file \"%s\" does not look like a text file or the file encoding is not "
@@ -2765,7 +2788,7 @@ msgstr ""
 "Το αρχείο \"%s\" δεν φαίνεται να είναι αρχείο κειμένου ή δεν υποστηρίζεται η "
 "κωδικοποίηση του αρχείου."
 
-#: ../src/document.c:984
+#: ../src/document.c:1039
 #, c-format
 msgid ""
 "The file \"%s\" could not be opened properly and has been truncated. This "
@@ -2779,31 +2802,31 @@ msgstr ""
 "δεδομένων.\n"
 "Το αρχείο τέθηκε μόνο προς ανάγνωση."
 
-#: ../src/document.c:1196
+#: ../src/document.c:1251
 msgid "Spaces"
 msgstr "Κενά"
 
-#: ../src/document.c:1199
+#: ../src/document.c:1254
 msgid "Tabs"
 msgstr "Ετικέτες"
 
-#: ../src/document.c:1202
+#: ../src/document.c:1257
 msgid "Tabs and Spaces"
 msgstr "Tab και Κενά"
 
 #. For translators: first wildcard is the indentation mode (Spaces, Tabs, Tabs
 #. * and Spaces), the second one is the filename
-#: ../src/document.c:1207
+#: ../src/document.c:1262
 #, c-format
 msgid "Setting %s indentation mode for %s."
 msgstr "Ρύθμιση %s μεθόδου εσοχής για %s."
 
-#: ../src/document.c:1218
+#: ../src/document.c:1273
 #, c-format
 msgid "Setting indentation width to %d for %s."
 msgstr "Ρύθμιση εύρους εσοχής σε %d για %s."
 
-#: ../src/document.c:1442
+#: ../src/document.c:1497
 #, c-format
 msgid "File %s reloaded."
 msgstr "Το αρχείο %s επαναφορτώθηκε."
@@ -2811,33 +2834,53 @@ msgstr "Το αρχείο %s επαναφορτώθηκε."
 #. For translators: this is the status window message for opening a file. %d is the number
 #. * of the newly opened file, %s indicates whether the file is opened read-only
 #. * (it is replaced with the string ", read-only").
-#: ../src/document.c:1450
+#: ../src/document.c:1505
 #, c-format
 msgid "File %s opened(%d%s)."
 msgstr "Το αρχείο %s ανοίχθηκε(%d%s)."
 
-#: ../src/document.c:1452
+#: ../src/document.c:1507
 msgid ", read-only"
 msgstr ", μόνο για ανάγνωση"
 
-#: ../src/document.c:1573
+#: ../src/document.c:1627
+msgid "Discard history"
+msgstr "Απόρριψη ιστορικού"
+
+#: ../src/document.c:1628
+msgid ""
+"The buffer's previous state is stored in the history and undoing restores "
+"it. You can disable this by discarding the history upon reload. This message "
+"will not be displayed again but Your choice can be changed in the various "
+"preferences."
+msgstr ""
+"Η προηγούμενη κατάσταση του buffer  αποθηκεύεται στο ιστορικό, και "
+"επανέρχεται μέσω των αναιρέσεων. Μπορείτε να το απενεργοποιήσετε αυτό, "
+"διαγράφοντας το ιστορικό κατά τη φόρτωση. Αυτό το μήνυμα δεν θα εμφανιστεί "
+"ξανά, αλλά η επιλογή σας μπορεί να αλλαχθεί από τις διάφορες ιδιότητες."
+
+#: ../src/document.c:1632
+msgid "The file has been reloaded."
+msgstr "Το αρχείο επαναφορτώθηκε."
+
+#: ../src/document.c:1662
 msgid "Any unsaved changes will be lost."
 msgstr "Όλες οι αλλαγές που δεν έχουν αποθηκευτεί θα χαθούν."
 
-#: ../src/document.c:1574
+#: ../src/document.c:1663
 msgid "Undo history will be lost."
 msgstr "Το ιστορικό αναιρέσεων θα χαθεί."
 
-#: ../src/document.c:1575
+#: ../src/document.c:1664
 #, c-format
 msgid "Are you sure you want to reload '%s'?"
 msgstr "Είστε σίγουροι ότι θέλετε να επαναφορτώσετε '%s';"
 
-#: ../src/document.c:1693
+#: ../src/document.c:1770
 msgid "Error renaming file."
 msgstr "Σφάλμα στη μετονομασία του αρχείου."
 
-#: ../src/document.c:1814
+#: ../src/document.c:1891
 #, c-format
 msgid ""
 "An error occurred while converting the file from UTF-8 in \"%s\". The file "
@@ -2846,7 +2889,7 @@ msgstr ""
 "Παρουσιάστηκε σφάλμα κατά την μετατροπή του αρχείου από UTF-8 σε \"%s\". Το "
 "αρχείο παραμένει μη αποθηκευμένο."
 
-#: ../src/document.c:1835
+#: ../src/document.c:1912
 #, c-format
 msgid ""
 "Error message: %s\n"
@@ -2855,57 +2898,57 @@ msgstr ""
 "Μήνυμα σφάλματος: %s\n"
 "Το σφάλμα παρουσιάστηκε στο \"%s\" (γραμμή: %d, στήλη: %d)."
 
-#: ../src/document.c:1839
+#: ../src/document.c:1916
 #, c-format
 msgid "Error message: %s."
 msgstr "Μήνυμα σφάλματος: %s."
 
-#: ../src/document.c:1899
+#: ../src/document.c:1976
 #, c-format
 msgid "Failed to open file '%s' for writing: fopen() failed: %s"
 msgstr ""
 "Αποτυχία ανοίγματος του αρχείου '%s' για εγγραφή: Το fopen() απέτυχε: %s"
 
-#: ../src/document.c:1917
+#: ../src/document.c:1994
 #, c-format
 msgid "Failed to write file '%s': fwrite() failed: %s"
 msgstr "Αποτυχία εγγραφής αρχείου '%s': Το fwrite() απέτυχε: %s"
 
-#: ../src/document.c:1931
+#: ../src/document.c:2008
 #, c-format
 msgid "Failed to close file '%s': fclose() failed: %s"
 msgstr "Αποτυχία κλείσιμου αρχείου '%s': Το fclose() απέτυχε: %s"
 
-#: ../src/document.c:1981 ../src/document.c:3512
+#: ../src/document.c:2058 ../src/document.c:3589
 msgid "_Overwrite"
 msgstr "_Αντικατάσταση"
 
-#: ../src/document.c:1983 ../src/document.c:3515
+#: ../src/document.c:2060 ../src/document.c:3592
 #, c-format
 msgid "The file '%s' on the disk is more recent than the current buffer."
 msgstr ""
 "Το αρχείο '%s' στον δίσκο είναι πιο πρόσφατο από αυτό στο τρέχον buffer."
 
-#: ../src/document.c:1991 ../src/document.c:3564
+#: ../src/document.c:2068 ../src/document.c:3641
 msgid "Try to resave the file?"
 msgstr "Προσπάθεια να ξανασωθεί το αρχείο;"
 
-#: ../src/document.c:1992 ../src/document.c:3565
+#: ../src/document.c:2069 ../src/document.c:3642
 #, c-format
 msgid "File \"%s\" was not found on disk!"
 msgstr "Το αρχείο \"%s\" δεν βρέθηκε στον δίσκο!"
 
-#: ../src/document.c:2055
+#: ../src/document.c:2132
 #, c-format
 msgid "Cannot save read-only document '%s'!"
 msgstr "Δεν γίνεται να αποθηκευτεί το αρχείο μόνο για ανάγνωση '%s'!"
 
-#: ../src/document.c:2123
+#: ../src/document.c:2200
 #, c-format
 msgid "Error saving file (%s)."
 msgstr "Σφάλμα αποθήκευσης αρχείου (%s)."
 
-#: ../src/document.c:2128
+#: ../src/document.c:2205
 #, c-format
 msgid ""
 "%s\n"
@@ -2916,33 +2959,33 @@ msgstr ""
 "\n"
 "Το αρχείο στον δίσκο μπορεί τώρα να είναι αποκομμένο!"
 
-#: ../src/document.c:2130
+#: ../src/document.c:2207
 msgid "Error saving file."
 msgstr "Σφάλμα στην αποθήκευση αρχείου."
 
-#: ../src/document.c:2154
+#: ../src/document.c:2231
 #, c-format
 msgid "File %s saved."
 msgstr "Το αρχείο %s αποθηκεύτηκε."
 
-#: ../src/document.c:2304
+#: ../src/document.c:2381
 msgid "Wrap search and find again?"
 msgstr "Ολοκλήρωση αναζήτησης και εύρεση ξανά;"
 
-#: ../src/document.c:2393 ../src/search.c:1365 ../src/search.c:1418
+#: ../src/document.c:2470 ../src/search.c:1365 ../src/search.c:1418
 #: ../src/search.c:2221 ../src/search.c:2222
 #, c-format
 msgid "No matches found for \"%s\"."
 msgstr "Δεν βρέθηκαν αποτελέσματα για \"%s\"."
 
-#: ../src/document.c:2399
+#: ../src/document.c:2476
 #, c-format
 msgid "%s: replaced %d occurrence of \"%s\" with \"%s\"."
 msgid_plural "%s: replaced %d occurrences of \"%s\" with \"%s\"."
 msgstr[0] "%s: αντικατάσταση %d εμφανιζόμενου του \"%s\" με \"%s\"."
 msgstr[1] "%s: αντικατάσταση %d εμφανιζόμενων του \"%s\" με \"%s\"."
 
-#: ../src/document.c:3514
+#: ../src/document.c:3591
 msgid "Do you want to reload it?"
 msgstr "Θέλετε να το επαναφορτώσετε;"
 
@@ -3189,7 +3232,7 @@ msgstr "Bad regex για τον τύπο αρχείου %s: %s"
 msgid "untitled"
 msgstr "χωρίς όνομα"
 
-#: ../src/highlighting.c:1226 ../src/libmain.c:840 ../src/socket.c:171
+#: ../src/highlighting.c:1226 ../src/libmain.c:841 ../src/socket.c:171
 #: ../src/templates.c:234
 #, c-format
 msgid "Could not find file '%s'."
@@ -3212,530 +3255,530 @@ msgid "Color Schemes"
 msgstr "Επιλογέας Χρωμάτων"
 
 #. visual group order
-#: ../src/keybindings.c:247 ../src/symbols.c:655
+#: ../src/keybindings.c:306 ../src/symbols.c:655
 msgid "File"
 msgstr "Αρχείο"
 
-#: ../src/keybindings.c:249
+#: ../src/keybindings.c:308
 msgid "Clipboard"
 msgstr "Πρόχειρο"
 
-#: ../src/keybindings.c:250
+#: ../src/keybindings.c:309
 msgid "Select"
 msgstr "Επιλογή"
 
-#: ../src/keybindings.c:251
+#: ../src/keybindings.c:310
 msgid "Format"
 msgstr "Διαμόρφωση"
 
-#: ../src/keybindings.c:252
+#: ../src/keybindings.c:311
 msgid "Insert"
 msgstr "Εισαγωγή"
 
-#: ../src/keybindings.c:253
+#: ../src/keybindings.c:312
 msgid "Settings"
 msgstr "Ρυθμίσεις"
 
-#: ../src/keybindings.c:254
+#: ../src/keybindings.c:313
 msgid "Search"
 msgstr "Αναζήτηση"
 
-#: ../src/keybindings.c:255
+#: ../src/keybindings.c:314
 msgid "Go to"
 msgstr "Μετάβαση"
 
-#: ../src/keybindings.c:256
+#: ../src/keybindings.c:315
 msgid "View"
 msgstr "Προβολή"
 
-#: ../src/keybindings.c:257 ../src/symbols.c:804
+#: ../src/keybindings.c:316 ../src/symbols.c:804
 msgid "Document"
 msgstr "Έγγραφο"
 
-#: ../src/keybindings.c:259 ../src/keybindings.c:611 ../src/project.c:511
+#: ../src/keybindings.c:318 ../src/keybindings.c:670 ../src/project.c:511
 #: ../src/ui_utils.c:2191
 msgid "Build"
 msgstr "Κατασκευή (Build)"
 
-#: ../src/keybindings.c:261 ../src/keybindings.c:636
+#: ../src/keybindings.c:320 ../src/keybindings.c:695
 msgid "Help"
 msgstr "Βοήθεια"
 
-#: ../src/keybindings.c:262
+#: ../src/keybindings.c:321
 msgid "Focus"
 msgstr "Εστίαση"
 
-#: ../src/keybindings.c:263
+#: ../src/keybindings.c:322
 msgid "Notebook tab"
 msgstr "Ετικέτα σημειωματάριου"
 
-#: ../src/keybindings.c:272 ../src/keybindings.c:302
+#: ../src/keybindings.c:331 ../src/keybindings.c:361
 msgid "New"
 msgstr "Νέο"
 
-#: ../src/keybindings.c:274 ../src/keybindings.c:304
+#: ../src/keybindings.c:333 ../src/keybindings.c:363
 msgid "Open"
 msgstr "Άνοιγμα"
 
-#: ../src/keybindings.c:277
+#: ../src/keybindings.c:336
 msgid "Open selected file"
 msgstr "Άνοιγμα του επιλεγμένου αρχείου"
 
-#: ../src/keybindings.c:279
+#: ../src/keybindings.c:338
 msgid "Save"
 msgstr "Αποθήκευση"
 
-#: ../src/keybindings.c:281 ../src/toolbar.c:59
+#: ../src/keybindings.c:340 ../src/toolbar.c:59
 msgid "Save as"
 msgstr "Αποθήκευση ως"
 
-#: ../src/keybindings.c:283
+#: ../src/keybindings.c:342
 msgid "Save all"
 msgstr "Αποθήκευση όλων"
 
-#: ../src/keybindings.c:286
+#: ../src/keybindings.c:345
 msgid "Print"
 msgstr "Εκτύπωση"
 
-#: ../src/keybindings.c:288 ../src/keybindings.c:309
+#: ../src/keybindings.c:347 ../src/keybindings.c:368
 msgid "Close"
 msgstr "Κλείσιμο"
 
-#: ../src/keybindings.c:290
+#: ../src/keybindings.c:349
 msgid "Close all"
 msgstr "Κλείσιμο όλων"
 
-#: ../src/keybindings.c:293
+#: ../src/keybindings.c:352
 msgid "Reload file"
 msgstr "Επαναφόρτωση αρχείου"
 
-#: ../src/keybindings.c:295
+#: ../src/keybindings.c:354
 msgid "Re-open last closed tab"
 msgstr "Άνοιγμα ξανά της τελευταίας καρτέλας"
 
-#: ../src/keybindings.c:297
+#: ../src/keybindings.c:356
 msgid "Quit"
 msgstr "Τερματισμός"
 
-#: ../src/keybindings.c:314
+#: ../src/keybindings.c:373
 msgid "Undo"
 msgstr "Αναίρεση"
 
-#: ../src/keybindings.c:316
+#: ../src/keybindings.c:375
 msgid "Redo"
 msgstr "Επανάληψη"
 
-#: ../src/keybindings.c:325
+#: ../src/keybindings.c:384
 msgid "Delete to line end"
 msgstr "Διαγραφή έως το τέλος της γραμμής"
 
-#: ../src/keybindings.c:328
+#: ../src/keybindings.c:387
 msgid "_Transpose Current Line"
 msgstr "_Μετάθεση τρέχουσας γραμμής"
 
-#: ../src/keybindings.c:330
+#: ../src/keybindings.c:389
 msgid "Scroll to current line"
 msgstr "Κύλιση στη τρέχουσα γραμμή"
 
-#: ../src/keybindings.c:332
+#: ../src/keybindings.c:391
 msgid "Scroll up the view by one line"
 msgstr "Κύλιση πάνω κατά μια γραμμή"
 
-#: ../src/keybindings.c:334
+#: ../src/keybindings.c:393
 msgid "Scroll down the view by one line"
 msgstr "Κύλιση κάτω κατά μια γραμμή"
 
-#: ../src/keybindings.c:336
+#: ../src/keybindings.c:395
 msgid "Complete snippet"
 msgstr "Πλήρες απόσπασμα"
 
-#: ../src/keybindings.c:338
+#: ../src/keybindings.c:397
 msgid "Move cursor in snippet"
 msgstr "Μετακίνηση του κέρσορα στο απόσπασμα"
 
-#: ../src/keybindings.c:340
+#: ../src/keybindings.c:399
 msgid "Suppress snippet completion"
 msgstr "Καταστολή συμπλήρωση αποσπάσματος"
 
-#: ../src/keybindings.c:342
+#: ../src/keybindings.c:401
 msgid "Context Action"
 msgstr "Δράση Πλαισίου"
 
-#: ../src/keybindings.c:344
+#: ../src/keybindings.c:403
 msgid "Complete word"
 msgstr "Πλήρης λέξη"
 
-#: ../src/keybindings.c:346
+#: ../src/keybindings.c:405
 msgid "Show calltip"
 msgstr "Προβολή calltip"
 
-#: ../src/keybindings.c:348
+#: ../src/keybindings.c:407
 msgid "Word part completion"
 msgstr "Συμπλήρωση τμημάτων των λέξεων"
 
-#: ../src/keybindings.c:351
+#: ../src/keybindings.c:410
 msgid "Move line(s) up"
 msgstr "Μετακίνηση γραμμής(ών) πάνω"
 
-#: ../src/keybindings.c:354
+#: ../src/keybindings.c:413
 msgid "Move line(s) down"
 msgstr "Μετακίνηση γραμμής(ών) κάτω"
 
-#: ../src/keybindings.c:359
+#: ../src/keybindings.c:418
 msgid "Cut"
 msgstr "Αποκοπή"
 
-#: ../src/keybindings.c:361
+#: ../src/keybindings.c:420
 msgid "Copy"
 msgstr "Αντιγραφή"
 
-#: ../src/keybindings.c:363
+#: ../src/keybindings.c:422
 msgid "Paste"
 msgstr "Επικόλληση"
 
-#: ../src/keybindings.c:374
+#: ../src/keybindings.c:433
 msgid "Select All"
 msgstr "Επιλογή Όλων"
 
-#: ../src/keybindings.c:376
+#: ../src/keybindings.c:435
 msgid "Select current word"
 msgstr "Επιλογή τρέχουσας λέξης"
 
-#: ../src/keybindings.c:384
+#: ../src/keybindings.c:443
 msgid "Select to previous word part"
 msgstr "Επιλογή του προηγούμενου λεκτικού τμήματος"
 
-#: ../src/keybindings.c:386
+#: ../src/keybindings.c:445
 msgid "Select to next word part"
 msgstr "Επιλογή του επόμενου λεκτικού τμήματος"
 
-#: ../src/keybindings.c:394
+#: ../src/keybindings.c:453
 msgid "Toggle line commentation"
 msgstr "Ενεργοποίηση/απενεργοποίηση σχολίων γραμμής"
 
-#: ../src/keybindings.c:397
+#: ../src/keybindings.c:456
 msgid "Comment line(s)"
 msgstr "Σχολιασμός γραμμής(ών)"
 
-#: ../src/keybindings.c:399
+#: ../src/keybindings.c:458
 msgid "Uncomment line(s)"
 msgstr "Αποσχολιασμός γραμμής(ών)"
 
-#: ../src/keybindings.c:401
+#: ../src/keybindings.c:460
 msgid "Increase indent"
 msgstr "Αύξηση εσοχής"
 
-#: ../src/keybindings.c:404
+#: ../src/keybindings.c:463
 msgid "Decrease indent"
 msgstr "Μείωση εσοχής"
 
-#: ../src/keybindings.c:407
+#: ../src/keybindings.c:466
 msgid "Increase indent by one space"
 msgstr "Αύξηση εσοχής κατά ένα κενό"
 
-#: ../src/keybindings.c:409
+#: ../src/keybindings.c:468
 msgid "Decrease indent by one space"
 msgstr "Μείωση εσοχής κατά ένα κενό"
 
-#: ../src/keybindings.c:413
+#: ../src/keybindings.c:472
 msgid "Send to Custom Command 1"
 msgstr "Αποστολή στη Προσαρμοσμένη Εντολή 1"
 
-#: ../src/keybindings.c:415
+#: ../src/keybindings.c:474
 msgid "Send to Custom Command 2"
 msgstr "Αποστολή στη Προσαρμοσμένη Εντολή 2"
 
-#: ../src/keybindings.c:417
+#: ../src/keybindings.c:476
 msgid "Send to Custom Command 3"
 msgstr "Αποστολή στη Προσαρμοσμένη Εντολή 3"
 
-#: ../src/keybindings.c:425
+#: ../src/keybindings.c:484
 msgid "Join lines"
 msgstr "Συγχώνευση γραμμών"
 
-#: ../src/keybindings.c:430
+#: ../src/keybindings.c:489
 msgid "Insert date"
 msgstr "Εισαγωγή ημερομηνίας"
 
-#: ../src/keybindings.c:436
+#: ../src/keybindings.c:495
 msgid "Insert New Line Before Current"
 msgstr "Εισαγωγή Νέας Γραμμής Πριν την Τρέχουσα"
 
-#: ../src/keybindings.c:438
+#: ../src/keybindings.c:497
 msgid "Insert New Line After Current"
 msgstr "Εισαγωγή Νέας Γραμμής Μετά την Τρέχουσα"
 
-#: ../src/keybindings.c:451 ../src/search.c:463
+#: ../src/keybindings.c:510 ../src/search.c:463
 msgid "Find"
 msgstr "Εύρεση"
 
-#: ../src/keybindings.c:453
+#: ../src/keybindings.c:512
 msgid "Find Next"
 msgstr "Εύρεση Επόμενου"
 
-#: ../src/keybindings.c:455
+#: ../src/keybindings.c:514
 msgid "Find Previous"
 msgstr "Εύρεση Προηγούμενου"
 
-#: ../src/keybindings.c:462 ../src/search.c:616
+#: ../src/keybindings.c:521 ../src/search.c:616
 msgid "Replace"
 msgstr "Αντικατάσταση"
 
-#: ../src/keybindings.c:464 ../src/search.c:866
+#: ../src/keybindings.c:523 ../src/search.c:866
 msgid "Find in Files"
 msgstr "Εύρεση σε Αρχεία"
 
-#: ../src/keybindings.c:467
+#: ../src/keybindings.c:526
 msgid "Next Message"
 msgstr "Επόμενο Μήνυμα"
 
-#: ../src/keybindings.c:469
+#: ../src/keybindings.c:528
 msgid "Previous Message"
 msgstr "Προηγούμενο Μήνυμα"
 
-#: ../src/keybindings.c:472
+#: ../src/keybindings.c:531
 msgid "Find Usage"
 msgstr "Εύρεση Χρήσης"
 
-#: ../src/keybindings.c:475
+#: ../src/keybindings.c:534
 msgid "Find Document Usage"
 msgstr "Αναζήτηση Χρήσης Εγγράφου"
 
-#: ../src/keybindings.c:482 ../src/toolbar.c:70
+#: ../src/keybindings.c:541 ../src/toolbar.c:70
 msgid "Navigate back a location"
 msgstr "Πλοήγηση μια θέση πίσω"
 
-#: ../src/keybindings.c:484 ../src/toolbar.c:71
+#: ../src/keybindings.c:543 ../src/toolbar.c:71
 msgid "Navigate forward a location"
 msgstr "Πλοήγηση μια θέση μπρος"
 
-#: ../src/keybindings.c:489
+#: ../src/keybindings.c:548
 msgid "Go to matching brace"
 msgstr "Πήγαινε στο ταιριαστό ζεύγος"
 
-#: ../src/keybindings.c:492
+#: ../src/keybindings.c:551
 msgid "Toggle marker"
 msgstr "Ενεργοποίηση/απενεργοποίηση δείκτη"
 
-#: ../src/keybindings.c:501
+#: ../src/keybindings.c:560
 msgid "Go to Tag Definition"
 msgstr "Πήγαινε στον Ορισμό Ετικετών"
 
-#: ../src/keybindings.c:504
+#: ../src/keybindings.c:563
 msgid "Go to Tag Declaration"
 msgstr "Πήγαινε στη Δήλωση Ετικετών"
 
-#: ../src/keybindings.c:506
+#: ../src/keybindings.c:565
 msgid "Go to Start of Line"
 msgstr "Μετάβαση στη Αρχή της Γραμμής"
 
-#: ../src/keybindings.c:508
+#: ../src/keybindings.c:567
 msgid "Go to End of Line"
 msgstr "Μετάβαση στο Τέλος της Γραμμής"
 
-#: ../src/keybindings.c:510
+#: ../src/keybindings.c:569
 msgid "Go to Start of Display Line"
 msgstr "Μετάβαση στη Αρχή της Εμφανιζόμενης Γραμμής"
 
-#: ../src/keybindings.c:512
+#: ../src/keybindings.c:571
 msgid "Go to End of Display Line"
 msgstr "Μετάβαση στο Τέλος της Εμφανιζόμενης Γραμμής"
 
-#: ../src/keybindings.c:514
+#: ../src/keybindings.c:573
 msgid "Go to Previous Word Part"
 msgstr "Πήγαινε στο Προηγούμενο Λεκτικό Τμήμα"
 
-#: ../src/keybindings.c:516
+#: ../src/keybindings.c:575
 msgid "Go to Next Word Part"
 msgstr "Πήγαινε στο Επόμενο Λεκτικό Τμήμα"
 
-#: ../src/keybindings.c:521
+#: ../src/keybindings.c:580
 msgid "Toggle All Additional Widgets"
 msgstr "Ενεργοποίηση όλων των επιπρόσθετων Widgets"
 
-#: ../src/keybindings.c:524
+#: ../src/keybindings.c:583
 msgid "Fullscreen"
 msgstr "Πλήρης Οθόνη"
 
-#: ../src/keybindings.c:526
+#: ../src/keybindings.c:585
 msgid "Toggle Messages Window"
 msgstr "Ενεργοποίηση Παράθυρου Μηνυμάτων"
 
-#: ../src/keybindings.c:529
+#: ../src/keybindings.c:588
 msgid "Toggle Sidebar"
 msgstr "Ενεργοποίηση Πλευρικής Μπάρας"
 
-#: ../src/keybindings.c:531
+#: ../src/keybindings.c:590
 msgid "Zoom In"
 msgstr "Μεγέθυνση"
 
-#: ../src/keybindings.c:533
+#: ../src/keybindings.c:592
 msgid "Zoom Out"
 msgstr "Σμίκρυνση"
 
-#: ../src/keybindings.c:535
+#: ../src/keybindings.c:594
 msgid "Zoom Reset"
 msgstr "Αναίρεση του Ζουμ"
 
-#: ../src/keybindings.c:540
+#: ../src/keybindings.c:599
 msgid "Switch to Editor"
 msgstr "Μετάβαση στον Επεξεργαστή"
 
-#: ../src/keybindings.c:542
+#: ../src/keybindings.c:601
 msgid "Switch to Search Bar"
 msgstr "Μετάβαση στη Μπάρα Αναζήτησης"
 
-#: ../src/keybindings.c:544
+#: ../src/keybindings.c:603
 msgid "Switch to Message Window"
 msgstr "Μετάβαση στο Παράθυρο Μηνυμάτων"
 
-#: ../src/keybindings.c:546
+#: ../src/keybindings.c:605
 msgid "Switch to Compiler"
 msgstr "Μετάβαση στον Μεταγλωττιστή (Compiler)"
 
-#: ../src/keybindings.c:548
+#: ../src/keybindings.c:607
 msgid "Switch to Messages"
 msgstr "Μετάβαση στα Μηνύματα"
 
-#: ../src/keybindings.c:550
+#: ../src/keybindings.c:609
 msgid "Switch to Scribble"
 msgstr "Μετάβαση στο Σημειωματάριο"
 
-#: ../src/keybindings.c:552
+#: ../src/keybindings.c:611
 msgid "Switch to VTE"
 msgstr "Μετάβαση στο VTE"
 
-#: ../src/keybindings.c:554
+#: ../src/keybindings.c:613
 msgid "Switch to Sidebar"
 msgstr "Μετάβαση στη Πλευρική Μπάρα"
 
-#: ../src/keybindings.c:556
+#: ../src/keybindings.c:615
 msgid "Switch to Sidebar Symbol List"
 msgstr "Μετάβαση στη Πλευρική Μπάρα Συμβολικής Λίστας"
 
-#: ../src/keybindings.c:558
+#: ../src/keybindings.c:617
 msgid "Switch to Sidebar Document List"
 msgstr "Μετάβαση στη Πλευρική Μπάρα της Λίστας Εγγράφων"
 
-#: ../src/keybindings.c:563
+#: ../src/keybindings.c:622
 msgid "Switch to left document"
 msgstr "Μετάβαση στο αριστερό έγγραφο"
 
-#: ../src/keybindings.c:565
+#: ../src/keybindings.c:624
 msgid "Switch to right document"
 msgstr "Μετάβαση στο δεξί έγγραφο"
 
-#: ../src/keybindings.c:567
+#: ../src/keybindings.c:626
 msgid "Switch to last used document"
 msgstr "Μετάβαση στο τελευταία χρησιμοποιημένο έγγραφο"
 
-#: ../src/keybindings.c:570
+#: ../src/keybindings.c:629
 msgid "Move document left"
 msgstr "Μετακίνηση εγγράφου αριστερά"
 
-#: ../src/keybindings.c:573
+#: ../src/keybindings.c:632
 msgid "Move document right"
 msgstr "Μετακίνηση εγγράφου δεξιά"
 
-#: ../src/keybindings.c:575
+#: ../src/keybindings.c:634
 msgid "Move document first"
 msgstr "Μετακίνηση εγγράφου ως πρώτο"
 
-#: ../src/keybindings.c:577
+#: ../src/keybindings.c:636
 msgid "Move document last"
 msgstr "Μετακίνηση εγγράφου ως τελευταίο"
 
-#: ../src/keybindings.c:582
+#: ../src/keybindings.c:641
 msgid "Toggle Line wrapping"
 msgstr "Ενεργοποίηση/Απενεργοποίηση Αναδίπλωσης Γραμμής"
 
-#: ../src/keybindings.c:584
+#: ../src/keybindings.c:643
 msgid "Toggle Line breaking"
 msgstr "Ενεργοποίηση/Απενεργοποίηση Αποκοπής της Γραμμής"
 
-#: ../src/keybindings.c:590
+#: ../src/keybindings.c:649
 msgid "Replace spaces with tabs"
 msgstr "Αντικατάσταση των κενών με Tab"
 
-#: ../src/keybindings.c:592
+#: ../src/keybindings.c:651
 msgid "Toggle current fold"
 msgstr "Επιλογή/Αποεπιλογή τρέχουσας αναδίπλωσης"
 
-#: ../src/keybindings.c:594
+#: ../src/keybindings.c:653
 msgid "Fold all"
 msgstr "Δίπλωση όλων"
 
-#: ../src/keybindings.c:596
+#: ../src/keybindings.c:655
 msgid "Unfold all"
 msgstr "Αναδίπλωση όλων"
 
-#: ../src/keybindings.c:598
+#: ../src/keybindings.c:657
 msgid "Reload symbol list"
 msgstr "Επαναφόρτωση λίστας συμβόλων"
 
-#: ../src/keybindings.c:600
+#: ../src/keybindings.c:659
 msgid "Remove Markers"
 msgstr "Απομάκρυνση Δεικτών"
 
-#: ../src/keybindings.c:602
+#: ../src/keybindings.c:661
 msgid "Remove Error Indicators"
 msgstr "Απομάκρυνση Δεικτών Σφάλματος"
 
-#: ../src/keybindings.c:604
+#: ../src/keybindings.c:663
 msgid "Remove Markers and Error Indicators"
 msgstr "Απομάκρυνση Δεικτών και Δεικτών Σφάλματος"
 
-#: ../src/keybindings.c:609 ../src/toolbar.c:72
+#: ../src/keybindings.c:668 ../src/toolbar.c:72
 msgid "Compile"
 msgstr "Μεταγλώτιση"
 
-#: ../src/keybindings.c:613
+#: ../src/keybindings.c:672
 msgid "Make all"
 msgstr "Δημιουργία (Make) όλων"
 
-#: ../src/keybindings.c:616
+#: ../src/keybindings.c:675
 msgid "Make custom target"
 msgstr "Δημιουργία Προσαρμοσμένου Προορισμού"
 
-#: ../src/keybindings.c:618
+#: ../src/keybindings.c:677
 msgid "Make object"
 msgstr "Δημιουργία αντικειμένου"
 
-#: ../src/keybindings.c:620
+#: ../src/keybindings.c:679
 msgid "Next error"
 msgstr "Επόμενο σφάλμα"
 
-#: ../src/keybindings.c:622
+#: ../src/keybindings.c:681
 msgid "Previous error"
 msgstr "Προηγούμενο σφάλμα"
 
-#: ../src/keybindings.c:624
+#: ../src/keybindings.c:683
 msgid "Run"
 msgstr "Εκτέλεση"
 
-#: ../src/keybindings.c:626
+#: ../src/keybindings.c:685
 msgid "Build options"
 msgstr "Επιλογές κατασκευής (build)"
 
-#: ../src/keybindings.c:631
+#: ../src/keybindings.c:690
 msgid "Show Color Chooser"
 msgstr "Εμφάνιση Επιλογέα Χρωμάτων"
 
-#: ../src/keybindings.c:884
+#: ../src/keybindings.c:960
 msgid "Keyboard Shortcuts"
 msgstr "Συντομεύσεις Πληκτρολογίου"
 
-#: ../src/keybindings.c:896
+#: ../src/keybindings.c:972
 msgid "The following keyboard shortcuts are configurable:"
 msgstr "Οι ακόλουθες συντομεύσεις πληκτρολογίου είναι διαμορφώσιμες:"
 
-#: ../src/keyfile.c:1018
+#: ../src/keyfile.c:1020
 msgid "Type here what you want, use it as a notice/scratch board"
 msgstr ""
 "Πληκτρολογείστε εδώ ότι θέλετε, χρησιμοποιείστε το ως ένα σημειωματάριο/"
 "πίνακα μηνυμάτων"
 
-#: ../src/keyfile.c:1245
+#: ../src/keyfile.c:1247
 msgid "Failed to load one or more session files."
 msgstr "Αποτυχία φόρτωσης ενός ή περισσότερων αρχείων συνεδρίας."
 
@@ -3866,7 +3909,7 @@ msgstr ""
 "\" (%s). Παρακαλούμε να μετακινήσετε χειροκίνητα τον φάκελο στη νέα "
 "τοποθεσία."
 
-#: ../src/libmain.c:748
+#: ../src/libmain.c:745
 #, c-format
 msgid ""
 "Configuration directory could not be created (%s).\n"
@@ -3878,21 +3921,21 @@ msgstr ""
 "ρυθμίσεων.\n"
 "Να γίνει εκκίνηση του Geany;"
 
-#: ../src/libmain.c:1140
+#: ../src/libmain.c:1144
 #, c-format
 msgid "This is Geany %s."
 msgstr "Αυτό είναι το Geany %s."
 
-#: ../src/libmain.c:1142
+#: ../src/libmain.c:1146
 #, c-format
 msgid "Configuration directory could not be created (%s)."
 msgstr "Δεν ήταν δυνατόν να δημιουργηθεί ο φάκελος ρυθμίσεων (%s)."
 
-#: ../src/libmain.c:1366
+#: ../src/libmain.c:1370
 msgid "Do you really want to quit?"
 msgstr "Θέλετε πραγματικά να εγκαταλείψετε;"
 
-#: ../src/libmain.c:1404
+#: ../src/libmain.c:1408
 msgid "Configuration files reloaded."
 msgstr "Τα αρχεία ρυθμίσεων επαναφορτώθηκαν."
 
@@ -3938,7 +3981,7 @@ msgstr "Μετάβαση στο Έγγραφο"
 msgid "Open in New _Window"
 msgstr "Άνοιγμα σε Νέο _Παράθυρο"
 
-#: ../src/plugins.c:174
+#: ../src/plugins.c:223
 #, c-format
 msgid ""
 "The plugin \"%s\" is not binary compatible with this release of Geany - "
@@ -3947,11 +3990,22 @@ msgstr ""
 "Το πρόσθετο \"%s\" δεν είναι συμβατό δυαδικά (binary compatible) με αυτή την "
 "έκδοση του Geany - παρακαλούμε να γίνει επαναγλώττιση (recompile)."
 
-#: ../src/plugins.c:956
+#: ../src/plugins.c:1224
 msgid "_Plugin Manager"
 msgstr "Διαχειριστής _Επιπρόσθετων"
 
-#: ../src/plugins.c:1218
+#: ../src/plugins.c:1600
+msgid ""
+"\n"
+"<i>Other plugins depend on this. Disable them first to allow deactivation.</"
+"i>\n"
+msgstr ""
+"\n"
+"<i> Άλλα επιπρόσθετα εξαρτώνται από αυτό. Απενεργοποιήστε τα πρώτα, ώστε να "
+"επιτρέπεται η κατάργηση.</i>\n"
+
+#. Four allocations is less than ideal but meh
+#: ../src/plugins.c:1602
 #, c-format
 msgid ""
 "Version:\t%s\n"
@@ -3962,27 +4016,27 @@ msgstr ""
 "Συγγραφέας(είς):\t%s\n"
 "Όνομα αρχείου:\t%s"
 
-#: ../src/plugins.c:1243
+#: ../src/plugins.c:1630
 msgid "No plugins available."
 msgstr "Δεν υπάρχουν διαθέσιμα επιπρόσθετα."
 
-#: ../src/plugins.c:1374
+#: ../src/plugins.c:1762
 msgid "Active"
 msgstr "Ενεργό"
 
-#: ../src/plugins.c:1380
+#: ../src/plugins.c:1769
 msgid "Plugin"
 msgstr "Επιπρόσθετο"
 
-#: ../src/plugins.c:1507
+#: ../src/plugins.c:1876
 msgid "Plugins"
 msgstr "Επιπρόσθετα"
 
-#: ../src/plugins.c:1546
+#: ../src/plugins.c:1917
 msgid "Choose which plugins should be loaded at startup:"
 msgstr "Επιλογή ποια πρόσθετα θα φορτώνονται κατά την εκκίνηση:"
 
-#: ../src/pluginutils.c:364
+#: ../src/pluginutils.c:396
 msgid "Configure Plugins"
 msgstr "Ρύθμιση Πρόσθετων:"
 
@@ -4121,10 +4175,14 @@ msgstr ""
 
 #: ../src/printing.c:615
 #, c-format
-msgid "Printing of \"%s\" failed (return code: %s)."
-msgstr "Η εκτύπωση του \"%s\" απέτυχε (επιστροφή κωδικού: %s)."
+msgid ""
+"Cannot execute print command \"%s\": %s. Check the path setting in "
+"Preferences."
+msgstr ""
+"Αδυναμία εκτέλεσης εντολής εκτύπωσης \"%s\": %s. Ελέγξτε τη ρύθμιση "
+"διαδρομής στις Ιδιότητες."
 
-#: ../src/printing.c:621
+#: ../src/printing.c:622
 #, c-format
 msgid "File %s printed."
 msgstr "Το αρχείο %s εκτυπώθηκε."
@@ -4469,6 +4527,14 @@ msgstr "Αναζήτηση..."
 msgid "%s %s -- %s (in directory: %s)"
 msgstr "%s %s -- %s (στο φάκελο: %s)"
 
+#: ../src/search.c:1718
+#, c-format
+msgid ""
+"Cannot execute grep tool \"%s\": %s. Check the path setting in Preferences."
+msgstr ""
+"Αδυναμία εκτέλεσης εργαλείου grep \"%s\": %s. Ελέγξτε τη ρύθμιση διαδρομής "
+"στις Ιδιότητες."
+
 #: ../src/search.c:1758
 #, c-format
 msgid "Could not open directory (%s)"
@@ -4505,37 +4571,32 @@ msgstr ""
 "instance που εκτελείται από άλλο χρήστη.\n"
 "Αυτό είναι ένα καίριο σφάλμα και το Geany θα τερματίσει."
 
+#: ../src/spawn.c:90 ../src/spawn.c:140 ../src/spawn.c:184
+msgid "Text ended before matching quote was found"
+msgstr "Το κείμενο τελείωσε χωρίς να βρεθεί απόσπασμα που να ταιριάζει"
+
 #. TL note: from glib
-#: ../src/spawn.c:109
-#, c-format
+#: ../src/spawn.c:126
 msgid "Text was empty (or contained only whitespace)"
 msgstr "Το κείμενο ήταν κενό (ή περιείχε μόνο χαρακτήρες κενού διαστήματος)"
 
-#. TL note: from glib
-#: ../src/spawn.c:124 ../src/spawn.c:170
-#, c-format
-msgid "Text ended before matching quote was found for %c. (The text was '%s')"
-msgstr ""
-"Το κείμενο τελείωσε χωρίς να βρεθεί απόσπασμα που να ταιριάζει για το %c. "
-"(Το κείμενο ήταν '%s')"
-
-#: ../src/spawn.c:132 ../src/spawn.c:146
-#, c-format
+#: ../src/spawn.c:147 ../src/spawn.c:161
 msgid "A quoted Windows program name must be entirely inside the quotes"
 msgstr ""
 "Ένα αναφερόμενο πρόγραμμα των Windows πρέπει να είναι ολόκληρο εντός των "
 "εισαγωγικών."
 
-#. or SPAWN error?
-#: ../src/spawn.c:241
-#, c-format
-msgid "Program '%s' not found"
-msgstr "Το πρόγραμμα '%s' δεν βρέθηκε"
+#: ../src/spawn.c:254
+msgid "Program not found"
+msgstr "Το πρόγραμμα δεν βρέθηκε"
 
-#: ../src/spawn.c:278
-#, c-format
-msgid "TerminateProcess() failed: %s"
-msgstr "Το TerminateProcess() απέτυχε: %s"
+#: ../src/spawn.c:668
+msgid "Failed to change to the working directory"
+msgstr "Αποτυχία αλλαγής του φακέλου εργασίας"
+
+#: ../src/spawn.c:673
+msgid "Unknown error executing child process"
+msgstr "Άγνωστο σφάλμα κατά την εκτέλεση θυγατρικής διεργασίας"
 
 #: ../src/stash.c:1150
 msgid "Name"
@@ -4928,6 +4989,15 @@ msgstr "Ταξινόμηση κατά _Εμφάνιση"
 msgid "Failed to convert template file \"%s\" to UTF-8"
 msgstr "Αποτυχία μετατροπής του πρότυπου αρχείου \"%s\" σε UTF-8"
 
+#: ../src/templates.c:620
+#, c-format
+msgid ""
+"Cannot execute command \"%s\" from the template: %s. Check the path in the "
+"template."
+msgstr ""
+"Αδυναμία εκτέλεσης εντολής \"%s\" από το πρότυπο: %s. Ελέγξτε τη διαδρομή "
+"στο πρότυπο."
+
 #. custom actions defined in toolbar_init(): "New", "Open", "SearchEntry", "GotoEntry", "Build"
 #: ../src/toolbar.c:58
 msgid "Save the current file"
@@ -5104,10 +5174,14 @@ msgstr ""
 "Η εκτελεστέα προσαρμοσμένη εντολή τερματίστηκε με έναν ανεπιτυχή κώδικα "
 "εξόδου (exit code)."
 
-#: ../src/tools.c:243
+#: ../src/tools.c:242
 #, c-format
-msgid "Custom command failed: %s"
-msgstr "Η προσαρμοσμένη εντολή απέτυχε: %s"
+msgid ""
+"Cannot execute custom command \"%s\": %s. Check the path setting in Custom "
+"Commands."
+msgstr ""
+"Αδυναμία εκτέλεσης προσαρμοσμένης εντολής \"%s\": %s. Ελέγξτε τη ρύθμιση "
+"διαδρομής στις Προσαρμοσμένες Εντολές."
 
 #: ../src/tools.c:357 ../src/tools.c:620
 msgid "Set Custom Commands"
@@ -5914,6 +5988,15 @@ msgstr "Από Πλευρά σε Πλευρά"
 msgid "Top and Bottom"
 msgstr "Άνω και κάτω"
 
+#~ msgid "Printing of \"%s\" failed (return code: %s)."
+#~ msgstr "Η εκτύπωση του \"%s\" απέτυχε (επιστροφή κωδικού: %s)."
+
+#~ msgid "TerminateProcess() failed: %s"
+#~ msgstr "Το TerminateProcess() απέτυχε: %s"
+
+#~ msgid "Custom command failed: %s"
+#~ msgstr "Η προσαρμοσμένη εντολή απέτυχε: %s"
+
 #~ msgid ""
 #~ "Could not execute the file in the VTE because it probably contains a "
 #~ "command."
@@ -5937,12 +6020,6 @@ msgstr "Άνω και κάτω"
 
 #~ msgid "Show macro list"
 #~ msgstr "Εμφάνιση λίστας μακροεντολών"
-
-#~ msgid ""
-#~ "Cannot execute grep tool '%s'; check the path setting in Preferences."
-#~ msgstr ""
-#~ "Δεν ήταν δυνατόν να εκτελεστεί το εργαλείο grep '%s', ελέγξτε τη διαδρομή "
-#~ "ρυθμίσεων στις Ιδιότητες."
 
 #~ msgid "Cannot parse extra options: %s"
 #~ msgstr "Δεν είναι δυνατόν να επεξεργαστούν οι έξτρα επιλογές: %s"

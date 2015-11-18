@@ -1,4 +1,4 @@
-.. |(version)| replace:: 1.26
+.. |(version)| replace:: 1.27
 .. -*- reStructuredText -*-
 
 =======
@@ -14,7 +14,7 @@
           Frank Lanitz,
           Colomban Wendling,
           Matthew Brush
-:Date: 2015-07-12
+:Date: 2015-11-15
 :Version: |(version)|
 
 Copyright © 2005-2015
@@ -2652,7 +2652,7 @@ use_gio_unsafe_file_saving        Whether to use GIO as the unsafe file        t
                                   correctly on some complex setups.
 gio_unsafe_save_backup            Make a backup when using GIO unsafe file     false       immediately
                                   saving. Backup is named `filename~`.
-keep_edit_history_on_reload_125   Whether to maintain the edit history when    false       immediately
+keep_edit_history_on_reload       Whether to maintain the edit history when    true        immediately
                                   reloading a file, and allow the operation
                                   to be reverted.
 **Filetype related**
