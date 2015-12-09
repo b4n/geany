@@ -253,6 +253,7 @@ test_sources = \
 	refcurs.sql						\
 	regexp.js						\
 	return-hint.zep					\
+	return-type-declaration.php		\
 	return-types.go					\
 	rules.t2t						\
 	sample.t2t						\
