@@ -3,6 +3,8 @@ AÌ1Ö0
 BÌ1Ö0
 __constructÌ16Í()ÎAÖ0
 __constructÌ16Í($p)ÎBÖ0
+prop1Ì16384ÎtBarÖ0
+prop2Ì16384ÎtBarÖ0
 stuffÌ16Í($arg1, $arg2)ÎtBarÖ0
 stuffÌ16Í()ÎtFooÖ0
 tBarÌ2048Ö0
