@@ -1,0 +1,15 @@
+# format=tagmanager
+AnonymousClass1Ì1Ö0
+AnonymousClass2Ì1Ö0
+AnonymousClass3Ì1Ö0
+SomeClassÌ1Ö0
+SomeInterfaceÌ32Ö0
+SomeTraitÌ2048Ö0
+__constructÌ16Í($n)ÎAnonymousClass2Ö0
+__constructÌ16Í($n)ÎAnonymousClass3Ö0
+cÌ16384Ö0
+dÌ16384Ö0
+eÌ16384Ö0
+helloÌ16Í()ÎAnonymousClass1Ö0
+helloÌ16Í()ÎAnonymousClass2Ö0
+helloÌ16Í()ÎAnonymousClass3Ö0

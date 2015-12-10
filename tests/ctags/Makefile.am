@@ -13,6 +13,7 @@ test_sources = \
 	3526726.tex						\
 	68hc11.asm						\
 	angle_bracket.cpp				\
+	anonymous-classes.php			\
 	anonymous_functions.php			\
 	arraylist.js					\
 	array_ref_and_out.cs			\

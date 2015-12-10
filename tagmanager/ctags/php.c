@@ -239,6 +239,8 @@ static struct {
 
 /* Current namespace */
 static vString *CurrentNamespace;
+/* Anonymous symbol count to generate file-unique names */
+static unsigned int AnonymousID;
 
 
 static void buildPhpKeywordHash (const langType language)
@@ -1001,42 +1003,79 @@ static void enterScope (tokenInfo *const parentToken,
 						const vString *const extraScope,
 						const int parentKind);
 
+static void skipOverParens (tokenInfo *token)
+{
+	if (token->type == TOKEN_OPEN_PAREN)
+	{
+		int depth = 1;
+
+		do
+		{
+			readToken (token);
+			switch (token->type)
+			{
+				case TOKEN_OPEN_PAREN:  depth++; break;
+				case TOKEN_CLOSE_PAREN: depth--; break;
+				default: break;
+			}
+		}
+		while (token->type != TOKEN_EOF && depth > 0);
+
+		readToken (token);
+	}
+}
+
 /* parses a class or an interface:
  * 	class Foo {}
  * 	class Foo extends Bar {}
  * 	class Foo extends Bar implements iFoo, iBar {}
  * 	interface iFoo {}
- * 	interface iBar extends iFoo {} */
-static boolean parseClassOrIface (tokenInfo *const token, const phpKind kind)
+ * 	interface iBar extends iFoo {}
+ *
+ * if @name is not NULL, parses an anonymous class with name @name
+ * 	new class {}
+ * 	new class(1, 2) {}
+ * 	new class(1, 2) extends Foo implements iFoo, iBar {} */
+static boolean parseClassOrIface (tokenInfo *const token, const phpKind kind,
+                                  const tokenInfo *name)
 {
 	boolean readNext = TRUE;
 	implType impl = CurrentStatement.impl;
-	tokenInfo *name;
+	tokenInfo *nameFree = NULL;
 	vString *inheritance = NULL;
 
 	readToken (token);
-	if (token->type != TOKEN_IDENTIFIER)
-		return FALSE;
+	if (name) /* anonymous class */
+	{
+		/* skip possible construction arguments */
+		skipOverParens (token);
+	}
+	else /* normal, named class */
+	{
+		if (token->type != TOKEN_IDENTIFIER)
+			return FALSE;
 
-	name = newToken ();
-	copyToken (name, token, TRUE);
+		name = nameFree = newToken ();
+		copyToken (nameFree, token, TRUE);
+
+		readToken (token);
+	}
 
 	inheritance = vStringNew ();
 	/* skip until the open bracket and assume every identifier (not keyword)
 	 * is an inheritance (like in "class Foo extends Bar implements iA, iB") */
-	do
+	while (token->type != TOKEN_EOF &&
+	       token->type != TOKEN_OPEN_CURLY)
 	{
-		readToken (token);
-
 		if (token->type == TOKEN_IDENTIFIER)
 		{
 			if (vStringLength (inheritance) > 0)
 				vStringPut (inheritance, ',');
 			vStringCat (inheritance, token->string);
 		}
+
+		readToken (token);
 	}
-	while (token->type != TOKEN_EOF &&
-		   token->type != TOKEN_OPEN_CURLY);
 
 	makeClassOrIfaceTag (kind, name, inheritance, impl);
 
@@ -1045,7 +1084,8 @@ static boolean parseClassOrIface (tokenInfo *const token, const phpKind kind)
 	else
 		readNext = FALSE;
 
-	deleteToken (name);
+	if (nameFree)
+		deleteToken (nameFree);
 	vStringDelete (inheritance);
 
 	return readNext;
@@ -1187,24 +1227,7 @@ static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 	if (token->type == TOKEN_KEYWORD && token->keyword == KEYWORD_use)
 	{
 		readToken (token);
-		if (token->type == TOKEN_OPEN_PAREN)
-		{
-			int depth = 1;
-
-			do
-			{
-				readToken (token);
-				switch (token->type)
-				{
-					case TOKEN_OPEN_PAREN:  depth++; break;
-					case TOKEN_CLOSE_PAREN: depth--; break;
-					default: break;
-				}
-			}
-			while (token->type != TOKEN_EOF && depth > 0);
-
-			readToken (token);
-		}
+		skipOverParens (token);
 	}
 
 	/* PHP7 return type declaration or if parsing Zephir, skip function return
@@ -1415,12 +1438,30 @@ static void enterScope (tokenInfo *const parentToken,
 			case TOKEN_KEYWORD:
 				switch (token->keyword)
 				{
-					case KEYWORD_class:		readNext = parseClassOrIface (token, K_CLASS);		break;
-					case KEYWORD_interface:	readNext = parseClassOrIface (token, K_INTERFACE);	break;
-					case KEYWORD_trait:		readNext = parseTrait (token);						break;
-					case KEYWORD_function:	readNext = parseFunction (token, NULL);				break;
-					case KEYWORD_const:		readNext = parseConstant (token);					break;
-					case KEYWORD_define:	readNext = parseDefine (token);						break;
+					/* handle anonymous classes */
+					case KEYWORD_new:
+						readToken (token);
+						if (token->keyword != KEYWORD_class)
+							readNext = FALSE;
+						else
+						{
+							char buf[32];
+							tokenInfo *name = newToken ();
+
+							copyToken (name, token, TRUE);
+							snprintf (buf, sizeof buf, "AnonymousClass%u", ++AnonymousID);
+							vStringCopyS (name->string, buf);
+							readNext = parseClassOrIface (token, K_CLASS, name);
+							deleteToken (name);
+						}
+						break;
+
+					case KEYWORD_class:		readNext = parseClassOrIface (token, K_CLASS, NULL);		break;
+					case KEYWORD_interface:	readNext = parseClassOrIface (token, K_INTERFACE, NULL);	break;
+					case KEYWORD_trait:		readNext = parseTrait (token);								break;
+					case KEYWORD_function:	readNext = parseFunction (token, NULL);						break;
+					case KEYWORD_const:		readNext = parseConstant (token);							break;
+					case KEYWORD_define:	readNext = parseDefine (token);								break;
 
 					case KEYWORD_namespace:	readNext = parseNamespace (token);	break;
 
@@ -1458,6 +1499,7 @@ static void findTags (void)
 	CurrentStatement.access = ACCESS_UNDEFINED;
 	CurrentStatement.impl = IMPL_UNDEFINED;
 	CurrentNamespace = vStringNew ();
+	AnonymousID = 0;
 
 	do
 	{
