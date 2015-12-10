@@ -898,7 +898,7 @@ getNextChar:
 		case '%':
 		{
 			int d = fileGetc ();
-			if (d != '=')
+			if (d != '=' && ! (c == '-' && d == '>'))
 				fileUngetc (d);
 			token->type = TOKEN_OPERATOR;
 			break;
