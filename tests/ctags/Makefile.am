@@ -258,6 +258,7 @@ test_sources = \
 	rules.t2t						\
 	sample.t2t						\
 	secondary_fcn_name.js			\
+	semi-reserved-keywords.php		\
 	semicolon.f90					\
 	shebang.js						\
 	signature.cpp					\
