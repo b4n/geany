@@ -1495,7 +1495,7 @@ static void initializeZephirParser (const langType language)
 
 extern parserDefinition* PhpParser (void)
 {
-	static const char *const extensions [] = { "php", "php3", "php4", "php5", "phtml", NULL };
+	static const char *const extensions [] = { "php", "php3", "php4", "php5", "php7", "phtml", NULL };
 	parserDefinition* def = parserNew ("PHP");
 	def->kinds      = PhpKinds;
 	def->kindCount  = KIND_COUNT (PhpKinds);
