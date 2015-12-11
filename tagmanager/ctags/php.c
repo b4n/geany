@@ -372,6 +372,7 @@ static void makeClassOrIfaceTag (const phpKind kind, const tokenInfo *const toke
 }
 
 static void makeFunctionTag (const tokenInfo *const token,
+							 const vString *const returnType,
 							 const vString *const arglist,
 							 const accessType access, const implType impl)
 {
@@ -383,6 +384,8 @@ static void makeFunctionTag (const tokenInfo *const token,
 
 		if (impl != IMPL_UNDEFINED)
 			e.extensionFields.implementation = implToString (impl);
+		if (returnType)
+			e.extensionFields.varType = vStringValue (returnType);
 		if (arglist)
 			e.extensionFields.arglist = vStringValue (arglist);
 
@@ -1139,6 +1142,8 @@ static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 	accessType access = CurrentStatement.access;
 	implType impl = CurrentStatement.impl;
 	tokenInfo *nameFree = NULL;
+	vString *arglist = NULL;
+	vString *returnType = NULL;
 
 	readToken (token);
 	/* skip a possible leading ampersand (return by reference) */
@@ -1157,9 +1162,9 @@ static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 
 	if (token->type == TOKEN_OPEN_PAREN)
 	{
-		vString *arglist = vStringNew ();
 		int depth = 1;
 
+		arglist = vStringNew ();
 		vStringPut (arglist, '(');
 		do
 		{
@@ -1222,9 +1227,6 @@ static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 
 		vStringTerminate (arglist);
 
-		makeFunctionTag (name, arglist, access, impl);
-		vStringDelete (arglist);
-
 		readToken (token); /* normally it's an open brace or "use" keyword */
 	}
 
@@ -1240,11 +1242,25 @@ static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 	if ((getSourceLanguage () == Lang_php && token->type == TOKEN_COLON) ||
 	    (getSourceLanguage () == Lang_zephir && token->type == TOKEN_OPERATOR))
 	{
+		returnType = vStringNew ();
+
 		do
+		{
 			readToken (token);
+
+			if (token->type == TOKEN_IDENTIFIER)
+				vStringCat (returnType, token->string);
+			else if (token->type == TOKEN_BACKSLASH)
+				vStringPut (returnType, '\\');
+		}
 		while (token->type == TOKEN_IDENTIFIER ||
 		       token->type == TOKEN_BACKSLASH);
+		vStringTerminate (returnType);
 	}
+
+	/* if we found a valid arglist, make the tag */
+	if (arglist)
+		makeFunctionTag (name, returnType, arglist, access, impl);
 
 	if (token->type == TOKEN_OPEN_CURLY)
 		enterScope (token, name->string, K_FUNCTION);
@@ -1253,6 +1269,8 @@ static boolean parseFunction (tokenInfo *const token, const tokenInfo *name)
 
 	if (nameFree)
 		deleteToken (nameFree);
+	vStringDelete (arglist);
+	vStringDelete (returnType);
 
 	return readNext;
 }

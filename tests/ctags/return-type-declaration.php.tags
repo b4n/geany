@@ -4,11 +4,11 @@ SubTestÌ1Ö0
 TÌ1ÎAÖ0
 TestÌ1Ö0
 atÌ16384Ö0
-fifthÌ16Í()ÎSubTestÖ0
-firstÌ16Í(string $str)ÎTestÖ0
-fourthÌ16Í()ÎSubTestÖ0
+fifthÌ16Í()ÎSubTestÖ0Ï\A\T
+firstÌ16Í(string $str)ÎTestÖ0ÏClosure
+fourthÌ16Í()ÎSubTestÖ0Ï\A\T
 sÌ16384Ö0
-secondÌ16Í()ÎTestÖ0
-sixthÌ16Í(\A\T& $t)ÎSubTestÖ0
+secondÌ16Í()ÎTestÖ0Ïself
+sixthÌ16Í(\A\T& $t)ÎSubTestÖ0Ï\A\T
 tÌ16384Ö0
-thirdÌ16Í()ÎSubTestÖ0
+thirdÌ16Í()ÎSubTestÖ0Ïparent
