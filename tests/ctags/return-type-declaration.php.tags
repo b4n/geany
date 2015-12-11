@@ -3,10 +3,12 @@ AÌ256Ö0
 SubTestÌ1Ö0
 TÌ1ÎAÖ0
 TestÌ1Ö0
+atÌ16384Ö0
 fifthÌ16Í()ÎSubTestÖ0
 firstÌ16Í(string $str)ÎTestÖ0
 fourthÌ16Í()ÎSubTestÖ0
 sÌ16384Ö0
 secondÌ16Í()ÎTestÖ0
+sixthÌ16Í(\A\T& $t)ÎSubTestÖ0
 tÌ16384Ö0
 thirdÌ16Í()ÎSubTestÖ0
