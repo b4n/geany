@@ -50,6 +50,7 @@
 #include "sidebar.h"
 #include "stash.h"
 #include "support.h"
+#include "symbols.h"
 #include "templates.h"
 #include "toolbar.h"
 #include "tools.h"
@@ -452,8 +453,16 @@ static void prefs_init_dialog(void)
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_symbol");
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), interface_prefs.sidebar_symbol_visible);
 
-	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_symbols_sort_by_appearance");
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), interface_prefs.symbols_sort_by_appearance);
+	switch (interface_prefs.symbols_sort_mode)
+	{
+		case SYMBOLS_SORT_BY_APPEARANCE:
+			widget = ui_lookup_widget(ui_widgets.prefs_dialog, "radio_symbols_sort_by_appearance"); break;
+
+		default:
+		case SYMBOLS_SORT_BY_NAME:
+			widget = ui_lookup_widget(ui_widgets.prefs_dialog, "radio_symbols_sort_by_name"); break;
+	}
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), TRUE);
 
 	widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_openfiles");
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), interface_prefs.sidebar_openfiles_visible);
@@ -935,8 +944,11 @@ on_prefs_dialog_response(GtkDialog *dialog, gint response, gpointer user_data)
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_sidebar_visible");
 		ui_prefs.sidebar_visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_symbols_sort_by_appearance");
-		interface_prefs.symbols_sort_by_appearance = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "radio_symbols_sort_by_appearance");
+		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)))
+			interface_prefs.symbols_sort_mode = SYMBOLS_SORT_BY_APPEARANCE;
+		else
+			interface_prefs.symbols_sort_mode = SYMBOLS_SORT_BY_NAME;
 
 		widget = ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_symbol");
 		interface_prefs.sidebar_symbol_visible = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
@@ -1564,8 +1576,7 @@ static void on_sidebar_visible_toggled(GtkToggleButton *togglebutton, gpointer u
 {
 	gboolean sens = gtk_toggle_button_get_active(togglebutton);
 
-	gtk_widget_set_sensitive(ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_openfiles"), sens);
-	gtk_widget_set_sensitive(ui_lookup_widget(ui_widgets.prefs_dialog, "check_list_symbol"), sens);
+	gtk_widget_set_sensitive(ui_lookup_widget(ui_widgets.prefs_dialog, "box_sidebar_visible_children"), sens);
 }
 
 

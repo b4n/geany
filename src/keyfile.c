@@ -48,6 +48,7 @@
 #include "sciwrappers.h"
 #include "stash.h"
 #include "support.h"
+#include "symbols.h"
 #include "templates.h"
 #include "toolbar.h"
 #include "ui_utils.h"
@@ -416,7 +417,7 @@ static void save_dialog_prefs(GKeyFile *config)
 
 	/* interface */
 	g_key_file_set_boolean(config, PACKAGE, "sidebar_symbol_visible", interface_prefs.sidebar_symbol_visible);
-	g_key_file_set_boolean(config, PACKAGE, "symbols_sort_by_appearance", interface_prefs.symbols_sort_by_appearance);
+	g_key_file_set_boolean(config, PACKAGE, "symbols_sort_mode", interface_prefs.symbols_sort_mode);
 	g_key_file_set_boolean(config, PACKAGE, "sidebar_openfiles_visible", interface_prefs.sidebar_openfiles_visible);
 	g_key_file_set_string(config, PACKAGE, "editor_font", interface_prefs.editor_font);
 	g_key_file_set_string(config, PACKAGE, "tagbar_font", interface_prefs.tagbar_font);
@@ -764,7 +765,7 @@ static void load_dialog_prefs(GKeyFile *config)
 	interface_prefs.tab_pos_editor = utils_get_setting_integer(config, PACKAGE, "tab_pos_editor", GTK_POS_TOP);
 	interface_prefs.tab_pos_msgwin = utils_get_setting_integer(config, PACKAGE, "tab_pos_msgwin",GTK_POS_LEFT);
 	interface_prefs.sidebar_symbol_visible = utils_get_setting_boolean(config, PACKAGE, "sidebar_symbol_visible", TRUE);
-	interface_prefs.symbols_sort_by_appearance = utils_get_setting_boolean(config, PACKAGE, "symbols_sort_by_appearance", FALSE);
+	interface_prefs.symbols_sort_mode = utils_get_setting_boolean(config, PACKAGE, "symbols_sort_mode", SYMBOLS_SORT_BY_NAME);
 	interface_prefs.sidebar_openfiles_visible = utils_get_setting_boolean(config, PACKAGE, "sidebar_openfiles_visible", TRUE);
 	interface_prefs.statusbar_visible = utils_get_setting_boolean(config, PACKAGE, "statusbar_visible", TRUE);
 	file_prefs.tab_order_ltr = utils_get_setting_boolean(config, PACKAGE, "tab_order_ltr", TRUE);

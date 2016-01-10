@@ -68,7 +68,7 @@ typedef struct GeanyInterfacePrefs
 	/** whether compiler messages window is automatically scrolled to show new messages */
 	gboolean		compiler_tab_autoscroll;
 	gint			msgwin_orientation;			/**< orientation of the message window */
-	gboolean 		symbols_sort_by_appearance;	/**< whether the symbol list is sorted by appearance */
+	gint 			symbols_sort_mode;			/**< symbol list sorted mode */
 }
 GeanyInterfacePrefs;
 

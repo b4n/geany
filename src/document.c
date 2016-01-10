@@ -2735,8 +2735,7 @@ static void document_load_config(GeanyDocument *doc, GeanyFiletype *type,
 		build_menu_update(doc);
 		queue_colourise(doc);
 		if (type->priv->symbol_list_sort_mode == SYMBOLS_SORT_USE_PREVIOUS)
-			doc->priv->symbol_list_sort_mode = interface_prefs.symbols_sort_by_appearance ?
-				SYMBOLS_SORT_BY_APPEARANCE : SYMBOLS_SORT_BY_NAME;
+			doc->priv->symbol_list_sort_mode = interface_prefs.symbols_sort_mode;
 		else
 			doc->priv->symbol_list_sort_mode = type->priv->symbol_list_sort_mode;
 	}
