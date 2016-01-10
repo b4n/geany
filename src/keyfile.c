@@ -162,6 +162,11 @@ static void init_pref_groups(void)
 		"radio_sidebar_left", GTK_POS_LEFT,
 		"radio_sidebar_right", GTK_POS_RIGHT,
 		NULL);
+	stash_group_add_radio_buttons(group, &interface_prefs.symbols_sort_mode,
+		"symbols_sort_mode", SYMBOLS_SORT_BY_NAME,
+		"radio_symbols_sort_by_name", SYMBOLS_SORT_BY_NAME,
+		"radio_symbols_sort_by_appearance", SYMBOLS_SORT_BY_APPEARANCE,
+		NULL);
 	stash_group_add_radio_buttons(group, &interface_prefs.msgwin_orientation,
 		"msgwin_orientation", GTK_ORIENTATION_VERTICAL,
 		"radio_msgwin_vertical", GTK_ORIENTATION_VERTICAL,
@@ -417,7 +422,6 @@ static void save_dialog_prefs(GKeyFile *config)
 
 	/* interface */
 	g_key_file_set_boolean(config, PACKAGE, "sidebar_symbol_visible", interface_prefs.sidebar_symbol_visible);
-	g_key_file_set_boolean(config, PACKAGE, "symbols_sort_mode", interface_prefs.symbols_sort_mode);
 	g_key_file_set_boolean(config, PACKAGE, "sidebar_openfiles_visible", interface_prefs.sidebar_openfiles_visible);
 	g_key_file_set_string(config, PACKAGE, "editor_font", interface_prefs.editor_font);
 	g_key_file_set_string(config, PACKAGE, "tagbar_font", interface_prefs.tagbar_font);
@@ -765,7 +769,6 @@ static void load_dialog_prefs(GKeyFile *config)
 	interface_prefs.tab_pos_editor = utils_get_setting_integer(config, PACKAGE, "tab_pos_editor", GTK_POS_TOP);
 	interface_prefs.tab_pos_msgwin = utils_get_setting_integer(config, PACKAGE, "tab_pos_msgwin",GTK_POS_LEFT);
 	interface_prefs.sidebar_symbol_visible = utils_get_setting_boolean(config, PACKAGE, "sidebar_symbol_visible", TRUE);
-	interface_prefs.symbols_sort_mode = utils_get_setting_boolean(config, PACKAGE, "symbols_sort_mode", SYMBOLS_SORT_BY_NAME);
 	interface_prefs.sidebar_openfiles_visible = utils_get_setting_boolean(config, PACKAGE, "sidebar_openfiles_visible", TRUE);
 	interface_prefs.statusbar_visible = utils_get_setting_boolean(config, PACKAGE, "statusbar_visible", TRUE);
 	file_prefs.tab_order_ltr = utils_get_setting_boolean(config, PACKAGE, "tab_order_ltr", TRUE);
