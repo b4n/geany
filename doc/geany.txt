@@ -3556,9 +3556,9 @@ Decrease indent by one space                              Deindents the current 
 Smart line indent                                         Indents the current line or all selected lines
                                                           with the same indentation as the previous line.
 
-Send to Custom Command 1 (2,3)  Ctrl-1 (2,3)              Passes the current selection to a configured
+Send to Custom Command 1 (to 9) Ctrl-1 (to 9)             Passes the current selection to a configured
                                                           external command (available for the first
-                                                          three configured commands, see
+                                                          9 configured commands, see
                                                           `Sending text through custom commands`_ for
                                                           details).
 
