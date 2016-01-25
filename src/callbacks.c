@@ -1124,7 +1124,7 @@ static void on_comments_fileheader_activate(GtkMenuItem *menuitem, gpointer user
 }
 
 
-static void on_file_properties_activate(GtkMenuItem *menuitem, gpointer user_data)
+void on_file_properties_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GeanyDocument *doc = document_get_current();
 	g_return_if_fail(doc != NULL);
@@ -1898,6 +1898,14 @@ static void on_detect_type_from_file_activate(GtkMenuItem *menuitem, gpointer us
 		editor_set_indent_type(doc->editor, type);
 		ui_document_show_hide(doc);
 	}
+}
+
+
+static void on_show_symbol_list_toggled(GtkToggleButton *button, gpointer user_data)
+{
+	GtkWidget *widget = ui_lookup_widget(ui_widgets.prefs_dialog, "box_show_symbol_list_children");
+
+	gtk_widget_set_sensitive(widget, gtk_toggle_button_get_active(button));
 }
 
 

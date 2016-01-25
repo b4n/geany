@@ -232,7 +232,7 @@ typedef struct GeanyData
 	struct GeanySearchPrefs		*search_prefs;		/**< Search-related settings */
 	struct GeanyToolPrefs		*tool_prefs;		/**< Tool settings */
 	struct GeanyTemplatePrefs	*template_prefs;	/**< Template settings */
-	struct GeanyBuildInfo		*build_info;		/**< Current build information */
+	gpointer					*_compat;			/* Remove field on next ABI break (abi-todo) */
 	GSList						*filetypes_by_title; /**< See filetypes.h#filetypes_by_title. */
 }
 GeanyData;
@@ -328,7 +328,7 @@ gboolean geany_plugin_register_full(GeanyPlugin *plugin, gint api_version,
                                     gpointer data, GDestroyNotify free_func);
 void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify free_func);
 
-/** Convinience macro to register a plugin.
+/** Convenience macro to register a plugin.
  *
  * It simply calls geany_plugin_register() with GEANY_API_VERSION and GEANY_ABI_VERSION.
  *
@@ -339,7 +339,7 @@ void geany_plugin_set_data(GeanyPlugin *plugin, gpointer data, GDestroyNotify fr
 	geany_plugin_register((plugin), GEANY_API_VERSION, \
 	                      (min_api_version), GEANY_ABI_VERSION)
 
-/** Convinience macro to register a plugin with data.
+/** Convenience macro to register a plugin with data.
  *
  * It simply calls geany_plugin_register_full() with GEANY_API_VERSION and GEANY_ABI_VERSION.
  *

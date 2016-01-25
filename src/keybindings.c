@@ -158,7 +158,7 @@ GeanyKeyBinding *keybindings_get_item(GeanyKeyGroup *group, gsize key_id)
  * @param key_id Keybinding index for the group.
  * @param callback Function to call when activated, or @c NULL to use the group callback.
  * Usually it's better to use the group callback instead - see plugin_set_key_group().
- * @param key (Lower case) default key, e.g. @c GDK_j, but usually 0 for unset.
+ * @param key Default key, e.g. @c GDK_j (must be lower case), but usually 0 for unset.
  * @param mod Default modifier, e.g. @c GDK_CONTROL_MASK, but usually 0 for unset.
  * @param kf_name Key name for the configuration file, such as @c "menu_new".
  * @param label Label used in the preferences dialog keybindings tab. May contain
@@ -211,7 +211,7 @@ GeanyKeyBinding *keybindings_set_item(GeanyKeyGroup *group, gsize key_id,
  *
  * @param group Group.
  * @param key_id Keybinding index for the group.
- * @param key (Lower case) default key, e.g. @c GDK_j, but usually 0 for unset.
+ * @param key Default key, e.g. @c GDK_j (must be lower case), but usually 0 for unset.
  * @param mod Default modifier, e.g. @c GDK_CONTROL_MASK, but usually 0 for unset.
  * @param kf_name Key name for the configuration file, such as @c "menu_new".
  * @param label Label used in the preferences dialog keybindings tab. May contain
@@ -341,6 +341,8 @@ static void init_default_kb(void)
 	add_kb(group, GEANY_KEYS_FILE_SAVEALL, NULL,
 		GDK_s, GDK_SHIFT_MASK | GEANY_PRIMARY_MOD_MASK, "menu_saveall", _("Save all"),
 		"menu_save_all1");
+	add_kb(group, GEANY_KEYS_FILE_PROPERTIES, NULL,
+		0, 0, "file_properties", _("Properties"), "properties1");
 	add_kb(group, GEANY_KEYS_FILE_PRINT, NULL,
 		GDK_p, GEANY_PRIMARY_MOD_MASK, "menu_print", _("Print"), "print1");
 	add_kb(group, GEANY_KEYS_FILE_CLOSE, NULL,
@@ -1439,6 +1441,9 @@ static gboolean cb_func_file_action(guint key_id)
 		case GEANY_KEYS_FILE_PRINT:
 			on_print1_activate(NULL, NULL);
 			break;
+		case GEANY_KEYS_FILE_PROPERTIES:
+			on_file_properties_activate(NULL, NULL);
+			break;
 		case GEANY_KEYS_FILE_QUIT:
 			main_quit();
 			break;
@@ -2216,7 +2221,7 @@ static gint split_line(GeanyEditor *editor, gint column)
 		gint pos;
 
 		/* don't split on a trailing space of a line */
-		if (sci_get_char_at(sci, lend - 1) == GDK_space)
+		if (sci_get_char_at(sci, lend - 1) == ' ')
 			lend--;
 
 		/* detect when the line is short enough and no more splitting is needed */
@@ -2227,7 +2232,7 @@ static gint split_line(GeanyEditor *editor, gint column)
 		found = FALSE;
 		for (pos = edge - 1; pos > lstart; pos--)
 		{
-			if (sci_get_char_at(sci, pos) == GDK_space)
+			if (sci_get_char_at(sci, pos) == ' ')
 			{
 				found = TRUE;
 				break;
@@ -2237,19 +2242,21 @@ static gint split_line(GeanyEditor *editor, gint column)
 		{
 			for (pos = edge; pos < lend; pos++)
 			{
-				if (sci_get_char_at(sci, pos) == GDK_space)
+				if (sci_get_char_at(sci, pos) == ' ')
 				{
 					found = TRUE;
 					break;
 				}
 			}
 		}
-		if (!found)
+		/* don't split right before a space */
+		while (pos + 1 <= lend && sci_get_char_at(sci, pos + 1) == ' ')
+			pos++;
+
+		if (!found || pos >= lend)
 			break;
 
-		sci_set_current_position(sci, pos + 1, FALSE);
-		sci_cancel(sci); /* don't select from completion list */
-		sci_send_command(sci, SCI_NEWLINE);
+		sci_insert_text(sci, pos + 1, editor_get_eol_char(editor));
 		line++;
 	}
 	return line - start_line;

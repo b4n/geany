@@ -398,7 +398,7 @@ static guint tm_file_inode_hash(gconstpointer key)
 #ifdef TM_DEBUG
 		g_message ("Hash for '%s' is '%d'\n", filename, file_stat.st_ino);
 #endif
-		return g_direct_hash ((gpointer)(gulong)file_stat.st_ino);
+		return g_direct_hash ((gpointer)(intptr_t)file_stat.st_ino);
 	} else {
 		return 0;
 	}
@@ -477,7 +477,7 @@ static gchar *create_temp_file(const gchar *tpl)
 
 
 /* Creates a list of global tags. Ideally, this should be created once during
- installations so that all users can use the same file. Thsi is because a full
+ installations so that all users can use the same file. This is because a full
  scale global tag list can occupy several megabytes of disk space.
  @param pre_process The pre-processing command. This is executed via system(),
  so you can pass stuff like 'gcc -E -dD -P `gnome-config --cflags gnome`'.

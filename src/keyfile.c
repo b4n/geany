@@ -38,6 +38,7 @@
 #include "build.h"
 #include "document.h"
 #include "encodings.h"
+#include "encodingsprivate.h"
 #include "filetypes.h"
 #include "geanyobject.h"
 #include "main.h"
@@ -48,6 +49,7 @@
 #include "sciwrappers.h"
 #include "stash.h"
 #include "support.h"
+#include "symbols.h"
 #include "templates.h"
 #include "toolbar.h"
 #include "ui_utils.h"
@@ -160,6 +162,11 @@ static void init_pref_groups(void)
 		"sidebar_pos", GTK_POS_LEFT,
 		"radio_sidebar_left", GTK_POS_LEFT,
 		"radio_sidebar_right", GTK_POS_RIGHT,
+		NULL);
+	stash_group_add_radio_buttons(group, &interface_prefs.symbols_sort_mode,
+		"symbols_sort_mode", SYMBOLS_SORT_BY_NAME,
+		"radio_symbols_sort_by_name", SYMBOLS_SORT_BY_NAME,
+		"radio_symbols_sort_by_appearance", SYMBOLS_SORT_BY_APPEARANCE,
 		NULL);
 	stash_group_add_radio_buttons(group, &interface_prefs.msgwin_orientation,
 		"msgwin_orientation", GTK_ORIENTATION_VERTICAL,

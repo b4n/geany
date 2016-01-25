@@ -35,6 +35,7 @@
 #endif
 
 #include "encodings.h"
+#include "encodingsprivate.h"
 
 #include "app.h"
 #include "callbacks.h"
@@ -404,14 +405,19 @@ void encodings_finalize(void)
 
 void encodings_init(void)
 {
-	GtkWidget *item, *menu[2], *submenu, *menu_westeuro, *menu_easteuro, *menu_eastasian, *menu_asian,
-			  *menu_utf8, *menu_middleeast, *item_westeuro, *item_easteuro, *item_eastasian,
-			  *item_asian, *item_utf8, *item_middleeast;
+	GtkWidget *menu[2];
 	GCallback cb_func[2];
-	GSList *group = NULL;
-	gchar *label;
-	gint order, group_size;
-	guint i, j, k;
+	gint group_sizes[GEANY_ENCODING_GROUPS_MAX] = { 0 };
+	const gchar *const groups[GEANY_ENCODING_GROUPS_MAX] =
+	{
+		[NONE]			= NULL,
+		[WESTEUROPEAN]	= N_("_West European"),
+		[EASTEUROPEAN]	= N_("_East European"),
+		[EASTASIAN]		= N_("East _Asian"),
+		[ASIAN]			= N_("_SE & SW Asian"),
+		[MIDDLEEASTERN]	= N_("_Middle Eastern"),
+		[UNICODE]		= N_("_Unicode"),
+	};
 
 	init_encodings();
 
@@ -428,85 +434,60 @@ void encodings_init(void)
 	cb_func[0] = G_CALLBACK(encodings_radio_item_change_cb);
 	cb_func[1] = G_CALLBACK(encodings_reload_radio_item_change_cb);
 
-	for (k = 0; k < 2; k++)
+	for (guint i = 0; i < G_N_ELEMENTS(encodings); i++)
+		group_sizes[encodings[i].group]++;
+
+	for (guint k = 0; k < 2; k++)
 	{
-		menu_westeuro = gtk_menu_new();
-		item_westeuro = gtk_menu_item_new_with_mnemonic(_("_West European"));
-		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item_westeuro), menu_westeuro);
-		gtk_container_add(GTK_CONTAINER(menu[k]), item_westeuro);
-		gtk_widget_show_all(item_westeuro);
+		GSList *group = NULL;
+		GtkWidget *submenus[GEANY_ENCODING_GROUPS_MAX];
+		gint orders[GEANY_ENCODING_GROUPS_MAX] = { 0 };
+		guint n_added = 0;
 
-		menu_easteuro = gtk_menu_new();
-		item_easteuro = gtk_menu_item_new_with_mnemonic(_("_East European"));
-		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item_easteuro), menu_easteuro);
-		gtk_container_add(GTK_CONTAINER(menu[k]), item_easteuro);
-		gtk_widget_show_all(item_easteuro);
-
-		menu_eastasian = gtk_menu_new();
-		item_eastasian = gtk_menu_item_new_with_mnemonic(_("East _Asian"));
-		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item_eastasian), menu_eastasian);
-		gtk_container_add(GTK_CONTAINER(menu[k]), item_eastasian);
-		gtk_widget_show_all(item_eastasian);
-
-		menu_asian = gtk_menu_new();
-		item_asian = gtk_menu_item_new_with_mnemonic(_("_SE & SW Asian"));
-		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item_asian), menu_asian);
-		gtk_container_add(GTK_CONTAINER(menu[k]), item_asian);
-		gtk_widget_show_all(item_asian);
-
-		menu_middleeast = gtk_menu_new();
-		item_middleeast = gtk_menu_item_new_with_mnemonic(_("_Middle Eastern"));
-		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item_middleeast), menu_middleeast);
-		gtk_container_add(GTK_CONTAINER(menu[k]), item_middleeast);
-		gtk_widget_show_all(item_middleeast);
-
-		menu_utf8 = gtk_menu_new();
-		item_utf8 = gtk_menu_item_new_with_mnemonic(_("_Unicode"));
-		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item_utf8), menu_utf8);
-		gtk_container_add(GTK_CONTAINER(menu[k]), item_utf8);
-		gtk_widget_show_all(item_utf8);
-
-		/** TODO can it be optimized? ATM 3782 runs at line "if (encodings[j].group ...)" */
-		for (i = 0; i < GEANY_ENCODING_GROUPS_MAX; i++)
+		for (guint i = 0; i < GEANY_ENCODING_GROUPS_MAX; i++)
 		{
-			order = 0;
-			switch (i)
+			if (! groups[i]) /* NONE */
+				submenus[i] = menu[k];
+			else
 			{
-				case WESTEUROPEAN: submenu = menu_westeuro; group_size = 9; break;
-				case EASTEUROPEAN: submenu = menu_easteuro; group_size = 14; break;
-				case EASTASIAN: submenu = menu_eastasian; group_size = 14; break;
-				case ASIAN: submenu = menu_asian; group_size = 9; break;
-				case MIDDLEEASTERN: submenu = menu_middleeast; group_size = 7; break;
-				case UNICODE: submenu = menu_utf8; group_size = 8; break;
-				default: submenu = menu[k]; group_size = 1;
-			}
-
-			while (order < group_size)	/* the biggest group has 13 elements */
-			{
-				for (j = 0; j < GEANY_ENCODINGS_MAX; j++)
-				{
-					if (encodings[j].group == i && encodings[j].order == order)
-					{
-						label = encodings_to_string(&encodings[j]);
-						if (k == 0)
-						{
-							item = gtk_radio_menu_item_new_with_label(group, label);
-							group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
-							radio_items[j] = item;
-						}
-						else
-							item = gtk_menu_item_new_with_label(label);
-						gtk_widget_show(item);
-						gtk_container_add(GTK_CONTAINER(submenu), item);
-						g_signal_connect(item, "activate", cb_func[k],
-								(gpointer) encodings[j].charset);
-						g_free(label);
-						break;
-					}
-				}
-				order++;
+				GtkWidget *item = gtk_menu_item_new_with_mnemonic(_(groups[i]));
+				submenus[i] = gtk_menu_new();
+				gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenus[i]);
+				gtk_container_add(GTK_CONTAINER(menu[k]), item);
+				gtk_widget_show_all(item);
 			}
 		}
+
+		/** TODO can it be optimized? ATM 882 runs at line "if (encodings[i].order ...)" */
+		do
+		{
+			for (guint i = 0; i < G_N_ELEMENTS(encodings); i++)
+			{
+				if (encodings[i].order == orders[encodings[i].group])
+				{
+					GtkWidget *item;
+					gchar *label = encodings_to_string(&encodings[i]);
+
+					if (k == 0) /* Set Encoding menu */
+					{
+						item = gtk_radio_menu_item_new_with_label(group, label);
+						group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
+						radio_items[i] = item;
+					}
+					else
+						item = gtk_menu_item_new_with_label(label);
+					gtk_widget_show(item);
+					gtk_container_add(GTK_CONTAINER(submenus[encodings[i].group]), item);
+					g_signal_connect(item, "activate", cb_func[k],
+							(gpointer) encodings[i].charset);
+					g_free(label);
+
+					orders[encodings[i].group]++;
+					n_added++;
+				}
+			}
+		}
+		while (n_added < G_N_ELEMENTS(encodings));
 	}
 }
 
@@ -1009,7 +990,7 @@ handle_bom(BufferData *buffer)
 	/* use filedata->len here because the contents are already converted into UTF-8 */
 	buffer->len -= bom_len;
 	/* overwrite the BOM with the remainder of the file contents, plus the NULL terminator. */
-	g_memmove(buffer->data, buffer->data + bom_len, buffer->len + 1);
+	memmove(buffer->data, buffer->data + bom_len, buffer->len + 1);
 	buffer->data = g_realloc(buffer->data, buffer->len + 1);
 }
 

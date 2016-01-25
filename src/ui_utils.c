@@ -34,7 +34,7 @@
 #include "callbacks.h"
 #include "dialogs.h"
 #include "documentprivate.h"
-#include "encodings.h"
+#include "encodingsprivate.h"
 #include "filetypes.h"
 #include "geanymenubuttonaction.h"
 #include "keyfile.h"
@@ -875,7 +875,7 @@ static void init_document_widgets(void)
 	add_doc_widget("add_comments1");
 	add_doc_widget("menu_paste1");
 	add_doc_widget("menu_undo2");
-	add_doc_widget("preferences2");
+	add_doc_widget("properties1");
 	add_doc_widget("menu_reload1");
 	add_doc_widget("menu_document1");
 	add_doc_widget("menu_choose_color1");
