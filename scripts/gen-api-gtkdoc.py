@@ -65,6 +65,7 @@ class AtDoc(object):
             self.annot.append(type.split(":")[1])
         elif type in ("geany:transfer",
                       "geany:element-type",
+                      "geany:type",
                       "geany:scope"):
             type = type.split(":")[1]
             self.annot.append("%s %s" % (type, str))

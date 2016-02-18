@@ -252,6 +252,7 @@ ALIASES                = "signal=- @ref  " \
 
 ALIASES               += "transfer{1}=\a \xmlonly <simplesect kind=\"geany:transfer\">\1</simplesect>\endxmlonly \htmlonly (transfer: \1) \endhtmlonly"
 ALIASES               += "elementtype{1}=\a \xmlonly <simplesect kind=\"geany:element-type\">\1</simplesect>\endxmlonly \htmlonly (element-type: \1) \endhtmlonly"
+ALIASES               += "type{1}=\a \xmlonly <simplesect kind=\"geany:type\">\1</simplesect>\endxmlonly \htmlonly (type: \1) \endhtmlonly"
 ALIASES               += "scope{1}=\a \xmlonly <simplesect kind=\"geany:scope\">\1</simplesect>\endxmlonly \htmlonly (scope: \1) \endhtmlonly"
 ALIASES               += "girskip=\a \xmlonly <simplesect kind=\"geany:skip\"></simplesect>\endxmlonly"
 ALIASES               += "nullable=\a \xmlonly <simplesect kind=\"geany:nullable\"></simplesect>\endxmlonly"
