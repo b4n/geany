@@ -1960,7 +1960,7 @@ static gboolean str_in_array(const gchar **haystack, const gchar *needle)
  * @param first_varname Name of the first variable to copy into the new array.
  * @param ... Key-value pairs of variable names and values, @c NULL-terminated.
  *
- * @return @transfer{full} The new environment array. Use @c g_strfreev() to free it.
+ * @return @transfer{full} @type{GStrv} The new environment array. Use @c g_strfreev() to free it.
  **/
 GEANY_API_SYMBOL
 gchar **utils_copy_environment(const gchar **exclude_vars, const gchar *first_varname, ...)
