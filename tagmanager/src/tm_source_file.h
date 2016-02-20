@@ -17,6 +17,8 @@
 #include "tm_parser.h"
 
 #ifndef LIBCTAGS_DEFINED
+/* API-TODO: remove on next API break (low impact) */
+typedef TMParserType langType G_GNUC_DEPRECATED_FOR(TMParserType);
 typedef void tagEntryInfo;
 #endif
 
