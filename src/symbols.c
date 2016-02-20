@@ -287,21 +287,21 @@ GString *symbols_find_typenames_as_string(gint lang, gboolean global)
 
 	if ((typedefs) && (typedefs->len > 0))
 	{
+		const gchar *last_name = "";
+
 		s = g_string_sized_new(typedefs->len * 10);
 		for (j = 0; j < typedefs->len; ++j)
 		{
 			tag = TM_TAG(typedefs->pdata[j]);
 			tag_lang = tag->lang;
 
-			/* the check for tag_lang == lang is necessary to avoid wrong type colouring of
-			 * e.g. PHP classes in C++ files
-			 * lang = -2 disables the check */
-			if (tag->name && (tag_lang == lang || lang == -2 ||
-				(lang == TM_PARSER_CPP && tag_lang == TM_PARSER_C)))
+			if (tag->name && tm_tag_langs_compatible(lang, tag_lang) &&
+				strcmp(tag->name, last_name) != 0)
 			{
 				if (j != 0)
 					g_string_append_c(s, ' ');
 				g_string_append(s, tag->name);
+				last_name = tag->name;
 			}
 		}
 	}
