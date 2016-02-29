@@ -2094,6 +2094,18 @@ static gboolean goto_tag(const gchar *name, gboolean definition)
 			g_ptr_array_add(workspace_tags, tmtag);
 	}
 
+	if (workspace_tags->len == 2)
+	{
+		TMTag *first = workspace_tags->pdata[0];
+		TMTag *second = workspace_tags->pdata[1];
+
+		/* For things like "typedef struct Foo {} Foo;" jump to the struct
+		 * location immediately without showing the typedef location */
+		if (first->type != tm_tag_typedef_t && second->type == tm_tag_typedef_t &&
+			strcmp(first->file->file_name, second->file->file_name) == 0)
+			g_ptr_array_set_size(workspace_tags, 1);
+	}
+
 	if (workspace_tags->len == 1)
 	{
 		GeanyDocument *new_doc;
