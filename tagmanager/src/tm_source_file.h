@@ -17,8 +17,6 @@
 #include "tm_parser.h"
 
 #ifndef LIBCTAGS_DEFINED
-/* API-TODO: remove on next API break (low impact) */
-typedef TMParserType langType G_GNUC_DEPRECATED_FOR(TMParserType);
 typedef void tagEntryInfo;
 #endif
 
@@ -39,7 +37,7 @@ extern "C"
 */
 typedef struct
 {
-	TMParserType lang; /**< Programming language used */
+	TMParserType lang; /* Programming language used */
 	char *file_name; /**< Full file name (inc. path) */
 	char *short_name; /**< Just the name of the file (without the path) */
 	GPtrArray *tags_array; /**< Sorted tag array obtained by parsing the object */
