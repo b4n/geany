@@ -2626,7 +2626,7 @@ static gboolean snippets_complete_constructs(GeanyEditor *editor, gint pos, cons
 	gchar *str;
 	const gchar *completion;
 	gint str_len;
-	gint ft_id = editor->document->file_type->id;
+	GeanyFiletypeID ft_id = editor->document->file_type->id;
 
 	str = g_strdup(word);
 	g_strstrip(str);

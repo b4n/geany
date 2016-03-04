@@ -57,7 +57,7 @@ gboolean highlighting_is_code_style(gint lexer, gint style);
 
 #ifdef GEANY_PRIVATE
 
-void highlighting_init_styles(guint filetype_idx, GKeyFile *config, GKeyFile *configh);
+void highlighting_init_styles(GeanyFiletypeID filetype_idx, GKeyFile *config, GKeyFile *configh);
 
 void highlighting_free_styles(void);
 

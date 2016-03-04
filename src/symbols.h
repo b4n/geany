@@ -24,6 +24,7 @@
 #define GEANY_SYMBOLS_H 1
 
 #include "document.h"
+#include "filetypes.h"
 
 #include <glib.h>
 
@@ -48,7 +49,7 @@ void symbols_finalize(void);
 
 void symbols_reload_config_files(void);
 
-void symbols_global_tags_loaded(guint file_type_idx);
+void symbols_global_tags_loaded(GeanyFiletypeID file_type_idx);
 
 GString *symbols_find_typenames_as_string(TMParserType lang, gboolean global);
 

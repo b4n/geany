@@ -373,7 +373,7 @@ static void on_document_save(G_GNUC_UNUSED GObject *object, GeanyDocument *doc)
 	basename = g_path_get_basename(doc->real_path);
 	if (g_str_has_prefix(basename, "filetypes."))
 	{
-		guint i;
+		GeanyFiletypeID i;
 
 		for (i = 0; i < filetypes_array->len; i++)
 		{
@@ -902,7 +902,7 @@ static void load_indent_settings(GeanyFiletype *ft, GKeyFile *config, GKeyFile *
 }
 
 
-static void load_settings(guint ft_id, GKeyFile *config, GKeyFile *configh)
+static void load_settings(GeanyFiletypeID ft_id, GKeyFile *config, GKeyFile *configh)
 {
 	GeanyFiletype *ft = filetypes[ft_id];
 	gchar *result;
@@ -1105,7 +1105,7 @@ static void load_system_keyfile(GKeyFile *key_file, const gchar *file, GKeyFileF
 /* Load the configuration file for the associated filetype id.
  * This should only be called when the filetype is needed, to save loading
  * 20+ configuration files all at once. */
-void filetypes_load_config(guint ft_id, gboolean reload)
+void filetypes_load_config(GeanyFiletypeID ft_id, gboolean reload)
 {
 	GKeyFile *config, *config_home;
 	GeanyFiletypePrivate *pft;
@@ -1513,13 +1513,14 @@ GeanyFiletype *filetypes_index(gint idx)
 void filetypes_reload(void)
 {
 	guint i;
+	GeanyFiletypeID ft_id;
 	GeanyDocument *current_doc;
 
 	/* reload filetype configs */
-	for (i = 0; i < filetypes_array->len; i++)
+	for (ft_id = 0; ft_id < filetypes_array->len; ft_id++)
 	{
 		/* filetypes_load_config() will skip not loaded filetypes */
-		filetypes_load_config(i, TRUE);
+		filetypes_load_config(ft_id, TRUE);
 	}
 
 	current_doc = document_get_current();

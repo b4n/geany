@@ -331,7 +331,7 @@ void templates_init(void)
  * e.g. indent = 8 prints " *     here comes the text of the line"
  * indent is meant to be the whole amount of characters before the real line content follows, i.e.
  * 6 characters are filled with whitespace when the comment characters include " *" */
-static void make_comment_block(GString *comment_text, gint filetype_idx, guint indent)
+static void make_comment_block(GString *comment_text, GeanyFiletypeID filetype_idx, guint indent)
 {
 	gchar *frame_start;			/* to add before comment_text */
 	gchar *frame_end;			/* to add after comment_text */

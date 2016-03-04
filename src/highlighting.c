@@ -135,7 +135,7 @@ static void sci_set_property(ScintillaObject *sci, const gchar *name, const gcha
 }
 
 
-static void new_styleset(guint file_type_id, gsize styling_count)
+static void new_styleset(GeanyFiletypeID file_type_id, gsize styling_count)
 {
 	StyleSet *set = &style_sets[file_type_id];
 
@@ -144,7 +144,7 @@ static void new_styleset(guint file_type_id, gsize styling_count)
 }
 
 
-static void free_styleset(guint file_type_id)
+static void free_styleset(GeanyFiletypeID file_type_id)
 {
 	StyleSet *style_ptr;
 	style_ptr = &style_sets[file_type_id];
@@ -164,7 +164,7 @@ static void free_styleset(guint file_type_id)
 
 
 static void get_keyfile_keywords(GKeyFile *config, GKeyFile *configh,
-				const gchar *key, guint ft_id, guint pos)
+				const gchar *key, GeanyFiletypeID ft_id, guint pos)
 {
 	style_sets[ft_id].keywords[pos] =
 		utils_get_setting(string, configh, config, "keywords", key, "");
@@ -390,7 +390,7 @@ static guint invert(guint icolour)
 }
 
 
-static GeanyLexerStyle *get_style(guint ft_id, guint styling_index)
+static GeanyLexerStyle *get_style(GeanyFiletypeID ft_id, guint styling_index)
 {
 	g_assert(ft_id < filetypes_array->len);
 
@@ -409,7 +409,7 @@ static GeanyLexerStyle *get_style(guint ft_id, guint styling_index)
 }
 
 
-static void set_sci_style(ScintillaObject *sci, guint style, guint ft_id, guint styling_index)
+static void set_sci_style(ScintillaObject *sci, guint style, GeanyFiletypeID ft_id, guint styling_index)
 {
 	GeanyLexerStyle *style_ptr = get_style(ft_id, styling_index);
 
@@ -422,7 +422,7 @@ static void set_sci_style(ScintillaObject *sci, guint style, guint ft_id, guint 
 
 void highlighting_free_styles(void)
 {
-	guint i;
+	GeanyFiletypeID i;
 
 	for (i = 0; i < filetypes_array->len; i++)
 		free_styleset(i);
@@ -585,7 +585,7 @@ static void styleset_common_init(GKeyFile *config, GKeyFile *config_home)
 }
 
 
-static void set_character_classes(ScintillaObject *sci, guint ft_id)
+static void set_character_classes(ScintillaObject *sci, GeanyFiletypeID ft_id)
 {
 	const gchar *word = (ft_id == GEANY_FILETYPES_NONE ?
 		common_style_set.wordchars : style_sets[ft_id].wordchars);
@@ -610,7 +610,7 @@ static void set_character_classes(ScintillaObject *sci, guint ft_id)
 }
 
 
-static void styleset_common(ScintillaObject *sci, guint ft_id)
+static void styleset_common(ScintillaObject *sci, GeanyFiletypeID ft_id)
 {
 	GeanyLexerStyle *style;
 
@@ -804,7 +804,7 @@ static void styleset_common(ScintillaObject *sci, guint ft_id)
 
 /* Merge & assign global typedefs and user secondary keywords.
  * keyword_idx is used for both style_sets[].keywords and scintilla keyword style number */
-static void merge_type_keywords(ScintillaObject *sci, guint ft_id, guint keyword_idx)
+static void merge_type_keywords(ScintillaObject *sci, GeanyFiletypeID ft_id, guint keyword_idx)
 {
 	const gchar *user_words = style_sets[ft_id].keywords[keyword_idx];
 	GString *s;
@@ -822,7 +822,7 @@ static void merge_type_keywords(ScintillaObject *sci, guint ft_id, guint keyword
 }
 
 
-static void styleset_init_from_mapping(guint ft_id, GKeyFile *config, GKeyFile *config_home,
+static void styleset_init_from_mapping(GeanyFiletypeID ft_id, GKeyFile *config, GKeyFile *config_home,
 		const HLStyle *styles, gsize n_styles,
 		const HLKeyword *keywords, gsize n_keywords)
 {
@@ -851,7 +851,7 @@ static void styleset_init_from_mapping(guint ft_id, GKeyFile *config, GKeyFile *
 
 
 /* STYLE_DEFAULT will be set to match the first style. */
-static void styleset_from_mapping(ScintillaObject *sci, guint ft_id, guint lexer,
+static void styleset_from_mapping(ScintillaObject *sci, GeanyFiletypeID ft_id, guint lexer,
 		const HLStyle *styles, gsize n_styles,
 		const HLKeyword *keywords, gsize n_keywords,
 		const HLProperty *properties, gsize n_properties)
@@ -893,7 +893,7 @@ static void styleset_from_mapping(ScintillaObject *sci, guint ft_id, guint lexer
 
 
 
-static void styleset_default(ScintillaObject *sci, guint ft_id)
+static void styleset_default(ScintillaObject *sci, GeanyFiletypeID ft_id)
 {
 	sci_set_lexer(sci, SCLEX_NULL);
 
@@ -947,7 +947,7 @@ static void read_properties(GeanyFiletype *ft, GKeyFile *config, GKeyFile *confi
 }
 
 
-static guint get_lexer_filetype(GeanyFiletype *ft)
+static GeanyFiletypeID get_lexer_filetype(GeanyFiletype *ft)
 {
 	ft = FALLBACK(ft->lexer_filetype, ft);
 	return ft->id;
@@ -964,10 +964,10 @@ static guint get_lexer_filetype(GeanyFiletype *ft)
 		break
 
 /* Called by filetypes_load_config(). */
-void highlighting_init_styles(guint filetype_idx, GKeyFile *config, GKeyFile *configh)
+void highlighting_init_styles(GeanyFiletypeID filetype_idx, GKeyFile *config, GKeyFile *configh)
 {
 	GeanyFiletype *ft = filetypes[filetype_idx];
-	guint lexer_id = get_lexer_filetype(ft);
+	GeanyFiletypeID lexer_ft_id = get_lexer_filetype(ft);
 	gchar *default_str;
 
 	if (!style_sets)
@@ -993,7 +993,7 @@ void highlighting_init_styles(guint filetype_idx, GKeyFile *config, GKeyFile *co
 	/* All stylesets depend on filetypes.common */
 	filetypes_load_config(GEANY_FILETYPES_NONE, FALSE);
 
-	switch (lexer_id)
+	switch (lexer_ft_id)
 	{
 		init_styleset_case(ABAQUS);
 		init_styleset_case(ADA);
@@ -1167,15 +1167,15 @@ void highlighting_set_styles(ScintillaObject *sci, GeanyFiletype *ft)
 GEANY_API_SYMBOL
 const GeanyLexerStyle *highlighting_get_style(gint ft_id, gint style_id)
 {
-	g_return_val_if_fail(ft_id >= 0 && (guint) ft_id < filetypes_array->len, NULL);
+	g_return_val_if_fail(ft_id >= 0 && (GeanyFiletypeID) ft_id < filetypes_array->len, NULL);
 	g_return_val_if_fail(style_id >= 0, NULL);
 
 	/* ensure filetype loaded */
-	filetypes_load_config((guint) ft_id, FALSE);
+	filetypes_load_config((GeanyFiletypeID) ft_id, FALSE);
 
 	/* TODO: style_id might not be the real array index (Scintilla styles are not always synced
 	 * with array indices) */
-	return get_style((guint) ft_id, (guint) style_id);
+	return get_style((GeanyFiletypeID) ft_id, (guint) style_id);
 }
 
 

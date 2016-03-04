@@ -199,7 +199,7 @@ static gboolean symbols_load_global_tags(const gchar *tags_file, GeanyFiletype *
 
 /* Ensure that the global tags file(s) for the file_type_idx filetype is loaded.
  * This provides autocompletion, calltips, etc. */
-void symbols_global_tags_loaded(guint file_type_idx)
+void symbols_global_tags_loaded(GeanyFiletypeID file_type_idx)
 {
 	TagFileInfo *tfi;
 	gint tag_type;
@@ -224,6 +224,8 @@ void symbols_global_tags_loaded(guint file_type_idx)
 		case GEANY_FILETYPES_PHP:
 		case GEANY_FILETYPES_HTML:
 			html_tags_loaded();
+		default:
+			break;
 	}
 	switch (file_type_idx)
 	{
