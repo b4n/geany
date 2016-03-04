@@ -2074,8 +2074,9 @@ static TMTag *find_best_goto_tag(GeanyDocument *doc, GPtrArray *tags)
 static gboolean goto_tag(const gchar *name, gboolean definition)
 {
 	const TMTagType forward_types = tm_tag_prototype_t | tm_tag_externvar_t;
-	TMTagType type;
-	TMTag *tmtag, *last_tag;
+	/* goto tag definition: all except prototypes / forward declarations / externs */
+	TMTagType exclude_types = definition ? forward_types : tm_tag_max_t - forward_types;
+	TMTag *tmtag, *current_tag = NULL;
 	GeanyDocument *old_doc = document_get_current();
 	gboolean found = FALSE;
 	const GPtrArray *all_tags;
@@ -2083,39 +2084,52 @@ static gboolean goto_tag(const gchar *name, gboolean definition)
 	guint i;
 	guint current_line = sci_get_current_line(old_doc->editor->sci) + 1;
 
-	/* goto tag definition: all except prototypes / forward declarations / externs */
-	type = (definition) ? tm_tag_max_t - forward_types : forward_types;
-	all_tags = tm_workspace_find(name, NULL, type, NULL, old_doc->file_type->lang);
+	all_tags = tm_workspace_find(name, NULL, tm_tag_max_t, NULL, old_doc->file_type->lang);
 
 	/* get rid of global tags */
 	workspace_tags = g_ptr_array_new();
 	foreach_ptr_array(tmtag, i, all_tags)
 	{
 		if (tmtag->file)
+		{
 			g_ptr_array_add(workspace_tags, tmtag);
+
+			if (tmtag->file == old_doc->tm_file && tmtag->line == current_line)
+				current_tag = tmtag;
+		}
+	}
+
+	if (current_tag)
+	{
+		/* If we are already on the tag line, swap definition/declaration and exclude its type */
+		definition = !! (current_tag->type & forward_types);
+		exclude_types = current_tag->type;
 	}
 
 	/* If there are typedefs of e.g. a struct such as "typedef struct Foo {} Foo;",
 	 * keep just one of the names in the list - when the cursor is on the struct
 	 * name, keep the typename, otherwise keep the struct name. */
-	last_tag = NULL;
 	filtered_tags = g_ptr_array_new();
 	foreach_ptr_array(tmtag, i, workspace_tags)
 	{
-		if (last_tag != NULL && last_tag->file == tmtag->file)
+		if (tmtag->type & (exclude_types | tm_tag_typedef_t) || tmtag->line == current_line)
 		{
-			if (last_tag->type != tm_tag_typedef_t && tmtag->type == tm_tag_typedef_t)
-			{
-				if (last_tag->line == current_line)
-					/* if cursor on struct, replace struct with the typedef */
-					filtered_tags->pdata[filtered_tags->len-1] = tmtag;
-				/* if cursor anywhere else, use struct (already added) and discard typedef */
-			}
-		}
-		else
-			g_ptr_array_add(filtered_tags, tmtag);
+			/* if we have a typedef or a tag on the current line, we try and see if there isn't a
+			 * better candidate */
+			TMTag *tmtag2;
+			guint j;
 
-		last_tag = tmtag;
+			foreach_ptr_array(tmtag2, j, workspace_tags)
+			{
+				if (tmtag2 != tmtag && tmtag2->file == tmtag->file && ! (tmtag2->type & exclude_types))
+					break;
+			}
+
+			if (j < workspace_tags->len)
+				continue;
+		}
+
+		g_ptr_array_add(filtered_tags, tmtag);
 	}
 	g_ptr_array_free(workspace_tags, TRUE);
 	workspace_tags = filtered_tags;
@@ -2128,16 +2142,7 @@ static gboolean goto_tag(const gchar *name, gboolean definition)
 		new_doc = document_find_by_real_path(
 			tmtag->file->file_name);
 
-		if (new_doc)
-		{
-			/* If we are already on the tag line, swap definition/declaration */
-			if (new_doc == old_doc && tmtag->line == current_line)
-			{
-				if (goto_tag(name, !definition))
-					found = TRUE;
-			}
-		}
-		else
+		if (! new_doc)
 		{
 			/* not found in opened document, should open */
 			new_doc = document_open_file(tmtag->file->file_name, FALSE, NULL, NULL);
