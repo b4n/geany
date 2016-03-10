@@ -24,7 +24,7 @@
 #define GEANY_FILETYPES_H 1
 
 #include "geany.h" /* for GEANY() macro */
-#include "tm_source_file.h" /* for langType */
+#include "tm_parser.h" /* for TMParserType */
 
 #include "gtkcompat.h" /* Needed by ScintillaWidget.h */
 #include "Scintilla.h" /* Needed by ScintillaWidget.h */
@@ -112,8 +112,15 @@ typedef enum
 }
 GeanyFiletypeID;
 
-#define filetype_id GeanyFiletypeID /* compat define - should be removed in the future */
+#ifndef GEANY_DISABLE_DEPRECATED
+/* compat define - should be removed in the future */
+typedef GeanyFiletypeID filetype_id GEANY_DEPRECATED_FOR(GeanyFiletypeID);
+#endif /* GEANY_DISABLE_DEPRECATED */
 
+/** @gironly
+ * Filetype categories
+ *
+ * These are used to provide submenus for each category in the GUI */
 typedef enum
 {
 	GEANY_FILETYPE_GROUP_NONE,
@@ -135,9 +142,9 @@ GeanyFiletypeGroupID;
 typedef struct GeanyFiletype
 {
 	GeanyFiletypeID	  id;				/**< Index in @ref filetypes. */
-	/** Represents the langType of tagmanager (see the table
-	 * in tagmanager/parsers.h), -1 represents all, -2 none. */
-	langType 		  lang;
+	/* Represents the TMParserType of tagmanager (see the table
+	 * in tagmanager/src/tm_parser.h). */
+	TMParserType	  lang;
 	/** Untranslated short name, such as "C", "None".
 	 * Must not be translated as it's used for hash table lookups - use
 	 * filetypes_get_display_name() instead. */

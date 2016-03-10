@@ -137,7 +137,7 @@ typedef struct _TMTag
 	char *var_type; /**< Variable type (maps to struct for typedefs) */
 	char access; /**< Access type (public/protected/private/etc.) */
 	char impl; /**< Implementation (e.g. virtual) */
-	langType lang; /**< Programming language of the file */
+	TMParserType lang; /* Programming language of the file */
 } TMTag;
 
 
@@ -160,7 +160,7 @@ GType tm_tag_get_type(void) G_GNUC_CONST;
 
 TMTag *tm_tag_new(TMSourceFile *file, const tagEntryInfo *tag_entry);
 
-TMTag *tm_tag_new_from_file(TMSourceFile *file, FILE *fp, gint mode, TMFileFormat format);
+TMTag *tm_tag_new_from_file(TMSourceFile *file, FILE *fp, TMParserType mode, TMFileFormat format);
 
 gboolean tm_tag_write(TMTag *tag, FILE *file, guint attrs);
 
@@ -179,7 +179,7 @@ gboolean tm_tags_prune(GPtrArray *tags_array);
 gboolean tm_tags_dedup(GPtrArray *tags_array, TMTagAttrType *sort_attributes, gboolean unref_duplicates);
 
 TMTag **tm_tags_find(const GPtrArray *tags_array, const char *name,
-		gboolean partial, gboolean tags_array_sorted, guint * tagCount);
+		gboolean partial, guint * tagCount);
 
 void tm_tags_array_free(GPtrArray *tags_array, gboolean free_all);
 
@@ -190,6 +190,12 @@ void tm_tag_unref(TMTag *tag);
 TMTag *tm_tag_ref(TMTag *tag);
 
 gboolean tm_tags_equal(const TMTag *a, const TMTag *b);
+
+const gchar *tm_tag_context_separator(TMParserType lang);
+
+gboolean tm_tag_is_anon(const TMTag *tag);
+
+gboolean tm_tag_langs_compatible(TMParserType lang, TMParserType other);
 
 #ifdef TM_DEBUG /* various debugging functions */
 

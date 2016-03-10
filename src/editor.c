@@ -75,6 +75,7 @@ static GHashTable *snippet_hash = NULL;
 static GQueue *snippet_offsets = NULL;
 static gint snippet_cursor_insert_pos;
 static GtkAccelGroup *snippet_accel_group = NULL;
+static gboolean autocomplete_scope_shown = FALSE;
 
 static const gchar geany_cursor_marker[] = "__GEANY_CURSOR_MARKER__";
 
@@ -657,7 +658,9 @@ static gboolean match_last_chars(ScintillaObject *sci, gint pos, const gchar *st
 	gchar *buf;
 
 	g_return_val_if_fail(len < 100, FALSE);
-	g_return_val_if_fail((gint)len <= pos, FALSE);
+
+	if ((gint)len > pos)
+		return FALSE;
 
 	buf = g_alloca(len + 1);
 	sci_get_text_range(sci, pos - len, pos, buf);
@@ -697,218 +700,112 @@ static void request_reshowing_calltip(SCNotification *nt)
 }
 
 
-/* mostly stolen from tm_workspace.c:match_langs() */
-static gboolean lang_matches(const TMTag *tag, langType lang)
-{
-	if (lang == -1)
-		return TRUE;
-
-	if (tag->file)
-	{	/* workspace tag */
-		if (lang == tag->file->lang)
-			return TRUE;
-	}
-	else
-	{	/* global tag */
-		if (lang == tag->lang)
-			return TRUE;
-	}
-	return FALSE;
-}
-
-
-/* gets the real type of @name_orig by resolving the typedefs
- * @file: (in/out) the preferred TMSourceFile, will be filled with the TMSourceFile in which the
- *   returned is found. This may point to @NULL, but cannot be a NULL pointer */
-static const gchar *resolve_typedef(TMSourceFile **file, const gchar *type_name, langType lang)
-{
-	const TMWorkspace *ws = tm_get_workspace();
-	guint i, pass = 0;
-	GPtrArray *tag_arrays[3];
-	gboolean again;
-
-	g_return_val_if_fail(file != NULL, NULL);
-	g_return_val_if_fail(type_name != NULL, NULL);
-
-	tag_arrays[0] = (*file) ? (*file)->tags_array : NULL;
-	tag_arrays[1] = ws->tags_array;
-	tag_arrays[2] = ws->global_tags;
-
-	do
-	{
-		again = FALSE;
-
-		g_debug("resolving %s...", type_name);
-		for (i = 0; i < G_N_ELEMENTS(tag_arrays); i++)
-		{
-			const TMTag *tag;
-			guint j;
-
-			if (! tag_arrays[i] || tag_arrays[i]->len < 1)
-				continue;
-
-			foreach_ptr_array(tag, j, tag_arrays[i])
-			{
-				if (! lang_matches(tag, lang))
-					continue;
-
-				if (tag->type & tm_tag_typedef_t && strcmp(type_name, tag->name) == 0 &&
-					tag->var_type && strcmp (type_name, tag->var_type) != 0)
-				{
-					type_name = tag->var_type;
-					/* we need to resolve the new name in case it is typedefed again, trying the
-					 * file containing the typedef first */
-					again = TRUE;
-					*file = tag->file;
-					tag_arrays[0] = (*file) ? (*file)->tags_array : NULL;
-					break;
-				}
-			}
-		}
-		pass++;
-	}
-	while (again && pass <= 8);
-	/* 8 is an arbitrary limit not to loop infinitely on recurive self-referencing typedefs */
-
-	g_debug("resolved to %s.", type_name);
-	return type_name;
-}
-
-
-/* tries to find children of type @type_name
- * @file: the preferred TMSourceFile (e.g. the one containing the type definitions) */
-static GPtrArray *find_type_children(TMSourceFile *file, const gchar *type_name, langType lang)
-{
-	const TMWorkspace *ws = tm_get_workspace();
-	guint i;
-	gsize len;
-	const GPtrArray *tag_arrays[3];
-	GPtrArray *children = NULL;
-
-	g_return_val_if_fail(type_name != NULL, NULL);
-
-	g_debug("searching children for %s...", type_name);
-
-	type_name = resolve_typedef(&file, type_name, lang);
-	len = strlen(type_name);
-
-	tag_arrays[0] = file ? file->tags_array : NULL;
-	tag_arrays[1] = ws->tags_array;
-	tag_arrays[2] = ws->global_tags;
-
-	for (i = 0; ! children && i < G_N_ELEMENTS(tag_arrays); i++)
-	{
-		const TMTag *tag;
-		guint j;
-
-		if (! tag_arrays[i])
-			continue;
-
-		foreach_ptr_array(tag, j, tag_arrays[i])
-		{
-			if (G_UNLIKELY(tag->type & tm_tag_file_t))
-				continue;
-			if (! lang_matches(tag, lang))
-				continue;
-
-			if (tag->scope && strncmp(tag->scope, type_name, len) == 0 &&
-				(tag->scope[len] == 0 || tag->scope[len] == '.' ||
-				 tag->scope[len] == ':'))
-			{
-				if (! children)
-					children = g_ptr_array_new();
-				g_debug("found child %s", tag->name);
-				g_ptr_array_add(children, (gpointer)tag);
-			}
-		}
-	}
-
-	return children;
-}
-
-
-/* finds scope completions for @name
- * @file: the preferred TMSourceFile (e.g. the one containing the name) */
-static GPtrArray *find_scope_members(TMSourceFile *file, const gchar *name, langType lang)
-{
-	const TMWorkspace *ws = tm_get_workspace();
-	guint i;
-	const GPtrArray *tag_arrays[3];
-	GPtrArray *children = NULL;
-
-	tag_arrays[0] = file ? file->tags_array : NULL;
-	tag_arrays[1] = ws->tags_array;
-	tag_arrays[2] = ws->global_tags;
-
-	g_debug("finding scope member for %s", name);
-
-	for (i = 0; ! children && i < G_N_ELEMENTS(tag_arrays); i++)
-	{
-		const TMTag *tag;
-		guint j;
-
-		if (! tag_arrays[i])
-			continue;
-
-		foreach_ptr_array(tag, j, tag_arrays[i])
-		{
-			if (G_UNLIKELY(tag->type & tm_tag_file_t))
-				continue;
-			if (! lang_matches(tag, lang))
-				continue;
-			if (strcmp(tag->name, name) != 0)
-				continue;
-			if (tag->var_type == NULL)
-				continue;
-
-			/* this doesn't work properly for e.g. C functions because their return type includes
-			 * type modifiers such as "const" or "*". */
-			children = find_type_children(tag->file, tag->var_type, lang);
-			if (children)
-				break;
-		}
-	}
-
-	return children;
-}
-
-
-static void autocomplete_scope(GeanyEditor *editor)
+static gboolean autocomplete_scope(GeanyEditor *editor, const gchar *root, gsize rootlen)
 {
 	ScintillaObject *sci = editor->sci;
 	gint pos = sci_get_current_position(editor->sci);
 	gchar typed = sci_get_char_at(sci, pos - 1);
+	gchar brace_char;
 	gchar *name;
-	GPtrArray *tags = NULL;
 	GeanyFiletype *ft = editor->document->file_type;
+	GPtrArray *tags;
+	gboolean function = FALSE;
+	gboolean member;
+	gboolean scope_sep_typed = FALSE;
+	gboolean ret = FALSE;
+	const gchar *current_scope;
+	const gchar *context_sep = tm_tag_context_separator(ft->lang);
 
-	if (ft->id == GEANY_FILETYPES_C || ft->id == GEANY_FILETYPES_CPP)
+	if (autocomplete_scope_shown)
 	{
-		if (pos >= 2 && (match_last_chars(sci, pos, "->") || match_last_chars(sci, pos, "::")))
+		/* move at the operator position */
+		pos -= rootlen;
+
+		/* allow for a space between word and operator */
+		while (pos > 0 && isspace(sci_get_char_at(sci, pos - 1)))
 			pos--;
-		else if (ft->id == GEANY_FILETYPES_CPP && pos >= 3 && match_last_chars(sci, pos, "->*"))
-			pos-=2;
-		else if (typed != '.')
-			return;
+
+		if (pos > 0)
+			typed = sci_get_char_at(sci, pos - 1);
 	}
-	else if (typed != '.')
-		return;
 
-	/* allow for spaces between word and operator */
-	while (pos >= 2 && (isspace(sci_get_char_at(sci, pos - 2)) ||
-						highlighting_is_comment_style(sci_get_lexer(sci), sci_get_style_at(sci, pos - 2))))
+	/* make sure to keep in sync with similar checks below */
+	if (match_last_chars(sci, pos, context_sep))
+	{
+		pos -= strlen(context_sep);
+		scope_sep_typed = TRUE;
+	}
+	else if (typed == '.')
+		pos -= 1;
+	else if ((ft->id == GEANY_FILETYPES_C || ft->id == GEANY_FILETYPES_CPP) &&
+			match_last_chars(sci, pos, "->"))
+		pos -= 2;
+	else if (ft->id == GEANY_FILETYPES_CPP && match_last_chars(sci, pos, "->*"))
+		pos -= 3;
+	else
+		return FALSE;
+
+	/* allow for a space between word and operator */
+	while (pos > 0 && isspace(sci_get_char_at(sci, pos - 1)))
 		pos--;
-	name = editor_get_word_at_pos(editor, pos - 1, NULL);
-	if (!name)
-		return;
 
-	tags = find_scope_members(editor->document->tm_file, name, ft->lang);
+	/* if function or array index, skip to matching brace */
+	brace_char = sci_get_char_at(sci, pos - 1);
+	if (pos > 0 && (brace_char == ')' || brace_char == ']'))
+	{
+		gint brace_pos = sci_find_matching_brace(sci, pos - 1);
+
+		if (brace_pos != -1)
+		{
+			pos = brace_pos;
+			function = brace_char == ')';
+		}
+
+		/* allow for a space between opening brace and name */
+		while (pos > 0 && isspace(sci_get_char_at(sci, pos - 1)))
+			pos--;
+	}
+
+	name = editor_get_word_at_pos(editor, pos, NULL);
+	if (!name)
+		return FALSE;
+
+	/* check if invoked on member */
+	pos -= strlen(name);
+	while (pos > 0 && isspace(sci_get_char_at(sci, pos - 1)))
+		pos--;
+	/* make sure to keep in sync with similar checks above */
+	member = match_last_chars(sci, pos, ".") || match_last_chars(sci, pos, context_sep) ||
+			 match_last_chars(sci, pos, "->") || match_last_chars(sci, pos, "->*");
+
+	if (symbols_get_current_scope(editor->document, &current_scope) == -1)
+		current_scope = "";
+	tags = tm_workspace_find_scope_members(editor->document->tm_file, name, function,
+				member, current_scope, scope_sep_typed);
+	if (tags)
+	{
+		GPtrArray *filtered = g_ptr_array_new();
+		TMTag *tag;
+		guint i;
+
+		foreach_ptr_array(tag, i, tags)
+		{
+			if (g_str_has_prefix(tag->name, root))
+				g_ptr_array_add(filtered, tag);
+		}
+
+		if (filtered->len > 0)
+		{
+			show_tags_list(editor, filtered, rootlen);
+			ret = TRUE;
+		}
+
+		g_ptr_array_free(tags, TRUE);
+		g_ptr_array_free(filtered, TRUE);
+	}
+
 	g_free(name);
-	if (! tags)
-		return;
-	if (tags->len > 0)
-		show_tags_list(editor, tags, 0);
-	g_ptr_array_free(tags, TRUE);
+	return ret;
 }
 
 
@@ -1267,6 +1164,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *object, GeanyEditor *edi
 		case SCN_AUTOCCANCELLED:
 			/* now that autocomplete is finishing or was cancelled, reshow calltips
 			 * if they were showing */
+			autocomplete_scope_shown = FALSE;
 			request_reshowing_calltip(nt);
 			break;
 		case SCN_NEEDSHOWN:
@@ -1369,7 +1267,7 @@ get_default_indent_prefs(void)
  * Prefs can be different according to project or document.
  * @warning Always get a fresh result instead of keeping a pointer to it if the editor/project
  * settings may have changed, or if this function has been called for a different editor.
- * @param editor The editor, or @c NULL to get the default indent prefs.
+ * @param editor @nullable The editor, or @c NULL to get the default indent prefs.
  * @return The indent prefs. */
 GEANY_API_SYMBOL
 const GeanyIndentPrefs *
@@ -2111,7 +2009,7 @@ void editor_find_current_word_sciwc(GeanyEditor *editor, gint pos, gchar *word, 
  *                   as part of a word. May be @c NULL to use the default wordchars,
  *                   see @ref GEANY_WORDCHARS.
  *
- *  @return A newly-allocated string containing the word at the given @a pos or @c NULL.
+ *  @return @nullable A newly-allocated string containing the word at the given @a pos or @c NULL.
  *          Should be freed when no longer needed.
  *
  *  @since 0.16
@@ -2223,10 +2121,9 @@ static gboolean append_calltip(GString *str, const TMTag *tag, GeanyFiletypeID f
 
 static gchar *find_calltip(const gchar *word, GeanyFiletype *ft)
 {
-	const GPtrArray *tags;
+	GPtrArray *tags;
 	const TMTagType arg_types = tm_tag_function_t | tm_tag_prototype_t |
 		tm_tag_method_t | tm_tag_macro_with_arg_t;
-	TMTagAttrType *attrs = NULL;
 	TMTag *tag;
 	GString *str = NULL;
 	guint i;
@@ -2234,20 +2131,26 @@ static gchar *find_calltip(const gchar *word, GeanyFiletype *ft)
 	g_return_val_if_fail(ft && word && *word, NULL);
 
 	/* use all types in case language uses wrong tag type e.g. python "members" instead of "methods" */
-	tags = tm_workspace_find(word, tm_tag_max_t, attrs, FALSE, ft->lang);
+	tags = tm_workspace_find(word, NULL, tm_tag_max_t, NULL, ft->lang);
 	if (tags->len == 0)
+	{
+		g_ptr_array_free(tags, TRUE);
 		return NULL;
+	}
 
 	tag = TM_TAG(tags->pdata[0]);
 
 	if (ft->id == GEANY_FILETYPES_D &&
 		(tag->type == tm_tag_class_t || tag->type == tm_tag_struct_t))
 	{
+		g_ptr_array_free(tags, TRUE);
 		/* user typed e.g. 'new Classname(' so lookup D constructor Classname::this() */
-		tags = tm_workspace_find_scoped("this", tag->name,
-			arg_types, attrs, FALSE, ft->lang, TRUE);
+		tags = tm_workspace_find("this", tag->name, arg_types, NULL, ft->lang);
 		if (tags->len == 0)
+		{
+			g_ptr_array_free(tags, TRUE);
 			return NULL;
+		}
 	}
 
 	/* remove tags with no argument list */
@@ -2260,7 +2163,10 @@ static gchar *find_calltip(const gchar *word, GeanyFiletype *ft)
 	}
 	tm_tags_prune((GPtrArray *) tags);
 	if (tags->len == 0)
+	{
+		g_ptr_array_free(tags, TRUE);
 		return NULL;
+	}
 	else
 	{	/* remove duplicate calltips */
 		TMTagAttrType sort_attr[] = {tm_tag_attr_name_t, tm_tag_attr_scope_t,
@@ -2297,6 +2203,9 @@ static gchar *find_calltip(const gchar *word, GeanyFiletype *ft)
 			break;
 		}
 	}
+
+	g_ptr_array_free(tags, TRUE);
+
 	if (str)
 	{
 		gchar *result = str->str;
@@ -2341,6 +2250,20 @@ gboolean editor_show_calltip(GeanyEditor *editor, gint pos)
 	style = sci_get_style_at(sci, pos - 1);
 	if (! highlighting_is_code_style(lexer, style))
 		return FALSE;
+
+	while (pos > 0 && isspace(sci_get_char_at(sci, pos - 1)))
+		pos--;
+
+	/* skip possible generic/template specification, like foo<int>() */
+	if (sci_get_char_at(sci, pos - 1) == '>')
+	{
+		pos = sci_find_matching_brace(sci, pos - 1);
+		if (pos == -1)
+			return FALSE;
+
+		while (pos > 0 && isspace(sci_get_char_at(sci, pos - 1)))
+			pos--;
+	}
 
 	word[0] = '\0';
 	editor_find_current_word(editor, pos - 1, word, sizeof word, NULL);
@@ -2418,21 +2341,21 @@ autocomplete_html(ScintillaObject *sci, const gchar *root, gsize rootlen)
 static gboolean
 autocomplete_tags(GeanyEditor *editor, const gchar *root, gsize rootlen)
 {
-	TMTagAttrType attrs[] = { tm_tag_attr_name_t, 0 };
-	const GPtrArray *tags;
+	GPtrArray *tags;
 	GeanyDocument *doc;
+	gboolean found;
 
 	g_return_val_if_fail(editor, FALSE);
 
 	doc = editor->document;
 
-	tags = tm_workspace_find(root, tm_tag_max_t, attrs, TRUE, doc->file_type->lang);
-	if (tags)
-	{
+	tags = tm_workspace_find_prefix(root, doc->file_type->lang, editor_prefs.autocompletion_max_entries);
+	found = tags->len > 0;
+	if (found)
 		show_tags_list(editor, tags, rootlen);
-		return tags->len > 0;
-	}
-	return FALSE;
+	g_ptr_array_free(tags, TRUE);
+
+	return found;
 }
 
 
@@ -2592,7 +2515,6 @@ gboolean editor_start_auto_complete(GeanyEditor *editor, gint pos, gboolean forc
 	if (!force && !highlighting_is_code_style(lexer, style))
 		return FALSE;
 
-	autocomplete_scope(editor);
 	ret = autocomplete_check_html(editor, style, pos);
 
 	if (ft->id == GEANY_FILETYPES_LATEX)
@@ -2605,6 +2527,23 @@ gboolean editor_start_auto_complete(GeanyEditor *editor, gint pos, gboolean forc
 	read_current_word(editor, pos, cword, sizeof(cword), wordchars, TRUE);
 	root = cword;
 	rootlen = strlen(root);
+
+	if (ret || force)
+	{
+		if (autocomplete_scope_shown)
+		{
+			autocomplete_scope_shown = FALSE;
+			if (!ret)
+				sci_send_command(sci, SCI_AUTOCCANCEL);
+		}
+	}
+	else
+	{
+		ret = autocomplete_scope(editor, root, rootlen);
+		if (!ret && autocomplete_scope_shown)
+			sci_send_command(sci, SCI_AUTOCCANCEL);
+		autocomplete_scope_shown = ret;
+	}
 
 	if (!ret && rootlen > 0)
 	{
@@ -4582,7 +4521,7 @@ void editor_insert_color(GeanyEditor *editor, const gchar *colour)
  *  Retrieves the end of line characters mode (LF, CR/LF, CR) in the given editor.
  *  If @a editor is @c NULL, the default end of line characters are used.
  *
- *  @param editor The editor to operate on, or @c NULL to query the default value.
+ *  @param editor @nullable The editor to operate on, or @c NULL to query the default value.
  *  @return The used end of line characters mode.
  *
  *  @since 0.20
@@ -4604,7 +4543,7 @@ gint editor_get_eol_char_mode(GeanyEditor *editor)
  *  (LF, CR/LF, CR) in the given editor.
  *  If @a editor is @c NULL, the default end of line characters are used.
  *
- *  @param editor The editor to operate on, or @c NULL to query the default value.
+ *  @param editor @nullable The editor to operate on, or @c NULL to query the default value.
  *  @return The name of the end of line characters.
  *
  *  @since 0.19
@@ -4626,7 +4565,7 @@ const gchar *editor_get_eol_char_name(GeanyEditor *editor)
  *  If @a editor is @c NULL, the default end of line characters are used.
  *  The returned value is 1 for CR and LF and 2 for CR/LF.
  *
- *  @param editor The editor to operate on, or @c NULL to query the default value.
+ *  @param editor @nullable The editor to operate on, or @c NULL to query the default value.
  *  @return The length of the end of line characters.
  *
  *  @since 0.19
@@ -4652,7 +4591,7 @@ gint editor_get_eol_char_len(GeanyEditor *editor)
  *  If @a editor is @c NULL, the default end of line characters are used.
  *  The returned value is either "\n", "\r\n" or "\r".
  *
- *  @param editor The editor to operate on, or @c NULL to query the default value.
+ *  @param editor @nullable The editor to operate on, or @c NULL to query the default value.
  *  @return The end of line characters.
  *
  *  @since 0.19
@@ -4952,6 +4891,13 @@ void editor_set_indent_type(GeanyEditor *editor, GeanyIndentType type)
 }
 
 
+/** Sets the indent width for @a editor.
+ * @param editor Editor.
+ * @param width New indent width.
+ *
+ * @since 1.27 (API 227)
+ */
+GEANY_API_SYMBOL
 void editor_set_indent_width(GeanyEditor *editor, gint width)
 {
 	editor_set_indent(editor, editor->indent_type, width);
@@ -5078,12 +5024,28 @@ static gboolean editor_check_colourise(GeanyEditor *editor)
 		return FALSE;
 
 	doc->priv->colourise_needed = FALSE;
-	sci_colourise(editor->sci, 0, -1);
 
-	/* now that the current document is colourised, fold points are now accurate,
-	 * so force an update of the current function/tag. */
-	symbols_get_current_function(NULL, NULL);
-	ui_update_statusbar(NULL, -1);
+	if (doc->priv->full_colourise)
+	{
+		sci_colourise(editor->sci, 0, -1);
+
+		/* now that the current document is colourised, fold points are now accurate,
+		 * so force an update of the current function/tag. */
+		symbols_get_current_function(NULL, NULL);
+		ui_update_statusbar(NULL, -1);
+	}
+	else
+	{
+		gint start_line, end_line, start, end;
+
+		start_line = SSM(doc->editor->sci, SCI_GETFIRSTVISIBLELINE, 0, 0);
+		end_line = start_line + SSM(editor->sci, SCI_LINESONSCREEN, 0, 0);
+		start_line = SSM(editor->sci, SCI_DOCLINEFROMVISIBLE, start_line, 0);
+		end_line = SSM(editor->sci, SCI_DOCLINEFROMVISIBLE, end_line, 0);
+		start = sci_get_position_from_line(editor->sci, start_line);
+		end = sci_get_line_end_position(editor->sci, end_line);
+		sci_colourise(editor->sci, start, end);
+	}
 
 	return TRUE;
 }
@@ -5262,7 +5224,7 @@ static ScintillaObject *create_new_sci(GeanyEditor *editor)
 
 /** Creates a new Scintilla @c GtkWidget based on the settings for @a editor.
  * @param editor Editor settings.
- * @return The new widget.
+ * @return @transfer{floating} The new widget.
  *
  * @since 0.15
  **/
@@ -5593,9 +5555,9 @@ void editor_indent(GeanyEditor *editor, gboolean increase)
  * If @a editor is passed, returns a snippet specific to the document filetype.
  * If @a editor is @c NULL, returns a snippet from the default set.
  *
- * @param editor Editor or @c NULL.
+ * @param editor @nullable Editor or @c NULL.
  * @param snippet_name Snippet name.
- * @return snippet or @c NULL if it was not found. Must not be freed.
+ * @return @nullable snippet or @c NULL if it was not found. Must not be freed.
  */
 GEANY_API_SYMBOL
 const gchar *editor_find_snippet(GeanyEditor *editor, const gchar *snippet_name)

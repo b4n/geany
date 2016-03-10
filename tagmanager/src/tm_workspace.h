@@ -22,17 +22,18 @@ extern "C"
 
 
 /** The Tag Manager Workspace. This is a singleton object containing a list
- of individual source files. There is also a global tag list 
- which can be loaded or created. This contains global tags gleaned from 
- /usr/include, etc. and should be used for autocompletion, calltips, etc.
-*/
-typedef struct
+ * of individual source files. There is also a global tag list
+ * which can be loaded or created. This contains global tags gleaned from
+ * /usr/include, etc. and should be used for autocompletion, calltips, etc.
+ **/
+typedef struct TMWorkspace
 {
 	GPtrArray *global_tags; /**< Global tags loaded at startup */
 	GPtrArray *source_files; /**< An array of TMSourceFile pointers */
 	GPtrArray *tags_array; /**< Sorted tags from all source files 
 		(just pointers to source file tags, the tag objects are owned by the source files) */
 	GPtrArray *typename_array; /* Typename tags for syntax highlighting (pointers owned by source files) */
+	GPtrArray *global_typename_array; /* Like above for global tags */
 } TMWorkspace;
 
 
@@ -49,22 +50,19 @@ void tm_workspace_remove_source_files(GPtrArray *source_files);
 
 const TMWorkspace *tm_get_workspace(void);
 
-gboolean tm_workspace_load_global_tags(const char *tags_file, gint mode);
+gboolean tm_workspace_load_global_tags(const char *tags_file, TMParserType mode);
 
 gboolean tm_workspace_create_global_tags(const char *pre_process, const char **includes,
-	int includes_count, const char *tags_file, int lang);
+	int includes_count, const char *tags_file, TMParserType lang);
 
-const GPtrArray *tm_workspace_find(const char *name, TMTagType type, TMTagAttrType *attrs,
-	gboolean partial, langType lang);
+GPtrArray *tm_workspace_find(const char *name, const char *scope, TMTagType type,
+	TMTagAttrType *attrs, TMParserType lang);
 
-const GPtrArray *
-tm_workspace_find_scoped (const char *name, const char *scope, TMTagType type,
-	TMTagAttrType *attrs, gboolean partial, langType lang, gboolean global_search);
+GPtrArray *tm_workspace_find_prefix(const char *prefix, TMParserType lang, guint max_num);
 
-const GPtrArray *tm_workspace_find_scope_members(const GPtrArray *file_tags,
-                                                 const char *scope_name,
-                                                 gboolean find_global,
-                                                 gboolean no_definitions);
+GPtrArray *tm_workspace_find_scope_members (TMSourceFile *source_file, const char *name,
+	gboolean function, gboolean member, const gchar *current_scope, gboolean search_namespace);
+
 
 void tm_workspace_add_source_file_noupdate(TMSourceFile *source_file);
 

@@ -133,7 +133,7 @@ GdkModifierType keybindings_get_modifiers(GdkModifierType mods)
 /** Looks up a keybinding item.
  * @param group Group.
  * @param key_id Keybinding index for the group.
- * @return The keybinding.
+ * @return @transfer{none} The keybinding.
  * @since 0.19. */
 GEANY_API_SYMBOL
 GeanyKeyBinding *keybindings_get_item(GeanyKeyGroup *group, gsize key_id)
@@ -150,20 +150,21 @@ GeanyKeyBinding *keybindings_get_item(GeanyKeyGroup *group, gsize key_id)
 
 /* This is used to set default keybindings on startup.
  * Menu accels are set in apply_kb_accel(). */
-/** Fills a GeanyKeyBinding struct item.
+/** @girskip
+ * Fills a GeanyKeyBinding struct item.
  * @note Always set @a key and @a mod to 0, otherwise you will likely
  * cause conflicts with the user's custom, other plugin's keybindings or
  * future default keybindings.
  * @param group Group.
  * @param key_id Keybinding index for the group.
- * @param callback Function to call when activated, or @c NULL to use the group callback.
+ * @param callback @nullable Function to call when activated, or @c NULL to use the group callback.
  * Usually it's better to use the group callback instead - see plugin_set_key_group().
  * @param key Default key, e.g. @c GDK_j (must be lower case), but usually 0 for unset.
  * @param mod Default modifier, e.g. @c GDK_CONTROL_MASK, but usually 0 for unset.
- * @param kf_name Key name for the configuration file, such as @c "menu_new".
+ * @param kf_name Key name used for this item in the keybindings configuration file, i.e. @c "menu_new".
  * @param label Label used in the preferences dialog keybindings tab. May contain
  * underscores - these won't be displayed.
- * @param menu_item Optional widget to set an accelerator for, or @c NULL.
+ * @param menu_item @nullable Optional widget to set an accelerator for, or @c NULL.
  * @return The keybinding - normally this is ignored. */
 GEANY_API_SYMBOL
 GeanyKeyBinding *keybindings_set_item(GeanyKeyGroup *group, gsize key_id,
@@ -213,14 +214,14 @@ GeanyKeyBinding *keybindings_set_item(GeanyKeyGroup *group, gsize key_id,
  * @param key_id Keybinding index for the group.
  * @param key Default key, e.g. @c GDK_j (must be lower case), but usually 0 for unset.
  * @param mod Default modifier, e.g. @c GDK_CONTROL_MASK, but usually 0 for unset.
- * @param kf_name Key name for the configuration file, such as @c "menu_new".
+ * @param kf_name Key name used for this item in the keybindings configuration file, i.e. @c "menu_new".
  * @param label Label used in the preferences dialog keybindings tab. May contain
  * underscores - these won't be displayed.
- * @param menu_item Optional widget to set an accelerator for, or @c NULL.
- * @param cb New-style callback to be called when activated, or @c NULL to use the group callback.
- * @param pdata Plugin-specific data passed back to the callback.
+ * @param menu_item @nullable Optional widget to set an accelerator for, or @c NULL.
+ * @param cb @nullable New-style callback to be called when activated, or @c NULL to use the group callback.
+ * @param pdata Plugin-specific data passed back to the callback @a cb.
  * @param destroy_notify Function that is invoked to free the plugin data when not needed anymore.
- * @return The keybinding - normally this is ignored.
+ * @return @transfer{none} The keybinding - normally this is ignored.
  *
  * @since 1.26 (API 226)
  * @see See plugin_set_key_group_full
@@ -476,6 +477,18 @@ static void init_default_kb(void)
 		GDK_2, GEANY_PRIMARY_MOD_MASK, "edit_sendtocmd2", _("Send to Custom Command 2"), NULL);
 	add_kb(group, GEANY_KEYS_FORMAT_SENDTOCMD3, NULL,
 		GDK_3, GEANY_PRIMARY_MOD_MASK, "edit_sendtocmd3", _("Send to Custom Command 3"), NULL);
+	add_kb(group, GEANY_KEYS_FORMAT_SENDTOCMD4, NULL,
+		0, 0, "edit_sendtocmd4", _("Send to Custom Command 4"), NULL);
+	add_kb(group, GEANY_KEYS_FORMAT_SENDTOCMD5, NULL,
+		0, 0, "edit_sendtocmd5", _("Send to Custom Command 5"), NULL);
+	add_kb(group, GEANY_KEYS_FORMAT_SENDTOCMD6, NULL,
+		0, 0, "edit_sendtocmd6", _("Send to Custom Command 6"), NULL);
+	add_kb(group, GEANY_KEYS_FORMAT_SENDTOCMD7, NULL,
+		0, 0, "edit_sendtocmd7", _("Send to Custom Command 7"), NULL);
+	add_kb(group, GEANY_KEYS_FORMAT_SENDTOCMD8, NULL,
+		0, 0, "edit_sendtocmd8", _("Send to Custom Command 8"), NULL);
+	add_kb(group, GEANY_KEYS_FORMAT_SENDTOCMD9, NULL,
+		0, 0, "edit_sendtocmd9", _("Send to Custom Command 9"), NULL);
 	/* may fit better in editor group */
 	add_kb(group, GEANY_KEYS_FORMAT_SENDTOVTE, NULL,
 		0, 0, "edit_sendtovte", _("_Send Selection to Terminal"), "send_selection_to_vte1");
@@ -559,10 +572,10 @@ static void init_default_kb(void)
 		_("Go to Pre_vious Marker"), "go_to_previous_marker1");
 	add_kb(group, GEANY_KEYS_GOTO_TAGDEFINITION, NULL,
 		GDK_t, GEANY_PRIMARY_MOD_MASK, "popup_gototagdefinition",
-		_("Go to Tag Definition"), "goto_tag_definition1");
+		_("Go to Symbol Definition"), "goto_tag_definition1");
 	add_kb(group, GEANY_KEYS_GOTO_TAGDECLARATION, NULL,
 		GDK_t, GEANY_PRIMARY_MOD_MASK | GDK_SHIFT_MASK, "popup_gototagdeclaration",
-		_("Go to Tag Declaration"), "goto_tag_declaration1");
+		_("Go to Symbol Declaration"), "goto_tag_declaration1");
 	add_kb(group, GEANY_KEYS_GOTO_LINESTART, NULL,
 		GDK_Home, 0, "edit_gotolinestart", _("Go to Start of Line"), NULL);
 	add_kb(group, GEANY_KEYS_GOTO_LINEEND, NULL,
@@ -2430,6 +2443,30 @@ static gboolean cb_func_format_action(guint key_id)
 		case GEANY_KEYS_FORMAT_SENDTOCMD3:
 			if (ui_prefs.custom_commands && g_strv_length(ui_prefs.custom_commands) > 2)
 				tools_execute_custom_command(doc, ui_prefs.custom_commands[2]);
+			break;
+		case GEANY_KEYS_FORMAT_SENDTOCMD4:
+			if (ui_prefs.custom_commands && g_strv_length(ui_prefs.custom_commands) > 3)
+				tools_execute_custom_command(doc, ui_prefs.custom_commands[3]);
+			break;
+		case GEANY_KEYS_FORMAT_SENDTOCMD5:
+			if (ui_prefs.custom_commands && g_strv_length(ui_prefs.custom_commands) > 4)
+				tools_execute_custom_command(doc, ui_prefs.custom_commands[4]);
+			break;
+		case GEANY_KEYS_FORMAT_SENDTOCMD6:
+			if (ui_prefs.custom_commands && g_strv_length(ui_prefs.custom_commands) > 5)
+				tools_execute_custom_command(doc, ui_prefs.custom_commands[5]);
+			break;
+		case GEANY_KEYS_FORMAT_SENDTOCMD7:
+			if (ui_prefs.custom_commands && g_strv_length(ui_prefs.custom_commands) > 6)
+				tools_execute_custom_command(doc, ui_prefs.custom_commands[6]);
+			break;
+		case GEANY_KEYS_FORMAT_SENDTOCMD8:
+			if (ui_prefs.custom_commands && g_strv_length(ui_prefs.custom_commands) > 7)
+				tools_execute_custom_command(doc, ui_prefs.custom_commands[7]);
+			break;
+		case GEANY_KEYS_FORMAT_SENDTOCMD9:
+			if (ui_prefs.custom_commands && g_strv_length(ui_prefs.custom_commands) > 8)
+				tools_execute_custom_command(doc, ui_prefs.custom_commands[8]);
 			break;
 		case GEANY_KEYS_FORMAT_SENDTOVTE:
 			on_send_selection_to_vte1_activate(NULL, NULL);
