@@ -1,4 +1,10 @@
-Geany 1.27 (unreleased)
+Geany 1.28 (unreleased)
+
+
+Geany 1.27 (March 13, 2016)
+
+    General
+    * Remove Waf build system (PR#769).
 
     Bug fixes
     * Fix build with GLib < 2.32 (Issue#764).
@@ -53,6 +59,9 @@ Geany 1.27 (unreleased)
       and `scintilla_object_new()` alias to the API as synonyms for their
       legacy counterparts `scintilla_send_message()`, `scintilla_get_type()`
       and `scintilla_new()` (Thomas Martitz, PR#874).
+
+    Windows
+    * Project->Open now respects the native dialog setting (PR#961).
 
 
 Geany 1.26 (November 15, 2015)
