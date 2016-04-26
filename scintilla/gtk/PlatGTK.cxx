@@ -1791,6 +1791,12 @@ PRectangle ListBoxX::GetDesiredRect() {
 		gtk_widget_path_free(widget_path);
 		gtk_style_context_get_border(styleContextFrameBorder, GTK_STATE_FLAG_NORMAL, &border_border);
 		g_object_unref(styleContextFrameBorder);
+#	else /* < 3.20 */
+		if (gtk_check_version(3, 20, 0) == NULL) {
+			// default to 1px all around as it's likely what it is, and so we don't miss 2px height
+			// on GTK 3.20 when built against an earlier version.
+			border_border.top = border_border.bottom = border_border.left = border_border.right = 1;
+		}
 #	endif
 
 		height = (rows * row_height
