@@ -661,11 +661,6 @@ static gboolean tm_source_file_tags(const tagEntryInfo *const tag,
 	return TRUE;
 }
 
-void tm_source_file_ctags_init(void)
-{
-	tm_ctags_init();
-}
-
 /* Initializes a TMSourceFile structure from a file name. */
 static gboolean tm_source_file_init(TMSourceFile *source_file, const char *file_name, 
 	const char* name)
