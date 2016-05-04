@@ -638,7 +638,7 @@ gboolean tm_parser_verify_type_mappings(void)
 			if (!ctags_found || !tm_found)
 				ret = FALSE;
 
-			presence_map[map->entries[i].kind]++;
+			presence_map[(unsigned char) map->entries[i].kind]++;
 		}
 
 		for (i = 0; i < sizeof(presence_map); i++)
