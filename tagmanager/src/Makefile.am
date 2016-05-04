@@ -12,6 +12,9 @@ EXTRA_DIST = \
 	makefile.win32
 
 noinst_LTLIBRARIES = libtagmanager.la
+check_PROGRAMS = tmtest
+
+TESTS = $(check_PROGRAMS)
 
 tagmanager_includedir = $(includedir)/geany/tagmanager
 tagmanager_include_HEADERS = \
@@ -34,3 +37,6 @@ libtagmanager_la_SOURCES =\
 	tm_ctags_wrappers.c
 
 libtagmanager_la_LIBADD = ../ctags/libctags.la $(GTK_LIBS)
+
+tmtest_SOURCES = tm_test.c
+tmtest_LDADD = libtagmanager.la

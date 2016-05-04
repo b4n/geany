@@ -573,21 +573,22 @@ gchar tm_parser_get_tag_kind(TMTagType type, TMParserType lang)
 }
 
 
-void tm_parser_verify_type_mappings(void)
+gboolean tm_parser_verify_type_mappings(void)
 {
 	gsize parser_map_size = sizeof(parser_map) / sizeof(TMParserMap);
 	TMParserType lang;
+	gboolean ret = TRUE;
 
 	if (TM_PARSER_COUNT > tm_ctags_get_lang_count())
 	{
 		g_warning("More parsers defined in Geany than in ctags");
-		return;
+		return FALSE;
 	}
 
 	if (parser_map_size != TM_PARSER_COUNT)
 	{
 		g_warning("Different number of parsers and tag type mappings");
-		return;
+		return FALSE;
 	}
 
 	for (lang = 0; lang < TM_PARSER_COUNT; lang++)
@@ -606,6 +607,7 @@ void tm_parser_verify_type_mappings(void)
 		{
 			g_warning("Different number of tag types in TM (%d) and ctags (%d) for %s",
 				map->size, (int)strlen(kinds), tm_ctags_get_lang_name(lang));
+			ret = FALSE;
 			continue;
 		}
 
@@ -633,6 +635,8 @@ void tm_parser_verify_type_mappings(void)
 			if (!tm_found)
 				g_warning("Tag type '%c' found in ctags but not in TM for %s",
 					kinds[i], tm_ctags_get_lang_name(lang));
+			if (!ctags_found || !tm_found)
+				ret = FALSE;
 
 			presence_map[map->entries[i].kind]++;
 		}
@@ -640,8 +644,13 @@ void tm_parser_verify_type_mappings(void)
 		for (i = 0; i < sizeof(presence_map); i++)
 		{
 			if (presence_map[i] > 1)
+			{
 				g_warning("Duplicate tag type '%c' found for %s",
 					(gchar)i, tm_ctags_get_lang_name(lang));
+				ret = FALSE;
+			}
 		}
 	}
+
+	return ret;
 }

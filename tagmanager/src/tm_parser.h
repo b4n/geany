@@ -113,7 +113,7 @@ enum
 };
 
 
-void tm_parser_verify_type_mappings(void);
+gboolean tm_parser_verify_type_mappings(void);
 
 TMTagType tm_parser_get_tag_type(gchar kind, TMParserType lang);
 
