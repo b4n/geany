@@ -512,9 +512,19 @@ static gint document_get_new_idx(void)
 
 static void queue_colourise(GeanyDocument *doc, gboolean full_colourise)
 {
-	/* make sure we don't override previously set full_colourise=TRUE by FALSE */
-	if (!doc->priv->colourise_needed || !doc->priv->full_colourise)
-		doc->priv->full_colourise = full_colourise;
+	if (full_colourise)
+	{
+		doc->priv->full_colourise = TRUE;
+		doc->priv->colourise_pos = 0;
+	}
+	else if (!doc->priv->colourise_needed || !doc->priv->full_colourise)
+	{
+		gint end;
+
+		doc->priv->full_colourise = FALSE;
+		sci_get_visible_range(doc->editor->sci, NULL, &end);
+		doc->priv->colourise_pos = MAX(doc->priv->colourise_pos, end);
+	}
 
 	/* Colourise the editor before it is next drawn */
 	doc->priv->colourise_needed = TRUE;

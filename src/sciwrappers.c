@@ -1326,3 +1326,22 @@ gint sci_word_end_position(ScintillaObject *sci, gint position, gboolean onlyWor
 	return SSM(sci, SCI_WORDENDPOSITION, position, onlyWordCharacters);
 }
 
+
+void sci_get_visible_range(ScintillaObject *sci, gint *start, gint *end)
+{
+	gint start_line = SSM(sci, SCI_GETFIRSTVISIBLELINE, 0, 0);
+
+	if (end)
+	{
+		gint end_line;
+
+		end_line = start_line + SSM(sci, SCI_LINESONSCREEN, 0, 0);
+		end_line = SSM(sci, SCI_DOCLINEFROMVISIBLE, end_line, 0);
+		*end = sci_get_line_end_position(sci, end_line);
+	}
+	if (start)
+	{
+		start_line = SSM(sci, SCI_DOCLINEFROMVISIBLE, start_line, 0);
+		*start = sci_get_position_from_line(sci, start_line);
+	}
+}
