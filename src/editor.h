@@ -156,8 +156,6 @@ typedef struct GeanyEditor
 }
 GeanyEditor;
 
-typedef struct SCNotification SCNotification;
-
 
 const GeanyIndentPrefs *editor_get_indent_prefs(GeanyEditor *editor);
 
