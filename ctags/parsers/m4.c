@@ -315,15 +315,15 @@ static void findTags(void)
 		{
 			/* assume AC/AM/AS prefixes means we're in an AutoConf file */
 			if (tokenStartMatches(token, "AC_") ||
-				tokenStartMatches(token, "AM_") ||
-				tokenStartMatches(token, "AS_"))
+			    tokenStartMatches(token, "AM_") ||
+			    tokenStartMatches(token, "AS_"))
 				setLang(LANG_AC);
 
 			if (tokenMatches(token, "define") ||
-				tokenMatches(token, "m4_define") ||
-				tokenMatches(token, "m4_defun") ||
-				tokenMatches(token, "AC_DEFUN") ||
-				tokenMatches(token, "AU_ALIAS"))
+			    tokenMatches(token, "m4_define") ||
+			    tokenMatches(token, "m4_defun") ||
+			    tokenMatches(token, "AC_DEFUN") ||
+			    tokenMatches(token, "AU_ALIAS"))
 			{
 				skipBlanks();
 				vStringClear(name);
@@ -332,7 +332,7 @@ static void findTags(void)
 				makeM4Tag(MACRO_KIND, name);
 			}
 			else if (tokenMatches(token, "changequote") ||
-					 tokenMatches(token, "m4_changequote"))
+			         tokenMatches(token, "m4_changequote"))
 				handleChangequote();
 		}
 
