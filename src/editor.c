@@ -195,7 +195,6 @@ static void on_snippet_keybinding_activate(gchar *key)
 {
 	GeanyDocument *doc = document_get_current();
 	const gchar *s;
-	GHashTable *specials;
 
 	if (!doc || !gtk_widget_has_focus(GTK_WIDGET(doc->editor->sci)))
 		return;
@@ -203,7 +202,8 @@ static void on_snippet_keybinding_activate(gchar *key)
 	s = snippets_find_completion_by_name(doc->file_type->name, key);
 	if (!s) /* allow user to specify keybindings for "special" snippets */
 	{
-		specials = g_hash_table_lookup(snippet_hash, "Special");
+		GHashTable *specials = g_hash_table_lookup(snippet_hash, "Special");
+
 		if (G_LIKELY(specials != NULL))
 			s = g_hash_table_lookup(specials, key);
 	}
@@ -1834,7 +1834,7 @@ static void close_block(GeanyEditor *editor, gint pos)
 	const GeanyIndentPrefs *iprefs = editor_get_indent_prefs(editor);
 	gint x = 0, cnt = 0;
 	gint line, line_len;
-	gchar *text, *line_buf;
+	gchar *line_buf;
 	ScintillaObject *sci;
 	gint line_indent, last_indent;
 
@@ -1873,7 +1873,7 @@ static void close_block(GeanyEditor *editor, gint pos)
 			gint line_start;
 			gint brace_line = sci_get_line_from_position(sci, start_brace);
 			gint size = -1;
-			gchar *ind;
+			gchar *ind, *text;
 
 			if (iprefs->paren_align && line_unmatched_parentheses(sci, brace_line) < 0)
 				size = get_matching_parenthesis_indent(sci, brace_line, NULL);
@@ -4606,16 +4606,12 @@ void editor_fold_all(GeanyEditor *editor)
 
 void editor_replace_tabs(GeanyEditor *editor, gboolean ignore_selection)
 {
-	gint search_pos, pos_in_line, current_tab_true_length;
 	gint anchor_pos, caret_pos;
-	gint tab_len;
-	gchar *tab_str;
 	struct Sci_TextToFind ttf;
 
 	g_return_if_fail(editor != NULL);
 
 	sci_start_undo_action(editor->sci);
-	tab_len = sci_get_tab_width(editor->sci);
 	if (sci_has_selection(editor->sci) && !ignore_selection)
 	{
 		ttf.chrg.cpMin = sci_get_selection_start(editor->sci);
@@ -4632,10 +4628,15 @@ void editor_replace_tabs(GeanyEditor *editor, gboolean ignore_selection)
 	caret_pos = sci_get_current_position(editor->sci);
 	while (TRUE)
 	{
+		gint search_pos, pos_in_line, current_tab_true_length;
+		gint tab_len;
+		gchar *tab_str;
+
 		search_pos = sci_find_text(editor->sci, SCFIND_MATCHCASE, &ttf);
 		if (search_pos == -1)
 			break;
 
+		tab_len = sci_get_tab_width(editor->sci);
 		pos_in_line = sci_get_col_from_position(editor->sci, search_pos);
 		current_tab_true_length = tab_len - (pos_in_line % tab_len);
 		tab_str = g_strnfill(current_tab_true_length, ' ');
@@ -5038,6 +5039,7 @@ static void setup_sci_keys(ScintillaObject *sci)
 	sci_clear_cmdkey(sci, 'L' | (SCMOD_CTRL << 16)); /* line cut */
 	sci_clear_cmdkey(sci, 'L' | (SCMOD_CTRL << 16) | (SCMOD_SHIFT << 16)); /* line delete */
 	sci_clear_cmdkey(sci, SCK_DELETE | (SCMOD_CTRL << 16) | (SCMOD_SHIFT << 16)); /* line to end delete */
+	sci_clear_cmdkey(sci, SCK_BACK | (SCMOD_CTRL << 16) | (SCMOD_SHIFT << 16)); /* line to beginning delete */
 	sci_clear_cmdkey(sci, '/' | (SCMOD_CTRL << 16)); /* Previous word part */
 	sci_clear_cmdkey(sci, '\\' | (SCMOD_CTRL << 16)); /* Next word part */
 	sci_clear_cmdkey(sci, SCK_UP | (SCMOD_CTRL << 16)); /* scroll line up */
@@ -5145,8 +5147,11 @@ static ScintillaObject *create_new_sci(GeanyEditor *editor)
 	SSM(sci, SCI_SETVIRTUALSPACEOPTIONS, editor_prefs.show_virtual_space, 0);
 	
 #ifdef GDK_WINDOWING_QUARTZ
-	/* "retina" (HiDPI) display support on OS X - requires disabling buffered draw */
+# if ! GTK_CHECK_VERSION(3,16,0)
+	/* "retina" (HiDPI) display support on OS X - requires disabling buffered draw
+	 * on older GTK versions */
 	SSM(sci, SCI_SETBUFFEREDDRAW, 0, 0);
+# endif
 #endif
 
 	/* only connect signals if this is for the document notebook, not split window */
@@ -5530,3 +5535,15 @@ void editor_insert_snippet(GeanyEditor *editor, gint pos, const gchar *snippet)
 	editor_insert_text_block(editor, pattern->str, pos, -1, -1, TRUE);
 	g_string_free(pattern, TRUE);
 }
+
+static void        *copy_(void *src) { return src; }
+static void         free_(void *doc) { }
+
+/** @gironly
+ * Gets the GType of GeanyEditor
+ *
+ * @return the GeanyEditor type */
+GEANY_API_SYMBOL
+GType editor_get_type (void);
+
+G_DEFINE_BOXED_TYPE(GeanyEditor, editor, copy_, free_);
