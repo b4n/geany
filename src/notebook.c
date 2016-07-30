@@ -876,7 +876,7 @@ void on_sort_tabs_pathname_activate(GtkMenuItem *menuitem, gpointer user_data)
 
 static void gradually_sort_tab(GeanyDocument *doc, NotebookTabSortMethod method)
 {
-	gint pos, n_pages;
+	gint i, pos, n_pages;
 	GCompareFunc func;
 
 	if (method == NOTEBOOK_TAB_SORT_FILENAME)
@@ -886,12 +886,17 @@ static void gradually_sort_tab(GeanyDocument *doc, NotebookTabSortMethod method)
 
 	n_pages = gtk_notebook_get_n_pages(GTK_NOTEBOOK(main_widgets.notebook));
 
-	for (pos = 0; pos < n_pages; ++pos)
+	for (pos = 0, i = 0; i < n_pages; i++)
 	{
-		GeanyDocument *doc_b = document_get_from_page(pos);
+		GeanyDocument *doc_b = document_get_from_page(i);
 
-		if (doc_b != doc && func (&doc, &doc_b) < 0)
-			break;
+		if (doc_b != doc)
+		{
+			if (func (&doc, &doc_b) < 0)
+				break;
+
+			pos++;
+		}
 	}
 
 	move_tab(doc, pos);
