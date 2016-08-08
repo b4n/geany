@@ -164,20 +164,6 @@ static void readQuotedWord(vString *const name)
 	}
 }
 
-static void skipBlanks(void)
-{
-	int c;
-
-	while ((c = fileGetc()) != EOF)
-	{
-		if (! isspace(c))
-		{
-			fileUngetc(c);
-			break;
-		}
-	}
-}
-
 static boolean skipLineEnding(int c)
 {
 	if (c == '\n')
@@ -325,7 +311,6 @@ static void findTags(void)
 			    tokenMatches(token, "AC_DEFUN") ||
 			    tokenMatches(token, "AU_ALIAS"))
 			{
-				skipBlanks();
 				vStringClear(name);
 				readMacroArgument(name);
 				vStringTerminate(name);
