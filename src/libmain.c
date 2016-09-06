@@ -885,10 +885,13 @@ static void load_session_project_file(void)
 
 static void load_settings(void)
 {
+#ifdef HAVE_VTE
+	vte_info.load_vte_cmdline = !no_vte;
+#endif
 	configuration_load();
 	/* let cmdline options overwrite configuration settings */
 #ifdef HAVE_VTE
-	vte_info.have_vte = (no_vte) ? FALSE : vte_info.load_vte;
+	vte_info.have_vte = vte_info.load_vte && vte_info.load_vte_cmdline;
 #endif
 	if (no_msgwin)
 		ui_prefs.msgwindow_visible = FALSE;
