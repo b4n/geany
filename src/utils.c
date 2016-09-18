@@ -60,6 +60,10 @@
 #include <glib/gstdio.h>
 #include <gio/gio.h>
 
+#ifdef G_OS_UNIX
+# include <pwd.h>
+#endif
+
 
 /**
  *  Tries to open the given URI in a browser.
@@ -2070,7 +2074,25 @@ gchar *utils_get_user_config_dir(void)
 #ifdef G_OS_WIN32
 	return win32_get_user_config_dir();
 #else
-	return g_build_filename(g_get_user_config_dir(), "geany", NULL);
+	GStatBuf buf;
+	uid_t uid = geteuid();
+	gchar *user_config_dir = g_build_filename(g_get_user_config_dir(), "geany", NULL);
+
+	/* On Unices, if the default configuration directory exists and is owned by another user,
+	 * assume it's something fishy like a privileged caller that forgot to update the environment
+	 * ($HOME/$XDG_CONFIG_HOME), and try to use the effective user's HOME instead. */
+	if (g_stat(user_config_dir, &buf) == 0 && buf.st_uid != uid)
+	{
+		struct passwd *pw = getpwuid(uid);
+
+		if (pw && pw->pw_dir)
+		{
+			g_free(user_config_dir);
+			user_config_dir = g_build_filename(pw->pw_dir, ".config", "geany", NULL);
+		}
+	}
+
+	return user_config_dir;
 #endif
 }
 
