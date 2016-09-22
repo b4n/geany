@@ -53,6 +53,8 @@ SRCS= \
 gtk/Converter.h \
 gtk/PlatGTK.cxx \
 gtk/ScintillaGTK.cxx \
+gtk/ScintillaGTKAccessible.c \
+gtk/ScintillaGTKAccessible.h \
 gtk/scintilla-marshal.c \
 gtk/scintilla-marshal.h \
 lexlib/Accessor.cxx \

@@ -73,6 +73,7 @@
 #endif
 
 #include "scintilla-marshal.h"
+#include "ScintillaGTKAccessible.h"
 
 #include "Converter.h"
 
@@ -3171,6 +3172,8 @@ void ScintillaGTK::ClassInit(OBJECT_CLASS* object_class, GtkWidgetClass *widget_
 	widget_class->unmap = UnMap;
 
 	container_class->forall = MainForAll;
+
+	gtk_widget_class_set_accessible_type(widget_class, SCINTILLA_TYPE_OBJECT_ACCESSIBLE);
 }
 
 static void scintilla_class_init(ScintillaClass *klass) {
