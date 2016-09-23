@@ -402,7 +402,7 @@ static gint scintilla_object_accessible_get_offset_at_point(AtkText *text, gint 
 		return -1;
 	}
 
-	return scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_POSITIONFROMPOINTCLOSE, x, y);
+	return scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_CHARPOSITIONFROMPOINTCLOSE, x, y);
 }
 
 #if 0 // FIXME
