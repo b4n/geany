@@ -388,7 +388,7 @@ static gint scintilla_object_accessible_get_offset_at_point(AtkText *text, gint 
 		return -1;
 
 	window = gtk_widget_get_window(widget);
-	gdk_window_get_origin (window, &x_widget, &y_widget);
+	gdk_window_get_origin(window, &x_widget, &y_widget);
 	if (coords == ATK_XY_SCREEN) {
 		x = x - x_widget;
 		y = y - y_widget;
@@ -402,74 +402,61 @@ static gint scintilla_object_accessible_get_offset_at_point(AtkText *text, gint 
 		return -1;
 	}
 
+	// FIXME: should we handle scrolling?
 	return scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_CHARPOSITIONFROMPOINTCLOSE, x, y);
 }
 
-#if 0 // FIXME
-static void
-gtk_text_view_accessible_get_character_extents (AtkText      *text,
-                                                gint          offset,
-                                                gint         *x,
-                                                gint         *y,
-                                                gint         *width,
-                                                gint         *height,
-                                                AtkCoordType  coords)
+static void scintilla_object_accessible_get_character_extents(AtkText *text, gint offset,
+		gint *x, gint *y, gint *width, gint *height, AtkCoordType coords)
 {
-	// TODO: implement this
-  GtkTextView *view;
-  GtkTextBuffer *buffer;
-  GtkTextIter iter;
-  GtkWidget *widget;
-  GdkRectangle rectangle;
-  GdkWindow *window;
-  gint x_widget, y_widget, x_window, y_window;
+	*x = *y = *height = *width = 0;
 
-  *x = 0;
-  *y = 0;
-  *width = 0;
-  *height = 0;
+	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
+	if (! widget)
+		return;
+	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
 
-  widget = gtk_accessible_get_widget (GTK_ACCESSIBLE (text));
-  if (widget == NULL)
-    return;
+	// FIXME: should we handle scrolling?
+	*x = scintilla_send_message(sci, SCI_POINTXFROMPOSITION, 0, offset);
+	*y = scintilla_send_message(sci, SCI_POINTYFROMPOSITION, 0, offset);
 
-  view = GTK_TEXT_VIEW (widget);
-  buffer = gtk_text_view_get_buffer (view);
-  gtk_text_buffer_get_iter_at_offset (buffer, &iter, offset);
-  gtk_text_view_get_iter_location (view, &iter, &rectangle);
+	int line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
+	*height = scintilla_send_message(sci, SCI_TEXTHEIGHT, line, 0);
 
-  window = gtk_text_view_get_window (view, GTK_TEXT_WINDOW_WIDGET);
-  if (window == NULL)
-    return;
+	int next_pos = scintilla_send_message(sci, SCI_POSITIONAFTER, offset, 0);
+	int next_x = scintilla_send_message(sci, SCI_POINTXFROMPOSITION, 0, next_pos);
+	if (next_x > *x) {
+		*width = next_x - *x;
+	} else if (next_pos > offset) {
+		/* maybe next position was on the next line or something.
+		 * just compute the expected character width */
+		int style = scintilla_send_message(sci, SCI_GETSTYLEAT, offset, 0);
+		gchar *ch = get_text_range(sci, offset, next_pos);
+		*width = scintilla_send_message(sci, SCI_TEXTWIDTH, style, (sptr_t) ch);
+		g_free(ch);
+	} else {
+		// possibly the last position on the document, so no character here.
+		*x = *y = *height = *width = 0;
+		return;
+	}
 
-  gdk_window_get_origin (window, &x_widget, &y_widget);
+	GdkWindow *window = gtk_widget_get_window(widget);
+	int x_widget, y_widget;
+	gdk_window_get_origin(window, &x_widget, &y_widget);
+	if (coords == ATK_XY_SCREEN) {
+		*x += x_widget;
+		*y += y_widget;
+	} else if (coords == ATK_XY_WINDOW) {
+		window = gdk_window_get_toplevel(window);
+		int x_window, y_window;
+		gdk_window_get_origin(window, &x_window, &y_window);
 
-  *height = rectangle.height;
-  *width = rectangle.width;
-
-  gtk_text_view_buffer_to_window_coords (view, GTK_TEXT_WINDOW_WIDGET,
-    rectangle.x, rectangle.y, x, y);
-  if (coords == ATK_XY_WINDOW)
-    {
-      window = gdk_window_get_toplevel (window);
-      gdk_window_get_origin (window, &x_window, &y_window);
-      *x += x_widget - x_window;
-      *y += y_widget - y_window;
-    }
-  else if (coords == ATK_XY_SCREEN)
-    {
-      *x += x_widget;
-      *y += y_widget;
-    }
-  else
-    {
-      *x = 0;
-      *y = 0;
-      *height = 0;
-      *width = 0;
-    }
+		*x += x_widget - x_window;
+		*y += y_widget - y_window;
+	} else {
+		*x = *y = *height = *width = 0;
+	}
 }
-#endif
 
 static AtkAttributeSet *add_text_attribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gchar *value)
 {
@@ -667,7 +654,7 @@ static void atk_text_interface_init (AtkTextIface *iface)
 	iface->get_caret_offset = scintilla_object_accessible_get_caret_offset;
 	iface->set_caret_offset = scintilla_object_accessible_set_caret_offset;
 	iface->get_offset_at_point = scintilla_object_accessible_get_offset_at_point;
-	//FIXME: iface->get_character_extents = scintilla_object_accessible_get_character_extents;
+	iface->get_character_extents = scintilla_object_accessible_get_character_extents;
 	iface->get_n_selections = scintilla_object_accessible_get_n_selections;
 	iface->get_selection = scintilla_object_accessible_get_selection;
 	iface->add_selection = scintilla_object_accessible_add_selection;
