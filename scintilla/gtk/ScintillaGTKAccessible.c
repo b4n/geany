@@ -1053,18 +1053,16 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 
 	switch (nt->nmhdr.code) {
 		case SCN_MODIFIED: {
-			switch (nt->modificationType) {
-				case SC_MOD_INSERTTEXT: {
-					// FIXME: check that
-					g_signal_emit_by_name(accessible, "text-changed::insert",
-					                      nt->position - nt->length, nt->length);
-					scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
-				} break;
-				case SC_MOD_DELETETEXT: {
-					// FIXME: check that
-					g_signal_emit_by_name(accessible, "text-changed::delete", nt->position, nt->length);
-					scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
-				} break;
+			if (nt->modificationType & SC_MOD_INSERTTEXT) {
+				// FIXME: check that
+				g_signal_emit_by_name(accessible, "text-changed::insert",
+				                      nt->position - nt->length, nt->length);
+				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
+			}
+			if (nt->modificationType & SC_MOD_DELETETEXT) {
+				// FIXME: check that
+				g_signal_emit_by_name(accessible, "text-changed::delete", nt->position, nt->length);
+				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
 			}
 		} break;
 		case SCN_UPDATEUI: {
