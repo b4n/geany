@@ -169,6 +169,7 @@ class ScintillaGTK : public ScintillaBase {
 	bool repaintFullWindow;
 
 	guint styleIdleID;
+	AtkObject *accessible;
 
 	// Private so ScintillaGTK objects can not be copied
 	ScintillaGTK(const ScintillaGTK &);
@@ -291,6 +292,8 @@ private:
 	gboolean ExposePreeditThis(GtkWidget *widget, GdkEventExpose *ose);
 	static gboolean ExposePreedit(GtkWidget *widget, GdkEventExpose *ose, ScintillaGTK *sciThis);
 #endif
+	AtkObject* GetAccessibleThis(GtkWidget *widget);
+	static AtkObject* GetAccessible(GtkWidget *widget);
 
 	bool KoreanIME();
 	void CommitThis(char *str);
@@ -397,7 +400,8 @@ ScintillaGTK::ScintillaGTK(_ScintillaObject *sci_) :
 		wheelMouseIntensity(0),
 		rgnUpdate(0),
 		repaintFullWindow(false),
-		styleIdleID(0) {
+		styleIdleID(0),
+		accessible(0) {
 	sci = sci_;
 	wMain = GTK_WIDGET(sci);
 
@@ -885,6 +889,12 @@ void ScintillaGTK::Finalise() {
 	for (TickReason tr = tickCaret; tr <= tickDwell; tr = static_cast<TickReason>(tr + 1)) {
 		FineTickerCancel(tr);
 	}
+	if (accessible) {
+		gtk_accessible_set_widget(GTK_ACCESSIBLE(accessible), NULL);
+		g_object_unref(accessible);
+		accessible = 0;
+	}
+
 	ScintillaBase::Finalise();
 }
 
@@ -3059,6 +3069,14 @@ gboolean ScintillaGTK::ExposeCT(GtkWidget *widget, GdkEventExpose * /*ose*/, Cal
 
 #endif
 
+AtkObject* ScintillaGTK::GetAccessibleThis(GtkWidget *widget) {
+	return scintilla_object_accessible_widget_get_accessible_impl(widget, &accessible, scintilla_class_parent_class);
+}
+
+AtkObject* ScintillaGTK::GetAccessible(GtkWidget *widget) {
+	return ScintillaFromWidget(widget)->GetAccessibleThis(widget);
+}
+
 sptr_t ScintillaGTK::DirectFunction(
     sptr_t ptr, unsigned int iMessage, uptr_t wParam, sptr_t lParam) {
 	return reinterpret_cast<ScintillaGTK *>(ptr)->WndProc(iMessage, wParam, lParam);
@@ -3171,9 +3189,9 @@ void ScintillaGTK::ClassInit(OBJECT_CLASS* object_class, GtkWidgetClass *widget_
 	widget_class->map = Map;
 	widget_class->unmap = UnMap;
 
-	container_class->forall = MainForAll;
+	widget_class->get_accessible = GetAccessible;
 
-	gtk_widget_class_set_accessible_type(widget_class, SCINTILLA_TYPE_OBJECT_ACCESSIBLE);
+	container_class->forall = MainForAll;
 }
 
 static void scintilla_class_init(ScintillaClass *klass) {

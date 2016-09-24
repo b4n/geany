@@ -1,12 +1,31 @@
 /* Scintilla source code edit control */
-/* ScintillaGTKAccessible.cxx - GTK+ accessibility for ScintillaGTK */
+/* ScintillaGTKAccessible.c - GTK+ accessibility for ScintillaGTK */
 /* Copyright 2016 by Colomban Wendling <colomban@geany.org>
  * The License.txt file describes the conditions under which this software may be distributed. */
 
-/* based on GtkTextViewAccessible
- * Copyright 2001, 2002, 2003 Sun Microsystems Inc.
- * GPL2
- * FIXME */
+// On GTK < 3.2, we need to use the AtkObjectFactory.  We need to query
+// the factory to see what type we should derive from, thus making use of
+// dynamic inheritance.  It's tricky, but it works so long as it's done
+// carefully enough.
+//
+// On GTK 3.2 through 3.6, we need to hack around because GTK stopped
+// registering its accessible types in the factory, so we can't query
+// them that way.  Unfortunately, the accessible types aren't exposed
+// yet (not until 3.8), so there's no proper way to know which type to
+// inherit from.  To work around this, we instantiate the parent's
+// AtkObject temporarily, and use it's type.  It means creating an extra
+// throwaway object and being able to pass the type information up to the
+// type registration code, but it's the only solution I could find.
+//
+// On GTK 3.8 onward, we use the proper exposed GtkContainerAccessible as
+// parent, and so a straightforward class.
+//
+// To hide and contain the complexity in type creation arising from the
+// hackish support for GTK 3.2 to 3.8, the actual implementation for the
+// widget's get_accessible() is located in the accessibility layer itself.
+
+// Initially based on GtkTextViewAccessible from GTK 3.20
+// Inspiration for the GTK < 3.2 part comes from Evince 2.24, thanks.
 
 #include <sys/types.h>
 
@@ -20,36 +39,190 @@
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
+// whether we have widget_set() and widget_unset()
+#define HAVE_WIDGET_SET_UNSET (GTK_CHECK_VERSION(3, 3, 6))
+// whether GTK accessibility is available through the ATK factory
+#define HAVE_GTK_FACTORY (! GTK_CHECK_VERSION(3, 1, 9))
+// whether we have gtk-a11y.h and the public GTK accessible types
+#define HAVE_GTK_A11Y_H (GTK_CHECK_VERSION(3, 7, 6))
+
+#if HAVE_GTK_A11Y_H
+# include <gtk/gtk-a11y.h>
+#endif
+
 #define GTK
 #include "ScintillaGTKAccessible.h"
 #include "Scintilla.h"
 #include "ScintillaWidget.h"
 
-struct _ScintillaObjectAccessiblePrivate
+typedef struct
 {
 	gboolean readonly;
 
 	gint pos;
 	GArray *carets;
 	GArray *anchors;
-};
+}
+ScintillaObjectAccessiblePrivate;
+
+typedef GtkAccessible ScintillaObjectAccessible;
+typedef GtkAccessibleClass ScintillaObjectAccessibleClass;
+
+#define SCINTILLA_OBJECT_ACCESSIBLE(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), SCINTILLA_TYPE_OBJECT_ACCESSIBLE, ScintillaObjectAccessible))
+#define SCINTILLA_TYPE_OBJECT_ACCESSIBLE (scintilla_object_accessible_get_type(0))
+
+// We can't use priv member because of dynamic inheritance, so we don't actually know the offset.  Meh.
+#define SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(inst) (G_TYPE_INSTANCE_GET_PRIVATE((inst), SCINTILLA_TYPE_OBJECT_ACCESSIBLE, ScintillaObjectAccessiblePrivate))
+
 
 static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt, gpointer data);
 
 static void atk_editable_text_interface_init(AtkEditableTextIface *iface);
 static void atk_text_interface_init(AtkTextIface *iface);
 
-G_DEFINE_TYPE_WITH_CODE(ScintillaObjectAccessible, scintilla_object_accessible, GTK_TYPE_CONTAINER_ACCESSIBLE,
-                        G_ADD_PRIVATE (ScintillaObjectAccessible)
-                        G_IMPLEMENT_INTERFACE (ATK_TYPE_EDITABLE_TEXT, atk_editable_text_interface_init)
-                        G_IMPLEMENT_INTERFACE (ATK_TYPE_TEXT, atk_text_interface_init))
+#if HAVE_GTK_FACTORY
+static GType scintilla_object_accessible_factory_get_type(void);
+#endif
+
+static void scintilla_object_accessible_init(ScintillaObjectAccessible *accessible);
+static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClass *klass);
+static gpointer scintilla_object_accessible_parent_class = NULL;
 
 
-static void scintilla_object_accessible_initialize(AtkObject *obj, gpointer data)
+// @p parent_type is only required on GTK 3.2 to 3.6, and only on the first call
+static GType scintilla_object_accessible_get_type(GType parent_type)
 {
-	ATK_OBJECT_CLASS (scintilla_object_accessible_parent_class)->initialize(obj, data);
+	static volatile gsize type_id_result = 0;
 
-	obj->role = ATK_ROLE_TEXT;
+	if (g_once_init_enter(&type_id_result)) {
+		GTypeInfo tinfo = {
+			0,															/* class size */
+			(GBaseInitFunc) NULL,										/* base init */
+			(GBaseFinalizeFunc) NULL,									/* base finalize */
+			(GClassInitFunc) scintilla_object_accessible_class_init,	/* class init */
+			(GClassFinalizeFunc) NULL,									/* class finalize */
+			NULL,														/* class data */
+			0,															/* instance size */
+			0,															/* nb preallocs */
+			(GInstanceInitFunc) scintilla_object_accessible_init,		/* instance init */
+			NULL														/* value table */
+		};
+
+		const GInterfaceInfo atk_text_info = {
+			(GInterfaceInitFunc) atk_text_interface_init,
+			(GInterfaceFinalizeFunc) NULL,
+			NULL
+		};
+
+		const GInterfaceInfo atk_editable_text_info = {
+			(GInterfaceInitFunc) atk_editable_text_interface_init,
+			(GInterfaceFinalizeFunc) NULL,
+			NULL
+		};
+
+#if HAVE_GTK_A11Y_H
+		// good, we have gtk-a11y.h, we can use that
+		GType derived_atk_type = GTK_TYPE_CONTAINER_ACCESSIBLE;
+		tinfo.class_size = sizeof (GtkContainerAccessibleClass);
+		tinfo.instance_size = sizeof (GtkContainerAccessible);
+#else // ! HAVE_GTK_A11Y_H
+# if HAVE_GTK_FACTORY
+		// Figure out the size of the class and instance we are deriving from through the registry
+		GType derived_type = g_type_parent(SCINTILLA_TYPE_OBJECT);
+		AtkObjectFactory *factory = atk_registry_get_factory(atk_get_default_registry(), derived_type);
+		GType derived_atk_type = atk_object_factory_get_accessible_type(factory);
+# else // ! HAVE_GTK_FACTORY
+		// We're kind of screwed and can't determine the parent (no registry, and no public type)
+		// Hack your way around by requiring the caller to give us our parent type.  The caller
+		// might be able to trick its way into doing that, by e.g. instantiating the parent's
+		// accessible type and get its GType.  It's ugly but we can't do better on GTK 3.2 to 3.6.
+		g_assert(parent_type != 0);
+
+		GType derived_atk_type = parent_type;
+# endif // ! HAVE_GTK_FACTORY
+
+		GTypeQuery query;
+		g_type_query(derived_atk_type, &query);
+		tinfo.class_size = query.class_size;
+		tinfo.instance_size = query.instance_size;
+#endif // ! HAVE_GTK_A11Y_H
+
+		GType type_id = g_type_register_static(derived_atk_type, "ScintillaObjectAccessible", &tinfo, 0);
+		g_type_add_interface_static(type_id, ATK_TYPE_TEXT, &atk_text_info);
+		g_type_add_interface_static(type_id, ATK_TYPE_EDITABLE_TEXT, &atk_editable_text_info);
+
+		g_once_init_leave(&type_id_result, type_id);
+	}
+
+	return type_id_result;
+}
+
+static AtkObject *scintilla_object_accessible_new(GType parent_type, GObject *obj)
+{
+	g_return_val_if_fail(SCINTILLA_IS_OBJECT(obj), NULL);
+
+	AtkObject *accessible = g_object_new(scintilla_object_accessible_get_type(parent_type),
+#if HAVE_WIDGET_SET_UNSET
+		"widget", obj,
+#endif
+		NULL);
+	atk_object_initialize(accessible, obj);
+
+	return accessible;
+}
+
+// implementation for get_widget_get_accessible().
+// See the comment at the top of the file for details on the implementation
+// @p widget the widget.
+// @p cache pointer to store the AtkObject between repeated calls.  Might or might not be filled.
+// @p widget_parent_class pointer to the widget's parent class (to chain up method calls).
+AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *widget, AtkObject **cache, gpointer widget_parent_class)
+{
+#if HAVE_GTK_A11Y_H // just instantiate the accessible
+	if (*cache == NULL) {
+		*cache = scintilla_object_accessible_new(0, G_OBJECT(widget));
+	}
+	return *cache;
+#elif HAVE_GTK_FACTORY // register in the factory and let GTK instantiate
+	static volatile gsize registered = 0;
+
+	if (g_once_init_enter(&registered)) {
+		// Figure out whether accessibility is enabled by looking at the type of the accessible
+		// object which would be created for the parent type of ScintillaObject.
+		GType derived_type = g_type_parent(SCINTILLA_TYPE_OBJECT);
+
+		AtkRegistry *registry = atk_get_default_registry();
+		AtkObjectFactory *factory = atk_registry_get_factory(registry, derived_type);
+		GType derived_atk_type = atk_object_factory_get_accessible_type(factory);
+		if (g_type_is_a(derived_atk_type, GTK_TYPE_ACCESSIBLE)) {
+			atk_registry_set_factory_type(registry, SCINTILLA_TYPE_OBJECT,
+			                              scintilla_object_accessible_factory_get_type());
+		}
+		g_once_init_leave(&registered, 1);
+	}
+	return GTK_WIDGET_CLASS(widget_parent_class)->get_accessible(widget);
+#else // no public API, no factory, so guess from the parent and instantiate
+	if (*cache == NULL) {
+		static GType parent_atk_type = 0;
+
+		if (parent_atk_type == 0) {
+			AtkObject *parent_obj = GTK_WIDGET_CLASS(widget_parent_class)->get_accessible(widget);
+			if (parent_obj) {
+				GType parent_atk_type = G_OBJECT_TYPE(parent_obj);
+
+				// Figure out whether accessibility is enabled by looking at the type of the accessible
+				// object which would be created for the parent type of ScintillaObject.
+				if (g_type_is_a(parent_atk_type, GTK_TYPE_ACCESSIBLE)) {
+					*cache = scintilla_object_accessible_new(parent_atk_type, G_OBJECT(widget));
+					g_object_unref(parent_obj);
+				} else {
+					*cache = parent_obj;
+				}
+			}
+		}
+	}
+	return *cache;
+#endif
 }
 
 static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessible)
@@ -74,23 +247,20 @@ static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessi
 }
 
 /* FIXME: how to get notified about document changes? */
-static void scintilla_object_accessible_change_document(ScintillaObjectAccessible *accessible, void *old_doc, void *new_doc)
+static void scintilla_object_accessible_change_document(ScintillaObjectAccessible *accessible, ScintillaObject *sci, void *old_doc, void *new_doc)
 {
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(accessible));
-	if (widget == NULL)
-		return;
-
 	if (old_doc) {
 		g_signal_emit_by_name(accessible, "text-changed::delete", 0,
-		                      scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETLENGTH, 0, 0));
-    }
+		                      scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
+	}
 
 	if (new_doc)
 	{
 		g_signal_emit_by_name(accessible, "text-changed::inserted", 0,
-		                      scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETLENGTH, 0, 0));
+		                      scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
 
-		accessible->priv->readonly = scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETREADONLY, 0, 0);
+		ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
+		priv->readonly = scintilla_send_message(sci, SCI_GETREADONLY, 0, 0);
 	}
 }
 
@@ -100,54 +270,73 @@ static void scintilla_object_accessible_widget_set(GtkAccessible *accessible)
 	if (widget == NULL)
 		return;
 
-	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible),
+	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible), SCINTILLA_OBJECT(widget),
 			NULL, (void*) scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETDOCPOINTER, 0, 0));
 
 	g_signal_connect(widget, "sci-notify", G_CALLBACK(sci_notify_handler), accessible);
 }
 
+#if HAVE_WIDGET_SET_UNSET
 static void scintilla_object_accessible_widget_unset(GtkAccessible *accessible)
 {
 	GtkWidget *widget = gtk_accessible_get_widget(accessible);
 	if (widget == NULL)
 		return;
 
-	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible),
+	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible), SCINTILLA_OBJECT(widget),
 			(void*) scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETDOCPOINTER, 0, 0), NULL);
+}
+#endif
+
+static void scintilla_object_accessible_initialize(AtkObject *obj, gpointer data)
+{
+	ATK_OBJECT_CLASS(scintilla_object_accessible_parent_class)->initialize(obj, data);
+
+#if ! HAVE_WIDGET_SET_UNSET
+	scintilla_object_accessible_widget_set(GTK_ACCESSIBLE(obj));
+#endif
+
+	obj->role = ATK_ROLE_TEXT;
 }
 
 static void scintilla_object_accessible_finalize(GObject *object)
 {
-	ScintillaObjectAccessible *accessible = SCINTILLA_OBJECT_ACCESSIBLE(object);
+	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(object);
 
-	g_array_free(accessible->priv->carets, TRUE);
-	g_array_free(accessible->priv->anchors, TRUE);
+	g_array_free(priv->carets, TRUE);
+	g_array_free(priv->anchors, TRUE);
 }
 
 static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClass *klass)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
 	AtkObjectClass *object_class = ATK_OBJECT_CLASS(klass);
-	GtkAccessibleClass *accessible_class = GTK_ACCESSIBLE_CLASS(klass);
 
+#if HAVE_WIDGET_SET_UNSET
+	GtkAccessibleClass *accessible_class = GTK_ACCESSIBLE_CLASS(klass);
 	accessible_class->widget_set = scintilla_object_accessible_widget_set;
 	accessible_class->widget_unset = scintilla_object_accessible_widget_unset;
+#endif
 
 	object_class->ref_state_set = scintilla_object_accessible_ref_state_set;
 	object_class->initialize = scintilla_object_accessible_initialize;
 
 	gobject_class->finalize = scintilla_object_accessible_finalize;
+
+	scintilla_object_accessible_parent_class = g_type_class_peek_parent(klass);
+
+	g_type_class_add_private(klass, sizeof (ScintillaObjectAccessiblePrivate));
 }
 
 static void scintilla_object_accessible_init(ScintillaObjectAccessible *accessible)
 {
-	accessible->priv = scintilla_object_accessible_get_instance_private(accessible);
+	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
 
-	accessible->priv->pos = 0;
-	accessible->priv->readonly = FALSE;
+	priv->pos = 0;
+	priv->readonly = FALSE;
 
-	accessible->priv->carets = g_array_new(FALSE, FALSE, sizeof(int));
-	accessible->priv->anchors = g_array_new(FALSE, FALSE, sizeof(int));
+	priv->carets = g_array_new(FALSE, FALSE, sizeof(int));
+	priv->anchors = g_array_new(FALSE, FALSE, sizeof(int));
 }
 
 static gchar *get_text_range(ScintillaObject *sci, gint start_offset, gint end_offset)
@@ -826,30 +1015,32 @@ static void atk_editable_text_interface_init (AtkEditableTextIface *iface)
 
 static void scintilla_object_accessible_update_cursor(ScintillaObjectAccessible *accessible, ScintillaObject *sci)
 {
+	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
+
 	int pos = scintilla_send_message(sci, SCI_GETCURRENTPOS, 0, 0);
-	if (accessible->priv->pos != pos) {
+	if (priv->pos != pos) {
 		g_signal_emit_by_name(accessible, "text-caret-moved", pos);
-		accessible->priv->pos = pos;
+		priv->pos = pos;
 	}
 
 	int n_selections = scintilla_send_message(sci, SCI_GETSELECTIONS, 0, 0);
-	int prev_n_selections = accessible->priv->carets->len;
+	int prev_n_selections = priv->carets->len;
 	gboolean selection_changed = n_selections != prev_n_selections;
 
-	g_array_set_size(accessible->priv->carets, n_selections);
-	g_array_set_size(accessible->priv->anchors, n_selections);
+	g_array_set_size(priv->carets, n_selections);
+	g_array_set_size(priv->anchors, n_selections);
 	for (int i = 0; i < n_selections; i++) {
 		int caret = scintilla_send_message(sci, SCI_GETSELECTIONNSTART, i, 0);
 		int anchor = scintilla_send_message(sci, SCI_GETSELECTIONNEND, i, 0);
 
 		if (i < prev_n_selections && ! selection_changed) {
-			int prev_caret = g_array_index(accessible->priv->carets, int, i);
-			int prev_anchor = g_array_index(accessible->priv->anchors, int, i);
+			int prev_caret = g_array_index(priv->carets, int, i);
+			int prev_anchor = g_array_index(priv->anchors, int, i);
 			selection_changed = (prev_caret != caret || prev_anchor != anchor);
 		}
 
-		g_array_index(accessible->priv->carets, int, i) = caret;
-		g_array_index(accessible->priv->anchors, int, i) = anchor;
+		g_array_index(priv->carets, int, i) = caret;
+		g_array_index(priv->anchors, int, i) = anchor;
 	}
 
 	if (selection_changed)
@@ -880,10 +1071,11 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 			if (nt->updated & SC_UPDATE_SELECTION) {
 				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
 			}
+			ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
 			int readonly = scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETREADONLY, 0, 0);
-			if (accessible->priv->readonly != readonly) {
+			if (priv->readonly != readonly) {
 				atk_object_notify_state_change(gtk_widget_get_accessible(widget), ATK_STATE_EDITABLE, ! readonly);
-				accessible->priv->readonly = readonly;
+				priv->readonly = readonly;
 			}
 		} break;
 	}
@@ -906,5 +1098,33 @@ _gtk_text_view_accessible_set_buffer (GtkTextView   *textview,
   gtk_text_view_accessible_change_buffer (accessible,
                                           old_buffer,
                                           gtk_text_view_get_buffer (textview));
+}
+#endif
+
+#if HAVE_GTK_FACTORY
+// Object factory
+typedef AtkObjectFactory ScintillaObjectAccessibleFactory;
+typedef AtkObjectFactoryClass ScintillaObjectAccessibleFactoryClass;
+
+G_DEFINE_TYPE(ScintillaObjectAccessibleFactory, scintilla_object_accessible_factory, ATK_TYPE_OBJECT_FACTORY)
+
+static void scintilla_object_accessible_factory_init(ScintillaObjectAccessibleFactory *factory)
+{
+}
+
+static GType scintilla_object_accessible_factory_get_accessible_type(void)
+{
+	return SCINTILLA_TYPE_OBJECT_ACCESSIBLE;
+}
+
+static AtkObject *scintilla_object_accessible_factory_create_accessible(GObject *obj)
+{
+	return scintilla_object_accessible_new(0, obj);
+}
+
+static void scintilla_object_accessible_factory_class_init(AtkObjectFactoryClass * klass)
+{
+	klass->create_accessible = scintilla_object_accessible_factory_create_accessible;
+	klass->get_accessible_type = scintilla_object_accessible_factory_get_accessible_type;
 }
 #endif
