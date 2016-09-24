@@ -1064,6 +1064,9 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 				g_signal_emit_by_name(accessible, "text-changed::delete", nt->position, nt->length);
 				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
 			}
+			if (nt->modificationType & SC_MOD_CHANGESTYLE) {
+				g_signal_emit_by_name(accessible, "text-attributes-changed");
+			}
 		} break;
 		case SCN_UPDATEUI: {
 			if (nt->updated & SC_UPDATE_SELECTION) {
