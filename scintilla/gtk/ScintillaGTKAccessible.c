@@ -57,6 +57,8 @@
 
 typedef struct
 {
+	void *doc;
+
 	gboolean readonly;
 
 	gint pos;
@@ -74,6 +76,8 @@ typedef GtkAccessibleClass ScintillaObjectAccessibleClass;
 // We can't use priv member because of dynamic inheritance, so we don't actually know the offset.  Meh.
 #define SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(inst) (G_TYPE_INSTANCE_GET_PRIVATE((inst), SCINTILLA_TYPE_OBJECT_ACCESSIBLE, ScintillaObjectAccessiblePrivate))
 
+
+static void scintilla_object_accessible_update_cursor(ScintillaObjectAccessible *accessible, ScintillaObject *sci);
 
 static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt, gpointer data);
 
@@ -246,10 +250,17 @@ static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessi
 	return state_set;
 }
 
-/* FIXME: how to get notified about document changes? */
-static void scintilla_object_accessible_change_document(ScintillaObjectAccessible *accessible, ScintillaObject *sci, void *old_doc, void *new_doc)
+// FIXME: this doesn't seem to really work, Orca doesn't read nothing when the document changes
+//        OTOH, GtkTextView has the same problem, so maybe it's Orca's fault?
+static void scintilla_object_accessible_change_document(ScintillaObjectAccessible *accessible, ScintillaObject *sci, void *new_doc)
 {
-	if (old_doc) {
+	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
+
+	if (new_doc == priv->doc) {
+		return;
+	}
+
+	if (priv->doc) {
 		// FIXME: we need to query the *previous* document, not the current one
 		g_signal_emit_by_name(accessible, "text-changed::delete", 0,
 		                      (gint) scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
@@ -260,9 +271,17 @@ static void scintilla_object_accessible_change_document(ScintillaObjectAccessibl
 		g_signal_emit_by_name(accessible, "text-changed::insert", 0,
 		                      (gint) scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
 
-		ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
+		// FIXME: should we really reinit readonly here?  we probably should notify the accessible
 		priv->readonly = scintilla_send_message(sci, SCI_GETREADONLY, 0, 0);
+
+		// update cursor and selection
+		priv->pos = -1;
+		g_array_set_size(priv->carets, 0);
+		g_array_set_size(priv->anchors, 0);
+		scintilla_object_accessible_update_cursor(accessible, sci);
 	}
+
+	priv->doc = new_doc;
 }
 
 static void scintilla_object_accessible_widget_set(GtkAccessible *accessible)
@@ -272,7 +291,7 @@ static void scintilla_object_accessible_widget_set(GtkAccessible *accessible)
 		return;
 
 	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible), SCINTILLA_OBJECT(widget),
-			NULL, (void*) scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETDOCPOINTER, 0, 0));
+			(void*) scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETDOCPOINTER, 0, 0));
 
 	g_signal_connect(widget, "sci-notify", G_CALLBACK(sci_notify_handler), accessible);
 }
@@ -284,8 +303,7 @@ static void scintilla_object_accessible_widget_unset(GtkAccessible *accessible)
 	if (widget == NULL)
 		return;
 
-	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible), SCINTILLA_OBJECT(widget),
-			(void*) scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETDOCPOINTER, 0, 0), NULL);
+	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible), SCINTILLA_OBJECT(widget), NULL);
 }
 #endif
 
@@ -332,6 +350,8 @@ static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClas
 static void scintilla_object_accessible_init(ScintillaObjectAccessible *accessible)
 {
 	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
+
+	priv->doc = NULL;
 
 	priv->pos = 0;
 	priv->readonly = FALSE;
@@ -1070,11 +1090,19 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 			}
 		} break;
 		case SCN_UPDATEUI: {
-			if (nt->updated & SC_UPDATE_SELECTION) {
-				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
-			}
 			ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
-			int readonly = scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETREADONLY, 0, 0);
+			ScintillaObject *sci = SCINTILLA_OBJECT(widget);
+
+			if (nt->updated & SC_UPDATE_SELECTION) {
+				scintilla_object_accessible_update_cursor(accessible, sci);
+
+				// SC_UPDATE_SELECTION is the only signal we get when DOCPOINTER changes, so check here
+				const void *doc = (void*) scintilla_send_message(sci, SCI_GETDOCPOINTER, 0, 0);
+				if (doc != priv->doc) {
+					scintilla_object_accessible_change_document(accessible, sci, doc);
+				}
+			}
+			int readonly = scintilla_send_message(sci, SCI_GETREADONLY, 0, 0);
 			if (priv->readonly != readonly) {
 				atk_object_notify_state_change(gtk_widget_get_accessible(widget), ATK_STATE_EDITABLE, ! readonly);
 				priv->readonly = readonly;
