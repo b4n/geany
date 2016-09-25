@@ -1099,7 +1099,7 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 				scintilla_object_accessible_update_cursor(accessible, sci);
 
 				// SC_UPDATE_SELECTION is the only signal we get when DOCPOINTER changes, so check here
-				const void *doc = (void*) scintilla_send_message(sci, SCI_GETDOCPOINTER, 0, 0);
+				void *doc = (void*) scintilla_send_message(sci, SCI_GETDOCPOINTER, 0, 0);
 				if (doc != priv->doc) {
 					scintilla_object_accessible_change_document(accessible, sci, doc);
 				}
