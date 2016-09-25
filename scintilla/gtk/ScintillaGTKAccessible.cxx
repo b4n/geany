@@ -153,7 +153,7 @@ static GType scintilla_object_accessible_get_type(GType parent_type)
 		tinfo.instance_size = query.instance_size;
 #endif // ! HAVE_GTK_A11Y_H
 
-		GType type_id = g_type_register_static(derived_atk_type, "ScintillaObjectAccessible", &tinfo, 0);
+		GType type_id = g_type_register_static(derived_atk_type, "ScintillaObjectAccessible", &tinfo, (GTypeFlags) 0);
 		g_type_add_interface_static(type_id, ATK_TYPE_TEXT, &atk_text_info);
 		g_type_add_interface_static(type_id, ATK_TYPE_EDITABLE_TEXT, &atk_editable_text_info);
 
@@ -167,7 +167,7 @@ static AtkObject *scintilla_object_accessible_new(GType parent_type, GObject *ob
 {
 	g_return_val_if_fail(SCINTILLA_IS_OBJECT(obj), NULL);
 
-	AtkObject *accessible = g_object_new(scintilla_object_accessible_get_type(parent_type),
+	AtkObject *accessible = (AtkObject *) g_object_new(scintilla_object_accessible_get_type(parent_type),
 #if HAVE_WIDGET_SET_UNSET
 		"widget", obj,
 #endif
@@ -371,7 +371,7 @@ static gchar *get_text_range(ScintillaObject *sci, gint start_offset, gint end_o
 
 	range.chrg.cpMin = start_offset;
 	range.chrg.cpMax = end_offset;
-	range.lpstrText = g_malloc(end_offset - start_offset + 1);
+	range.lpstrText = (char *) g_malloc(end_offset - start_offset + 1);
 	scintilla_send_message(sci, SCI_GETTEXTRANGE, 0, (sptr_t) &range);
 
 	return range.lpstrText;
@@ -704,7 +704,7 @@ static AtkAttributeSet *get_attributes_for_style(ScintillaObject *sci, gint styl
 	AtkAttributeSet *attr_set = NULL;
 
 	const int font_len = scintilla_send_message(sci, SCI_STYLEGETFONT, style, 0);
-	gchar *font = g_malloc(font_len + 1);
+	gchar *font = (char *) g_malloc(font_len + 1);
 	scintilla_send_message(sci, SCI_STYLEGETFONT, style, (sptr_t) font);
 	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_FAMILY_NAME, font);
 
@@ -808,7 +808,7 @@ static gchar *scintilla_object_accessible_get_selection(AtkText *atk_text, gint 
 		range.chrg.cpMax = tmp;
 	}
 
-	range.lpstrText = g_malloc(range.chrg.cpMax - range.chrg.cpMin + 1);
+	range.lpstrText = (char *) g_malloc(range.chrg.cpMax - range.chrg.cpMin + 1);
 	scintilla_send_message(sci, SCI_GETTEXTRANGE, 0, (sptr_t) &range);
 
 	return range.lpstrText;
@@ -961,7 +961,7 @@ static void scintilla_object_accessible_cut_text(AtkEditableText *text, gint sta
 		struct Sci_TextRange range;
 		range.chrg.cpMin = start;
 		range.chrg.cpMax = end;
-		range.lpstrText = g_malloc(range.chrg.cpMax - range.chrg.cpMin + 1);
+		range.lpstrText = (char *) g_malloc(range.chrg.cpMax - range.chrg.cpMin + 1);
 		scintilla_send_message(sci, SCI_GETTEXTRANGE, 0, (sptr_t) &range);
 		scintilla_send_message(sci, SCI_COPYTEXT, range.chrg.cpMax - range.chrg.cpMin + 1, (sptr_t) range.lpstrText);
 		scintilla_send_message(sci, SCI_SETTARGETRANGE, start, end);
@@ -1008,7 +1008,7 @@ static void paste_received(GtkClipboard *clipboard, const gchar *text, gpointer 
 		if (paste->doc != (void*) scintilla_send_message(paste->sci, SCI_GETDOCPOINTER, 0, 0)) {
 			// dammit, doc pointer changed (unlikely, but who knows)
 			g_object_unref(paste->sci);
-			paste->sci = g_object_ref_sink(scintilla_object_new());
+			paste->sci = (ScintillaObject *) g_object_ref_sink(scintilla_object_new());
 			scintilla_send_message(paste->sci, SCI_SETDOCPOINTER, 0, (sptr_t) paste->doc);
 		}
 
@@ -1089,7 +1089,7 @@ static void scintilla_object_accessible_update_cursor(ScintillaObjectAccessible 
 
 static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt, gpointer data)
 {
-	ScintillaObjectAccessible *accessible = data;
+	ScintillaObjectAccessible *accessible = (ScintillaObjectAccessible *) data;
 
 	switch (nt->nmhdr.code) {
 		case SCN_MODIFIED: {
