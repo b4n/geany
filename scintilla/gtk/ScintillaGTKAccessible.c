@@ -875,7 +875,9 @@ static void atk_text_interface_init (AtkTextIface *iface)
 	iface->get_text_after_offset = scintilla_object_accessible_get_text_after_offset;
 	iface->get_text_at_offset = scintilla_object_accessible_get_text_at_offset;
 	iface->get_text_before_offset = scintilla_object_accessible_get_text_before_offset;
+#if ATK_CHECK_VERSION(2, 10, 0)
 	iface->get_string_at_offset = scintilla_object_accessible_get_string_at_offset;
+#endif
 	iface->get_character_at_offset = scintilla_object_accessible_get_character_at_offset;
 	iface->get_character_count = scintilla_object_accessible_get_character_count;
 	iface->get_caret_offset = scintilla_object_accessible_get_caret_offset;
