@@ -27,6 +27,8 @@
 // Initially based on GtkTextViewAccessible from GTK 3.20
 // Inspiration for the GTK < 3.2 part comes from Evince 2.24, thanks.
 
+// FIXME: report characters rather than bytes
+
 #include <sys/types.h>
 
 #ifdef HAVE_UNISTD_H
