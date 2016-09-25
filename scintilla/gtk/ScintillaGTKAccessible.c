@@ -250,14 +250,15 @@ static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessi
 static void scintilla_object_accessible_change_document(ScintillaObjectAccessible *accessible, ScintillaObject *sci, void *old_doc, void *new_doc)
 {
 	if (old_doc) {
+		// FIXME: we need to query the *previous* document, not the current one
 		g_signal_emit_by_name(accessible, "text-changed::delete", 0,
-		                      scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
+		                      (gint) scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
 	}
 
 	if (new_doc)
 	{
-		g_signal_emit_by_name(accessible, "text-changed::inserted", 0,
-		                      scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
+		g_signal_emit_by_name(accessible, "text-changed::insert", 0,
+		                      (gint) scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
 
 		ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
 		priv->readonly = scintilla_send_message(sci, SCI_GETREADONLY, 0, 0);
@@ -1056,12 +1057,12 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 			if (nt->modificationType & SC_MOD_INSERTTEXT) {
 				// FIXME: check that
 				g_signal_emit_by_name(accessible, "text-changed::insert",
-				                      nt->position - nt->length, nt->length);
+				                      (gint) (nt->position - nt->length), (gint) nt->length);
 				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
 			}
 			if (nt->modificationType & SC_MOD_DELETETEXT) {
 				// FIXME: check that
-				g_signal_emit_by_name(accessible, "text-changed::delete", nt->position, nt->length);
+				g_signal_emit_by_name(accessible, "text-changed::delete", (gint) nt->position, (gint) nt->length);
 				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
 			}
 			if (nt->modificationType & SC_MOD_CHANGESTYLE) {
