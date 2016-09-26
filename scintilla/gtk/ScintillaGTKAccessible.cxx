@@ -1176,7 +1176,7 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 			if (nt->modificationType & SC_MOD_INSERTTEXT) {
 				// FIXME: check that
 				g_signal_emit_by_name(accessible, "text-changed::insert",
-				                      (gint) (nt->position - nt->length), (gint) nt->length);
+				                      (gint) nt->position, (gint) nt->length);
 				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
 			}
 			if (nt->modificationType & SC_MOD_DELETETEXT) {
