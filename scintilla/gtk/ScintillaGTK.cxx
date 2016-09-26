@@ -72,6 +72,7 @@
 #include "ExternalLexer.h"
 #endif
 
+#include "ScintillaGTK.h"
 #include "scintilla-marshal.h"
 #include "ScintillaGTKAccessible.h"
 
@@ -388,6 +389,10 @@ static GtkWidget *PWidget(Window &w) {
 static ScintillaGTK *ScintillaFromWidget(GtkWidget *widget) {
 	ScintillaObject *scio = SCINTILLA(widget);
 	return static_cast<ScintillaGTK *>(scio->pscin);
+}
+
+ScintillaBase *ScintillaBaseFromWidget(GtkWidget *widget) {
+	return ScintillaFromWidget(widget);
 }
 
 ScintillaGTK::ScintillaGTK(_ScintillaObject *sci_) :

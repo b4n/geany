@@ -53,13 +53,65 @@
 #endif
 
 #define GTK
+
+// ScintillaGTK.h and stuff it needs
+#include <stdexcept>
+#include <new>
+#include <string>
+#include <vector>
+#include <map>
+#include <algorithm>
+
+#include "Platform.h"
+
+#include "ILexer.h"
+#include "Scintilla.h"
+#include "ScintillaWidget.h"
+#ifdef SCI_LEXER
+#include "SciLexer.h"
+#endif
+#include "StringCopy.h"
+#ifdef SCI_LEXER
+#include "LexerModule.h"
+#endif
+#include "Position.h"
+#include "SplitVector.h"
+#include "Partitioning.h"
+#include "RunStyles.h"
+#include "ContractionState.h"
+#include "CellBuffer.h"
+#include "CallTip.h"
+#include "KeyMap.h"
+#include "Indicator.h"
+#include "XPM.h"
+#include "LineMarker.h"
+#include "Style.h"
+#include "ViewStyle.h"
+#include "CharClassify.h"
+#include "Decoration.h"
+#include "CaseFolder.h"
+#include "Document.h"
+#include "CaseConvert.h"
+#include "UniConversion.h"
+#include "UnicodeFromUTF8.h"
+#include "Selection.h"
+#include "PositionCache.h"
+#include "EditModel.h"
+#include "MarginView.h"
+#include "EditView.h"
+#include "Editor.h"
+#include "AutoComplete.h"
+#include "ScintillaBase.h"
+
+#include "ScintillaGTK.h"
+
 #include "ScintillaGTKAccessible.h"
 #include "Scintilla.h"
 #include "ScintillaWidget.h"
 
 typedef struct
 {
-	void *doc;
+	Document *doc;
 
 	gboolean readonly;
 
@@ -254,7 +306,7 @@ static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessi
 
 // FIXME: this doesn't seem to really work, Orca doesn't read nothing when the document changes
 //        OTOH, GtkTextView has the same problem, so maybe it's Orca's fault?
-static void scintilla_object_accessible_change_document(ScintillaObjectAccessible *accessible, ScintillaObject *sci, void *new_doc)
+static void scintilla_object_accessible_change_document(ScintillaObjectAccessible *accessible, ScintillaObject *sci, Document *new_doc)
 {
 	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
 
@@ -264,14 +316,15 @@ static void scintilla_object_accessible_change_document(ScintillaObjectAccessibl
 
 	if (priv->doc) {
 		// FIXME: we need to query the *previous* document, not the current one
-		g_signal_emit_by_name(accessible, "text-changed::delete", 0,
-		                      (gint) scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
+		g_signal_emit_by_name(accessible, "text-changed::delete", 0, (gint) priv->doc->Length());
+		priv->doc->Release();
 	}
 
 	if (new_doc)
 	{
-		g_signal_emit_by_name(accessible, "text-changed::insert", 0,
-		                      (gint) scintilla_send_message(sci, SCI_GETLENGTH, 0, 0));
+		new_doc->AddRef();
+
+		g_signal_emit_by_name(accessible, "text-changed::insert", 0, (gint) new_doc->Length());
 
 		// FIXME: should we really reinit readonly here?  we probably should notify the accessible
 		priv->readonly = scintilla_send_message(sci, SCI_GETREADONLY, 0, 0);
@@ -293,7 +346,7 @@ static void scintilla_object_accessible_widget_set(GtkAccessible *accessible)
 		return;
 
 	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible), SCINTILLA_OBJECT(widget),
-			(void*) scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETDOCPOINTER, 0, 0));
+			ScintillaBaseFromWidget(widget)->pdoc);
 
 	g_signal_connect(widget, "sci-notify", G_CALLBACK(sci_notify_handler), accessible);
 }
@@ -995,8 +1048,7 @@ static void scintilla_object_accessible_delete_text(AtkEditableText *text, gint 
 
 typedef struct
 {
-	ScintillaObject *sci;
-	void *doc;
+	Document *doc;
 	gint position;
 } PasteData;
 
@@ -1005,18 +1057,10 @@ static void paste_received(GtkClipboard *clipboard, const gchar *text, gpointer 
 	PasteData *paste = (PasteData *) data;
 
 	if (text) {
-		if (paste->doc != (void*) scintilla_send_message(paste->sci, SCI_GETDOCPOINTER, 0, 0)) {
-			// dammit, doc pointer changed (unlikely, but who knows)
-			g_object_unref(paste->sci);
-			paste->sci = (ScintillaObject *) g_object_ref_sink(scintilla_object_new());
-			scintilla_send_message(paste->sci, SCI_SETDOCPOINTER, 0, (sptr_t) paste->doc);
-		}
-
-		insert_text(paste->sci, text, strlen(text), &paste->position);
+		paste->doc->InsertString(paste->position, text, (int) strlen(text));
 	}
 
-	scintilla_send_message(paste->sci, SCI_RELEASEDOCUMENT, 0, (sptr_t) paste->doc);
-	g_object_unref(paste->sci);
+	paste->doc->Release();
 }
 
 static void scintilla_object_accessible_paste_text(AtkEditableText *text, gint position)
@@ -1027,13 +1071,11 @@ static void scintilla_object_accessible_paste_text(AtkEditableText *text, gint p
 	if (widget == NULL)
 		return;
 
-	paste.sci = SCINTILLA_OBJECT(widget);
-	if (scintilla_send_message(paste.sci, SCI_GETREADONLY, 0, 0))
+	if (scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETREADONLY, 0, 0))
 		return;
 
-	g_object_ref(paste.sci);
-	paste.doc = (void*) scintilla_send_message(paste.sci, SCI_GETDOCPOINTER, 0, 0);
-	scintilla_send_message(paste.sci, SCI_ADDREFDOCUMENT, 0, (sptr_t) paste.doc);
+	paste.doc = ScintillaBaseFromWidget(widget)->pdoc;
+	paste.doc->AddRef();
 	paste.position = position;
 
 	GtkClipboard *clipboard = gtk_widget_get_clipboard(widget, GDK_SELECTION_CLIPBOARD);
@@ -1116,7 +1158,7 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 				scintilla_object_accessible_update_cursor(accessible, sci);
 
 				// SC_UPDATE_SELECTION is the only signal we get when DOCPOINTER changes, so check here
-				void *doc = (void*) scintilla_send_message(sci, SCI_GETDOCPOINTER, 0, 0);
+				Document *doc = ScintillaBaseFromWidget(widget)->pdoc;
 				if (doc != priv->doc) {
 					scintilla_object_accessible_change_document(accessible, sci, doc);
 				}
