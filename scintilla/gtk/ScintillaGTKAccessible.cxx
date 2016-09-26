@@ -1156,7 +1156,9 @@ static void scintilla_object_accessible_update_cursor(ScintillaObjectAccessible 
 		if (i < prev_n_selections && ! selection_changed) {
 			int prev_caret = g_array_index(priv->carets, int, i);
 			int prev_anchor = g_array_index(priv->anchors, int, i);
-			selection_changed = (prev_caret != caret || prev_anchor != anchor);
+			// do not consider a caret move to be a selection change
+			selection_changed = ((prev_caret != prev_anchor || caret != anchor) &&
+			                     (prev_caret != caret || prev_anchor != anchor));
 		}
 
 		g_array_index(priv->carets, int, i) = caret;
