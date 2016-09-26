@@ -315,13 +315,11 @@ static void scintilla_object_accessible_change_document(ScintillaObjectAccessibl
 	}
 
 	if (priv->doc) {
-		// FIXME: we need to query the *previous* document, not the current one
 		g_signal_emit_by_name(accessible, "text-changed::delete", 0, (gint) priv->doc->Length());
 		priv->doc->Release();
 	}
 
-	if (new_doc)
-	{
+	if (new_doc) {
 		new_doc->AddRef();
 
 		g_signal_emit_by_name(accessible, "text-changed::insert", 0, (gint) new_doc->Length());
@@ -1176,13 +1174,11 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 	switch (nt->nmhdr.code) {
 		case SCN_MODIFIED: {
 			if (nt->modificationType & SC_MOD_INSERTTEXT) {
-				// FIXME: check that
 				g_signal_emit_by_name(accessible, "text-changed::insert",
 				                      (gint) nt->position, (gint) nt->length);
 				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
 			}
 			if (nt->modificationType & SC_MOD_DELETETEXT) {
-				// FIXME: check that
 				g_signal_emit_by_name(accessible, "text-changed::delete", (gint) nt->position, (gint) nt->length);
 				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
 			}
