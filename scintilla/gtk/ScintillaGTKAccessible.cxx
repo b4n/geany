@@ -377,6 +377,11 @@ static void scintilla_object_accessible_finalize(GObject *object)
 
 	g_array_free(priv->carets, TRUE);
 	g_array_free(priv->anchors, TRUE);
+
+	if (priv->doc) {
+		priv->doc->Release();
+		priv->doc = NULL;
+	}
 }
 
 static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClass *klass)
