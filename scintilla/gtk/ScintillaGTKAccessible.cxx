@@ -1172,26 +1172,6 @@ static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt,
 	}
 }
 
-#if 0
-void
-_gtk_text_view_accessible_set_buffer (GtkTextView   *textview,
-                                      GtkTextBuffer *old_buffer)
-{
-  GtkTextViewAccessible *accessible;
-
-  g_return_if_fail (GTK_IS_TEXT_VIEW (textview));
-  g_return_if_fail (old_buffer == NULL || GTK_IS_TEXT_BUFFER (old_buffer));
-
-  accessible = GTK_TEXT_VIEW_ACCESSIBLE (_gtk_widget_peek_accessible (GTK_WIDGET (textview)));
-  if (accessible == NULL)
-    return;
-
-  gtk_text_view_accessible_change_buffer (accessible,
-                                          old_buffer,
-                                          gtk_text_view_get_buffer (textview));
-}
-#endif
-
 #if HAVE_GTK_FACTORY
 // Object factory
 typedef AtkObjectFactory ScintillaObjectAccessibleFactory;
