@@ -588,30 +588,68 @@ static gchar *scintilla_object_accessible_get_string_at_offset(AtkText *text, gi
 	return get_text_range(sci, *start_offset, *end_offset);
 }
 
-static AtkTextGranularity boundary_to_granularity(AtkTextBoundary boundary_type)
-{
-	switch (boundary_type) {
-		default:
-		case ATK_TEXT_BOUNDARY_CHAR:
-			return ATK_TEXT_GRANULARITY_CHAR;
-		case ATK_TEXT_BOUNDARY_WORD_START:
-		case ATK_TEXT_BOUNDARY_WORD_END:
-			return ATK_TEXT_GRANULARITY_WORD;
-		case ATK_TEXT_BOUNDARY_SENTENCE_START:
-		case ATK_TEXT_BOUNDARY_SENTENCE_END:
-			return ATK_TEXT_GRANULARITY_SENTENCE;
-		case ATK_TEXT_BOUNDARY_LINE_START:
-		case ATK_TEXT_BOUNDARY_LINE_END:
-			return ATK_TEXT_GRANULARITY_LINE;
-	}
-}
-
 static gchar *scintilla_object_accessible_get_text_at_offset(AtkText *text, gint offset,
 		AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset)
 {
-	// FIXME: this isn't totally what e.g. GtkTextViewAccessible does
-	return scintilla_object_accessible_get_string_at_offset(text, offset,
-			boundary_to_granularity(boundary_type), start_offset, end_offset);
+	g_return_val_if_fail(offset >= 0, NULL);
+
+	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
+	if (! widget)
+		return NULL;
+
+	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
+	switch (boundary_type) {
+		case ATK_TEXT_BOUNDARY_CHAR:
+			*start_offset = offset;
+			*end_offset = scintilla_send_message(sci, SCI_POSITIONAFTER, offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_WORD_START:
+			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, offset, 1);
+			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, offset, 1);
+			if (! scintilla_send_message(sci, SCI_ISRANGEWORD, *start_offset, *end_offset)) {
+				// if the cursor was not on a word, forward back
+				*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *start_offset, 0);
+				*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *start_offset, 1);
+			}
+			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *end_offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_WORD_END:
+			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, offset, 1);
+			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, offset, 1);
+			if (! scintilla_send_message(sci, SCI_ISRANGEWORD, *start_offset, *end_offset)) {
+				// if the cursor was not on a word, forward back
+				*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *end_offset, 0);
+				*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *end_offset, 1);
+			}
+			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *start_offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_LINE_START: {
+			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
+			*start_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line, 0);
+			*end_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line + 1, 0);
+			break;
+		}
+
+		case ATK_TEXT_BOUNDARY_LINE_END: {
+			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
+			if (line > 0) {
+				*start_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line - 1, 0);
+			} else {
+				*start_offset = 0;
+			}
+			*end_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line, 0);
+			break;
+		}
+
+		default:
+			*start_offset = *end_offset = -1;
+			return NULL;
+	}
+
+	return get_text_range(sci, *start_offset, *end_offset);
 }
 
 static gunichar scintilla_object_accessible_get_character_at_offset(AtkText *text, gint offset)
