@@ -58,6 +58,7 @@
 #include <stdexcept>
 #include <new>
 #include <string>
+#include <utility>
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -103,23 +104,16 @@
 #include "AutoComplete.h"
 #include "ScintillaBase.h"
 
-#include "ScintillaGTK.h"
-
-#include "ScintillaGTKAccessible.h"
 #include "Scintilla.h"
 #include "ScintillaWidget.h"
+#include "ScintillaGTK.h"
+#include "ScintillaGTKAccessible.h"
 
-typedef struct
-{
-	Document *doc;
+class ScintillaGTKAccessible;
 
-	gboolean readonly;
-
-	gint pos;
-	GArray *carets;
-	GArray *anchors;
-}
-ScintillaObjectAccessiblePrivate;
+struct ScintillaObjectAccessiblePrivate {
+	ScintillaGTKAccessible *pscin;
+};
 
 typedef GtkAccessible ScintillaObjectAccessible;
 typedef GtkAccessibleClass ScintillaObjectAccessibleClass;
@@ -130,13 +124,848 @@ typedef GtkAccessibleClass ScintillaObjectAccessibleClass;
 // We can't use priv member because of dynamic inheritance, so we don't actually know the offset.  Meh.
 #define SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(inst) (G_TYPE_INSTANCE_GET_PRIVATE((inst), SCINTILLA_TYPE_OBJECT_ACCESSIBLE, ScintillaObjectAccessiblePrivate))
 
+static GType scintilla_object_accessible_get_type(GType parent_type);
 
-static void scintilla_object_accessible_update_cursor(ScintillaObjectAccessible *accessible, ScintillaObject *sci);
+#ifdef SCI_NAMESPACE
+using namespace Scintilla;
+#endif
 
-static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt, gpointer data);
+// FIXME
+#define ScintillaGTK ScintillaBase
 
-static void atk_editable_text_interface_init(AtkEditableTextIface *iface);
-static void atk_text_interface_init(AtkTextIface *iface);
+class ScintillaGTKAccessible {
+private:
+	GtkAccessible *accessible;
+	ScintillaGTK *sci;
+
+	// local state for comparing
+	Document *old_doc = nullptr;
+	bool old_readonly = false;
+	Position old_pos = -1;
+	std::vector<std::pair<Position, Position>> old_sels;
+
+	void UpdateCursor();
+	void ChangeDocument(Document *new_doc);
+	void Notify(GtkWidget *widget, gint code, SCNotification *nt);
+	static void SciNotify(GtkWidget *widget, gint code, SCNotification *nt, gpointer data) {
+		try {
+			reinterpret_cast<ScintillaGTKAccessible*>(data)->Notify(widget, code, nt);
+		} catch (...) {}
+	}
+
+	static ScintillaGTKAccessible *ThisFromAccessible(GtkAccessible *accessible) {
+		// FIXME: do we need the check below?  GTK checks that in all methods, so maybe
+		GtkWidget *widget = gtk_accessible_get_widget(accessible);
+		if (! widget) {
+			throw;
+		}
+
+		ScintillaGTKAccessible *self = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible)->pscin;
+		if (! self)
+			throw;
+
+		return self;
+	}
+
+	gchar *GetTextRange(Position start_offset, Position end_offset);
+	gchar *GetTextAfterOffset(int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset);
+	gchar *GetTextBeforeOffset(int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset);
+	gchar *GetTextAtOffset(int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset);
+	gchar *GetStringAtOffset(int offset, AtkTextGranularity granularity, int *start_offset, int *end_offset);
+	gunichar GetCharacterAtOffset(gint offset);
+	gint GetCharacterCount();
+	gint GetCaretOffset();
+	gboolean SetCaretOffset(gint offset);
+	gint GetOffsetAtPoint(gint x, gint y, AtkCoordType coords);
+	void GetCharacterExtents(gint offset, gint *x, gint *y, gint *width, gint *height, AtkCoordType coords);
+	AtkAttributeSet *GetAttributesForStyle(gint style);
+	AtkAttributeSet *GetRunAttributes(gint offset, gint *start_offset, gint *end_offset);
+	AtkAttributeSet *GetDefaultAttributes();
+	gint GetNSelections();
+	gchar *GetSelection(gint selection_num, gint *start_pos, gint *end_pos);
+	gboolean AddSelection(gint start, gint end);
+	gboolean RemoveSelection(gint selection_num);
+	gboolean SetSelection(gint selection_num, gint start, gint end);
+
+	/* atkeditabletext.h */
+	void SetTextContents(const gchar *contents);
+	void InsertText(const gchar *contents, gint length, gint *position);
+	void CopyText(gint start, gint end);
+	void CutText(gint start, gint end);
+	void DeleteText(gint start, gint end);
+	void PasteText(gint position);
+
+public:
+	ScintillaGTKAccessible(GtkAccessible *accessible, GtkWidget *widget);
+	~ScintillaGTKAccessible();
+
+	// ATK methods
+
+	// wraps a call from the accessible object to the ScintillaGTKAccessible, and avoid leaking any exception
+	#define WRAPPER_METHOD_BODY(accessible, call, defret) \
+		try { \
+			return ThisFromAccessible(reinterpret_cast<GtkAccessible*>(accessible))->call; \
+		} catch (...) { \
+			return defret; \
+		}
+
+	class AtkTextIface {
+	public:
+		static void init(::AtkTextIface *iface);
+
+	private:
+		AtkTextIface();
+
+		static gchar *GetText(AtkText *text, int start_offset, int end_offset) {
+			WRAPPER_METHOD_BODY(text, GetTextRange(start_offset, end_offset), NULL);
+		}
+		static gchar *GetTextAfterOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
+			WRAPPER_METHOD_BODY(text, GetTextAfterOffset(offset, boundary_type, start_offset, end_offset), NULL)
+		}
+		static gchar *GetTextBeforeOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
+			WRAPPER_METHOD_BODY(text, GetTextBeforeOffset(offset, boundary_type, start_offset, end_offset), NULL)
+		}
+		static gchar *GetTextAtOffset(AtkText *text, gint offset, AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset) {
+			WRAPPER_METHOD_BODY(text, GetTextAtOffset(offset, boundary_type, start_offset, end_offset), NULL)
+		}
+		static gchar *GetStringAtOffset(AtkText *text, gint offset, AtkTextGranularity granularity, gint *start_offset, gint *end_offset) {
+			WRAPPER_METHOD_BODY(text, GetStringAtOffset(offset, granularity, start_offset, end_offset), NULL)
+		}
+		static gunichar GetCharacterAtOffset(AtkText *text, gint offset) {
+			WRAPPER_METHOD_BODY(text, GetCharacterAtOffset(offset), 0)
+		}
+		static gint GetCharacterCount(AtkText *text) {
+			WRAPPER_METHOD_BODY(text, GetCharacterCount(), 0)
+		}
+		static gint GetCaretOffset(AtkText *text) {
+			WRAPPER_METHOD_BODY(text, GetCaretOffset(), 0)
+		}
+		static gboolean SetCaretOffset(AtkText *text, gint offset) {
+			WRAPPER_METHOD_BODY(text, SetCaretOffset(offset), FALSE)
+		}
+		static gint GetOffsetAtPoint(AtkText *text, gint x, gint y, AtkCoordType coords) {
+			WRAPPER_METHOD_BODY(text, GetOffsetAtPoint(x, y, coords), -1)
+		}
+		static void GetCharacterExtents(AtkText *text, gint offset, gint *x, gint *y, gint *width, gint *height, AtkCoordType coords) {
+			WRAPPER_METHOD_BODY(text, GetCharacterExtents(offset, x, y, width, height, coords), )
+		}
+		static AtkAttributeSet *GetRunAttributes(AtkText *text, gint offset, gint *start_offset, gint *end_offset) {
+			WRAPPER_METHOD_BODY(text, GetRunAttributes(offset, start_offset, end_offset), NULL)
+		}
+		static AtkAttributeSet *GetDefaultAttributes(AtkText *text) {
+			WRAPPER_METHOD_BODY(text, GetDefaultAttributes(), NULL)
+		}
+		static gint GetNSelections(AtkText *text) {
+			WRAPPER_METHOD_BODY(text, GetNSelections(), 0)
+		}
+		static gchar *GetSelection(AtkText *text, gint selection_num, gint *start_pos, gint *end_pos) {
+			WRAPPER_METHOD_BODY(text, GetSelection(selection_num, start_pos, end_pos), NULL)
+		}
+		static gboolean AddSelection(AtkText *text, gint start, gint end) {
+			WRAPPER_METHOD_BODY(text, AddSelection(start, end), FALSE)
+		}
+		static gboolean RemoveSelection(AtkText *text, gint selection_num) {
+			WRAPPER_METHOD_BODY(text, RemoveSelection(selection_num), FALSE)
+		}
+		static gboolean SetSelection(AtkText *text, gint selection_num, gint start, gint end) {
+			WRAPPER_METHOD_BODY(text, SetSelection(selection_num, start, end), FALSE)
+		}
+	};
+	class AtkEditableTextIface {
+	public:
+		static void init(::AtkEditableTextIface *iface);
+
+	private:
+		AtkEditableTextIface();
+
+		static void SetTextContents(AtkEditableText *text, const gchar *contents) {
+			WRAPPER_METHOD_BODY(text, SetTextContents(contents), )
+		}
+		static void InsertText(AtkEditableText *text, const gchar *contents, gint length, gint *position) {
+			WRAPPER_METHOD_BODY(text, InsertText(contents, length, position), )
+		}
+		static void CopyText(AtkEditableText *text, gint start, gint end) {
+			WRAPPER_METHOD_BODY(text, CopyText(start, end), )
+		}
+		static void CutText(AtkEditableText *text, gint start, gint end) {
+			WRAPPER_METHOD_BODY(text, CutText(start, end), )
+		}
+		static void DeleteText(AtkEditableText *text, gint start, gint end) {
+			WRAPPER_METHOD_BODY(text, DeleteText(start, end), )
+		}
+		static void PasteText(AtkEditableText *text, gint position) {
+			WRAPPER_METHOD_BODY(text, PasteText(position), )
+		}
+	};
+};
+
+ScintillaGTKAccessible::ScintillaGTKAccessible(GtkAccessible *accessible_, GtkWidget *widget_) :
+		accessible(accessible_),
+		sci(ScintillaBaseFromWidget(widget_)) {
+	g_signal_connect(widget_, "sci-notify", G_CALLBACK(SciNotify), this);
+}
+
+ScintillaGTKAccessible::~ScintillaGTKAccessible() {
+	ChangeDocument(nullptr);
+}
+
+gchar *ScintillaGTKAccessible::GetTextRange(Position start_offset, Position end_offset)  {
+	struct Sci_TextRange range;
+
+	g_return_val_if_fail(start_offset >= 0, NULL);
+	// FIXME: should we swap start/end if necessary?
+	g_return_val_if_fail(end_offset >= start_offset, NULL);
+
+	range.chrg.cpMin = start_offset;
+	range.chrg.cpMax = end_offset;
+	range.lpstrText = (char *) g_malloc(end_offset - start_offset + 1);
+	sci->WndProc(SCI_GETTEXTRANGE, 0, (sptr_t) &range);
+
+	return range.lpstrText;
+}
+
+gchar *ScintillaGTKAccessible::GetTextAfterOffset(int offset,
+		AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
+	g_return_val_if_fail(offset >= 0, NULL);
+
+	switch (boundary_type) {
+		case ATK_TEXT_BOUNDARY_CHAR:
+			*start_offset = sci->WndProc(SCI_POSITIONAFTER, offset, 0);
+			*end_offset = sci->WndProc(SCI_POSITIONAFTER, *start_offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_WORD_START:
+			*start_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 1);
+			*start_offset = sci->WndProc(SCI_WORDENDPOSITION, *start_offset, 0);
+			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *start_offset, 1);
+			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_WORD_END:
+			*start_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 0);
+			*start_offset = sci->WndProc(SCI_WORDENDPOSITION, *start_offset, 1);
+			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *start_offset, 0);
+			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 1);
+			break;
+
+		case ATK_TEXT_BOUNDARY_LINE_START: {
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			*start_offset = sci->WndProc(SCI_POSITIONFROMLINE, line + 1, 0);
+			*end_offset = sci->WndProc(SCI_POSITIONFROMLINE, line + 2, 0);
+			break;
+		}
+
+		case ATK_TEXT_BOUNDARY_LINE_END: {
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			*start_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
+			*end_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line + 1, 0);
+			break;
+		}
+
+		default:
+			*start_offset = *end_offset = -1;
+			return NULL;
+	}
+
+	return GetTextRange(*start_offset, *end_offset);
+}
+
+gchar *ScintillaGTKAccessible::GetTextBeforeOffset(int offset,
+		AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
+	g_return_val_if_fail(offset >= 0, NULL);
+
+	switch (boundary_type) {
+		case ATK_TEXT_BOUNDARY_CHAR:
+			*end_offset = sci->WndProc(SCI_POSITIONBEFORE, offset, 0);
+			*start_offset = sci->WndProc(SCI_POSITIONBEFORE, *end_offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_WORD_START:
+			*end_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 0);
+			*end_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *end_offset, 1);
+			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *end_offset, 0);
+			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 1);
+			break;
+
+		case ATK_TEXT_BOUNDARY_WORD_END:
+			*end_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 1);
+			*end_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *end_offset, 0);
+			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *end_offset, 1);
+			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_LINE_START: {
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			*end_offset = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
+			if (line > 0) {
+				*start_offset = sci->WndProc(SCI_POSITIONFROMLINE, line - 1, 0);
+			} else {
+				*start_offset = *end_offset;
+			}
+			break;
+		}
+
+		case ATK_TEXT_BOUNDARY_LINE_END: {
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			if (line > 0) {
+				*end_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line - 1, 0);
+			} else {
+				*end_offset = 0;
+			}
+			if (line > 1) {
+				*start_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line - 2, 0);
+			} else {
+				*start_offset = *end_offset;
+			}
+			break;
+		}
+
+		default:
+			*start_offset = *end_offset = -1;
+			return NULL;
+	}
+
+	return GetTextRange(*start_offset, *end_offset);
+}
+
+gchar *ScintillaGTKAccessible::GetTextAtOffset(gint offset,
+		AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset) {
+	g_return_val_if_fail(offset >= 0, NULL);
+
+	switch (boundary_type) {
+		case ATK_TEXT_BOUNDARY_CHAR:
+			*start_offset = offset;
+			*end_offset = sci->WndProc(SCI_POSITIONAFTER, offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_WORD_START:
+			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 1);
+			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 1);
+			if (! sci->WndProc(SCI_ISRANGEWORD, *start_offset, *end_offset)) {
+				// if the cursor was not on a word, forward back
+				*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 0);
+				*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 1);
+			}
+			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_WORD_END:
+			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 1);
+			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 1);
+			if (! sci->WndProc(SCI_ISRANGEWORD, *start_offset, *end_offset)) {
+				// if the cursor was not on a word, forward back
+				*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 0);
+				*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 1);
+			}
+			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 0);
+			break;
+
+		case ATK_TEXT_BOUNDARY_LINE_START: {
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			*start_offset = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
+			*end_offset = sci->WndProc(SCI_POSITIONFROMLINE, line + 1, 0);
+			break;
+		}
+
+		case ATK_TEXT_BOUNDARY_LINE_END: {
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			if (line > 0) {
+				*start_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line - 1, 0);
+			} else {
+				*start_offset = 0;
+			}
+			*end_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
+			break;
+		}
+
+		default:
+			*start_offset = *end_offset = -1;
+			return NULL;
+	}
+
+	return GetTextRange(*start_offset, *end_offset);
+}
+
+gchar *ScintillaGTKAccessible::GetStringAtOffset(gint offset,
+		AtkTextGranularity granularity, gint *start_offset, gint *end_offset) {
+	g_return_val_if_fail(offset >= 0, NULL);
+
+	switch (granularity) {
+		case ATK_TEXT_GRANULARITY_CHAR:
+			*start_offset = offset;
+			*end_offset = sci->WndProc(SCI_POSITIONAFTER, offset, 0);
+			break;
+		case ATK_TEXT_GRANULARITY_WORD:
+			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 1);
+			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 1);
+			break;
+		case ATK_TEXT_GRANULARITY_LINE: {
+			gint line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			*start_offset = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
+			*end_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
+			break;
+		}
+		default:
+			*start_offset = *end_offset = -1;
+			return NULL;
+	}
+
+	return GetTextRange(*start_offset, *end_offset);
+}
+
+gunichar ScintillaGTKAccessible::GetCharacterAtOffset(gint offset) {
+	g_return_val_if_fail(offset >= 0, 0);
+
+	// FIXME: support real Unicode character, not bytes?
+	return sci->WndProc(SCI_GETCHARAT, offset, 0);
+}
+
+gint ScintillaGTKAccessible::GetCharacterCount() {
+	// FIXME: return characters, not bytes?
+	return sci->WndProc(SCI_GETLENGTH, 0, 0);
+}
+
+gint ScintillaGTKAccessible::GetCaretOffset() {
+	return sci->WndProc(SCI_GETCURRENTPOS, 0, 0);
+}
+
+gboolean ScintillaGTKAccessible::SetCaretOffset(gint offset) {
+	// FIXME: do we need to scroll explicitly?  it has to happen, but need to check if
+	// SCI_SETCURRENTPOS does it
+	sci->WndProc(SCI_SETCURRENTPOS, offset, 0);
+	return TRUE;
+}
+
+gint ScintillaGTKAccessible::GetOffsetAtPoint(gint x, gint y, AtkCoordType coords) {
+	gint x_widget, y_widget, x_window, y_window;
+	GtkWidget *widget = gtk_accessible_get_widget(accessible);
+
+	GdkWindow *window = gtk_widget_get_window(widget);
+	gdk_window_get_origin(window, &x_widget, &y_widget);
+	if (coords == ATK_XY_SCREEN) {
+		x = x - x_widget;
+		y = y - y_widget;
+	} else if (coords == ATK_XY_WINDOW) {
+		window = gdk_window_get_toplevel(window);
+		gdk_window_get_origin(window, &x_window, &y_window);
+
+		x = x - x_widget + x_window;
+		y = y - y_widget + y_window;
+	} else {
+		return -1;
+	}
+
+	// FIXME: should we handle scrolling?
+	return sci->WndProc(SCI_CHARPOSITIONFROMPOINTCLOSE, x, y);
+}
+
+void ScintillaGTKAccessible::GetCharacterExtents(gint offset,
+		gint *x, gint *y, gint *width, gint *height, AtkCoordType coords) {
+	*x = *y = *height = *width = 0;
+
+	// FIXME: should we handle scrolling?
+	*x = sci->WndProc(SCI_POINTXFROMPOSITION, 0, offset);
+	*y = sci->WndProc(SCI_POINTYFROMPOSITION, 0, offset);
+
+	int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+	*height = sci->WndProc(SCI_TEXTHEIGHT, line, 0);
+
+	int next_pos = sci->WndProc(SCI_POSITIONAFTER, offset, 0);
+	int next_x = sci->WndProc(SCI_POINTXFROMPOSITION, 0, next_pos);
+	if (next_x > *x) {
+		*width = next_x - *x;
+	} else if (next_pos > offset) {
+		/* maybe next position was on the next line or something.
+		 * just compute the expected character width */
+		int style = sci->WndProc(SCI_GETSTYLEAT, offset, 0);
+		gchar *ch = GetTextRange(offset, next_pos);
+		*width = sci->WndProc(SCI_TEXTWIDTH, style, (sptr_t) ch);
+		g_free(ch);
+	} else {
+		// possibly the last position on the document, so no character here.
+		*x = *y = *height = *width = 0;
+		return;
+	}
+
+	GtkWidget *widget = gtk_accessible_get_widget(accessible);
+	GdkWindow *window = gtk_widget_get_window(widget);
+	int x_widget, y_widget;
+	gdk_window_get_origin(window, &x_widget, &y_widget);
+	if (coords == ATK_XY_SCREEN) {
+		*x += x_widget;
+		*y += y_widget;
+	} else if (coords == ATK_XY_WINDOW) {
+		window = gdk_window_get_toplevel(window);
+		int x_window, y_window;
+		gdk_window_get_origin(window, &x_window, &y_window);
+
+		*x += x_widget - x_window;
+		*y += y_widget - y_window;
+	} else {
+		*x = *y = *height = *width = 0;
+	}
+}
+
+static AtkAttributeSet *add_text_attribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gchar *value) {
+	AtkAttribute *at = g_new(AtkAttribute, 1);
+	at->name = g_strdup(atk_text_attribute_get_name(attr));
+	at->value = value;
+
+	return g_slist_prepend(attributes, at);
+}
+
+static AtkAttributeSet *add_text_int_attribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gint i) {
+	return add_text_attribute(attributes, attr, g_strdup(atk_text_attribute_get_value(attr, i)));
+}
+
+AtkAttributeSet *ScintillaGTKAccessible::GetAttributesForStyle(gint style) {
+	AtkAttributeSet *attr_set = NULL;
+
+	const int font_len = sci->WndProc(SCI_STYLEGETFONT, style, 0);
+	gchar *font = (char *) g_malloc(font_len + 1);
+	sci->WndProc(SCI_STYLEGETFONT, style, (sptr_t) font);
+	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_FAMILY_NAME, font);
+
+	const int size = sci->WndProc(SCI_STYLEGETSIZE, style, 0);
+	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_SIZE, g_strdup_printf("%d", size));
+
+	const int weight = sci->WndProc(SCI_STYLEGETWEIGHT, style, 0);
+	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_WEIGHT, CLAMP(weight, 100, 1000));
+
+	const int italic = sci->WndProc(SCI_STYLEGETITALIC, style, 0);
+	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_STYLE, italic ? PANGO_STYLE_ITALIC : PANGO_STYLE_NORMAL);
+
+	const int underline = sci->WndProc(SCI_STYLEGETUNDERLINE, style, 0);
+	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_UNDERLINE, underline ? PANGO_UNDERLINE_SINGLE : PANGO_UNDERLINE_NONE);
+
+	const int fg = sci->WndProc(SCI_STYLEGETFORE, style, 0);
+	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_FG_COLOR,
+	                              g_strdup_printf("%u,%u,%u",
+	                                              (guint) (((fg >>  0) & 0xff) * 257),
+	                                              (guint) (((fg >>  8) & 0xff) * 257),
+	                                              (guint) (((fg >> 16) & 0xff) * 257)));
+
+	const int bg = sci->WndProc(SCI_STYLEGETBACK, style, 0);
+	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_BG_COLOR,
+	                              g_strdup_printf("%u,%u,%u",
+	                                              (guint) (((bg >>  0) & 0xff) * 257),
+	                                              (guint) (((bg >>  8) & 0xff) * 257),
+	                                              (guint) (((bg >> 16) & 0xff) * 257)));
+
+	const int visible = sci->WndProc(SCI_STYLEGETVISIBLE, style, 0);
+	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_INVISIBLE, ! visible);
+
+	const int changeable = sci->WndProc(SCI_STYLEGETCHANGEABLE, style, 0);
+	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_EDITABLE, changeable);
+
+	return attr_set;
+}
+
+AtkAttributeSet *ScintillaGTKAccessible::GetRunAttributes(gint offset, gint *start_offset, gint *end_offset) {
+	const gint style = sci->WndProc(SCI_GETSTYLEAT, offset, 0);
+
+	/* compute the range for this style */
+	*start_offset = offset;
+	while (*start_offset > 0 && sci->WndProc(SCI_GETSTYLEAT, (*start_offset) - 1, 0) == style)
+		(*start_offset)--;
+	*end_offset = offset;
+	while ((*end_offset) < sci->WndProc(SCI_GETLENGTH, (*end_offset) + 1, 0) &&
+	       sci->WndProc(SCI_GETSTYLEAT, (*end_offset) - 1, 0) == style)
+		(*end_offset)++;
+
+	/* fill the style info */
+	return GetAttributesForStyle(style);
+}
+
+AtkAttributeSet *ScintillaGTKAccessible::GetDefaultAttributes() {
+	return GetAttributesForStyle(0);
+}
+
+gint ScintillaGTKAccessible::GetNSelections() {
+	if (sci->WndProc(SCI_GETSELECTIONEMPTY, 0, 0))
+		return 0;
+	else
+		return sci->WndProc(SCI_GETSELECTIONS, 0, 0);
+}
+
+gchar *ScintillaGTKAccessible::GetSelection(gint selection_num, gint *start_pos, gint *end_pos) {
+	if (selection_num >= sci->WndProc(SCI_GETSELECTIONS, 0, 0))
+		return NULL;
+
+	*start_pos = sci->WndProc(SCI_GETSELECTIONNSTART, selection_num, 0);
+	*end_pos = sci->WndProc(SCI_GETSELECTIONNEND, selection_num, 0);
+
+	return GetTextRange(*start_pos, *end_pos);
+}
+
+gboolean ScintillaGTKAccessible::AddSelection(gint start, gint end) {
+	int n_selections = sci->WndProc(SCI_GETSELECTIONS, 0, 0);
+	if (n_selections > 1 || ! sci->WndProc(SCI_GETSELECTIONEMPTY, 0, 0)) {
+		sci->WndProc(SCI_ADDSELECTION, start, end);
+	} else {
+		sci->WndProc(SCI_SETSELECTION, start, end);
+	}
+
+	return TRUE;
+}
+
+gboolean ScintillaGTKAccessible::RemoveSelection(gint selection_num) {
+	int n_selections = sci->WndProc(SCI_GETSELECTIONS, 0, 0);
+	if (selection_num >= n_selections)
+		return FALSE;
+
+	if (n_selections > 1) {
+		sci->WndProc(SCI_DROPSELECTIONN, selection_num, 0);
+	} else if (sci->WndProc(SCI_GETSELECTIONEMPTY, 0, 0)) {
+		return FALSE;
+	} else {
+		sci->WndProc(SCI_CLEARSELECTIONS, 0, 0);
+	}
+
+	return TRUE;
+}
+
+gboolean ScintillaGTKAccessible::SetSelection(gint selection_num, gint start, gint end) {
+	if (selection_num >= sci->WndProc(SCI_GETSELECTIONS, 0, 0))
+		return FALSE;
+
+	sci->WndProc(SCI_SETSELECTIONNSTART, selection_num, start);
+	sci->WndProc(SCI_SETSELECTIONNEND, selection_num, end);
+
+	return TRUE;
+}
+
+void ScintillaGTKAccessible::AtkTextIface::init(::AtkTextIface *iface) {
+	iface->get_text = GetText;
+	iface->get_text_after_offset = GetTextAfterOffset;
+	iface->get_text_at_offset = GetTextAtOffset;
+	iface->get_text_before_offset = GetTextBeforeOffset;
+#if ATK_CHECK_VERSION(2, 10, 0)
+	iface->get_string_at_offset = GetStringAtOffset;
+#endif
+	iface->get_character_at_offset = GetCharacterAtOffset;
+	iface->get_character_count = GetCharacterCount;
+	iface->get_caret_offset = GetCaretOffset;
+	iface->set_caret_offset = SetCaretOffset;
+	iface->get_offset_at_point = GetOffsetAtPoint;
+	iface->get_character_extents = GetCharacterExtents;
+	iface->get_n_selections = GetNSelections;
+	iface->get_selection = GetSelection;
+	iface->add_selection = AddSelection;
+	iface->remove_selection = RemoveSelection;
+	iface->set_selection = SetSelection;
+	iface->get_run_attributes = GetRunAttributes;
+	iface->get_default_attributes = GetDefaultAttributes;
+}
+
+/* atkeditabletext.h */
+
+void ScintillaGTKAccessible::SetTextContents(const gchar *contents) {
+	// FIXME: it's probably useless to check for READONLY here, SETTEXT probably does it just fine?
+	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
+		sci->WndProc(SCI_SETTEXT, 0, (sptr_t) contents);
+	}
+}
+
+void ScintillaGTKAccessible::InsertText(const gchar *text, gint length, gint *position) {
+	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
+		int old_target[2] = {
+			(int) sci->WndProc(SCI_GETTARGETSTART, 0, 0),
+			(int) sci->WndProc(SCI_GETTARGETEND, 0, 0)
+		};
+
+		sci->WndProc(SCI_SETTARGETRANGE, *position, *position);
+		sci->WndProc(SCI_REPLACETARGET, length, (sptr_t) text);
+		(*position) += length;
+
+		// restore the old target
+		for (int i = 0; i < 2; i++) {
+			if (old_target[i] > *position)
+				old_target[i] += length;
+		}
+		sci->WndProc(SCI_SETTARGETRANGE, old_target[0], old_target[1]);
+	}
+}
+
+void ScintillaGTKAccessible::CopyText(gint start, gint end) {
+	sci->WndProc(SCI_COPYRANGE, start, end);
+}
+
+void ScintillaGTKAccessible::CutText(gint start, gint end) {
+	g_return_if_fail(end >= start);
+
+	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
+		CopyText(start, end);
+		DeleteText(start, end);
+	}
+}
+
+void ScintillaGTKAccessible::DeleteText(gint start, gint end) {
+	g_return_if_fail(end >= start);
+
+	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
+		int old_target[2] = {
+			(int) sci->WndProc(SCI_GETTARGETSTART, 0, 0),
+			(int) sci->WndProc(SCI_GETTARGETEND, 0, 0)
+		};
+
+		sci->WndProc(SCI_SETTARGETRANGE, start, end);
+		sci->WndProc(SCI_REPLACETARGET, 0, (sptr_t) "");
+
+		// restore the old target, compensating for the removed range
+		for (int i = 0; i < 2; i++) {
+			if (old_target[i] > end)
+				old_target[i] -= end - start;
+			else if (old_target[i] > start) // start was in the middle of removed range
+				old_target[i] = start;
+		}
+
+		sci->WndProc(SCI_SETTARGETRANGE, old_target[0], old_target[1]);
+	}
+}
+
+struct PasteData {
+	Document *doc;
+	gint position;
+
+	PasteData(Document *doc_, int pos_) :
+		doc(doc_),
+		position(pos_) {
+		doc->AddRef();
+	}
+
+	~PasteData() {
+		doc->Release();
+	}
+
+	void TextReceivedThis(GtkClipboard *, const gchar *text) {
+		if (text) {
+			doc->InsertString(position, text, (int) strlen(text));
+		}
+	}
+
+	static void TextReceived(GtkClipboard *clipboard, const gchar *text, gpointer data) {
+		reinterpret_cast<PasteData*>(data)->TextReceivedThis(clipboard, text);
+	}
+};
+
+void ScintillaGTKAccessible::PasteText(gint position) {
+	if (sci->pdoc->IsReadOnly())
+		return;
+
+	PasteData paste(sci->pdoc, position);
+
+	GtkWidget *widget = gtk_accessible_get_widget(accessible);
+	GtkClipboard *clipboard = gtk_widget_get_clipboard(widget, GDK_SELECTION_CLIPBOARD);
+	gtk_clipboard_request_text(clipboard, paste.TextReceived, &paste);
+}
+
+void ScintillaGTKAccessible::AtkEditableTextIface::init(::AtkEditableTextIface *iface) {
+	iface->set_text_contents = SetTextContents;
+	iface->insert_text = InsertText;
+	iface->copy_text = CopyText;
+	iface->cut_text = CutText;
+	iface->delete_text = DeleteText;
+	iface->paste_text = PasteText;
+	//~ iface->set_run_attributes = SetRunAttributes;
+}
+
+// Callbacks
+
+void ScintillaGTKAccessible::UpdateCursor() {
+	Position pos = sci->WndProc(SCI_GETCURRENTPOS, 0, 0);
+	if (old_pos != pos) {
+		g_signal_emit_by_name(accessible, "text-caret-moved", (gint) pos);
+		old_pos = pos;
+	}
+
+	int n_selections = sci->WndProc(SCI_GETSELECTIONS, 0, 0);
+	int prev_n_selections = old_sels.size();
+	bool selection_changed = n_selections != prev_n_selections;
+
+	old_sels.resize(n_selections);
+	for (int i = 0; i < n_selections; i++) {
+		Position start = sci->WndProc(SCI_GETSELECTIONNSTART, i, 0);
+		Position end = sci->WndProc(SCI_GETSELECTIONNEND, i, 0);
+
+		if (i < prev_n_selections && ! selection_changed) {
+			// do not consider a caret move to be a selection change
+			selection_changed = ((old_sels[i].first != old_sels[i].second || start != end) &&
+			                     (old_sels[i].first != start || old_sels[i].second != end));
+		}
+
+		old_sels[i] = std::pair<Position, Position>(start, end);
+	}
+
+	if (selection_changed)
+		g_signal_emit_by_name(accessible, "text-selection-changed");
+}
+
+// FIXME: this doesn't seem to really work, Orca doesn't read nothing when the document changes
+//        OTOH, GtkTextView has the same problem, so maybe it's Orca's fault?
+void ScintillaGTKAccessible::ChangeDocument(Document *new_doc) {
+	if (new_doc == old_doc) {
+		return;
+	}
+
+	if (old_doc) {
+		g_signal_emit_by_name(accessible, "text-changed::delete", 0, old_doc->Length());
+		old_doc->Release();
+	}
+
+	if (new_doc)
+	{
+		g_signal_emit_by_name(accessible, "text-changed::insert", 0, new_doc->Length());
+
+		// FIXME: should we really reinit readonly here?  we probably should notify the accessible
+		old_readonly = new_doc->IsReadOnly();
+
+		// update cursor and selection
+		old_pos = -1;
+		old_sels.clear();
+		UpdateCursor();
+
+		new_doc->AddRef();
+	}
+
+	old_doc = new_doc;
+}
+
+void ScintillaGTKAccessible::Notify(GtkWidget *, gint, SCNotification *nt) {
+	switch (nt->nmhdr.code) {
+		case SCN_MODIFIED: {
+			if (nt->modificationType & SC_MOD_INSERTTEXT) {
+				g_signal_emit_by_name(accessible, "text-changed::insert", (gint) nt->position, (gint) nt->length);
+				UpdateCursor();
+			}
+			if (nt->modificationType & SC_MOD_DELETETEXT) {
+				g_signal_emit_by_name(accessible, "text-changed::delete", (gint) nt->position, (gint) nt->length);
+				UpdateCursor();
+			}
+			if (nt->modificationType & SC_MOD_CHANGESTYLE) {
+				g_signal_emit_by_name(accessible, "text-attributes-changed");
+			}
+		} break;
+		case SCN_UPDATEUI: {
+			if (nt->updated & SC_UPDATE_SELECTION) {
+				UpdateCursor();
+
+				// SC_UPDATE_SELECTION is the only signal we get when DOCPOINTER changes, so check here
+				if (sci->pdoc != old_doc) {
+					ChangeDocument(sci->pdoc);
+				}
+			}
+
+			bool readonly = sci->pdoc->IsReadOnly();
+			if (old_readonly != readonly) {
+				atk_object_notify_state_change(ATK_OBJECT(accessible), ATK_STATE_EDITABLE, ! readonly);
+				old_readonly = readonly;
+			}
+		} break;
+	}
+}
+
+// GObject glue
 
 #if HAVE_GTK_FACTORY
 static GType scintilla_object_accessible_factory_get_type(void);
@@ -148,8 +977,7 @@ static gpointer scintilla_object_accessible_parent_class = NULL;
 
 
 // @p parent_type is only required on GTK 3.2 to 3.6, and only on the first call
-static GType scintilla_object_accessible_get_type(GType parent_type)
-{
+static GType scintilla_object_accessible_get_type(GType parent_type) {
 	static volatile gsize type_id_result = 0;
 
 	if (g_once_init_enter(&type_id_result)) {
@@ -167,13 +995,13 @@ static GType scintilla_object_accessible_get_type(GType parent_type)
 		};
 
 		const GInterfaceInfo atk_text_info = {
-			(GInterfaceInitFunc) atk_text_interface_init,
+			(GInterfaceInitFunc) ScintillaGTKAccessible::AtkTextIface::init,
 			(GInterfaceFinalizeFunc) NULL,
 			NULL
 		};
 
 		const GInterfaceInfo atk_editable_text_info = {
-			(GInterfaceInitFunc) atk_editable_text_interface_init,
+			(GInterfaceInitFunc) ScintillaGTKAccessible::AtkEditableTextIface::init,
 			(GInterfaceFinalizeFunc) NULL,
 			NULL
 		};
@@ -215,8 +1043,7 @@ static GType scintilla_object_accessible_get_type(GType parent_type)
 	return type_id_result;
 }
 
-static AtkObject *scintilla_object_accessible_new(GType parent_type, GObject *obj)
-{
+static AtkObject *scintilla_object_accessible_new(GType parent_type, GObject *obj) {
 	g_return_val_if_fail(SCINTILLA_IS_OBJECT(obj), NULL);
 
 	AtkObject *accessible = (AtkObject *) g_object_new(scintilla_object_accessible_get_type(parent_type),
@@ -234,8 +1061,7 @@ static AtkObject *scintilla_object_accessible_new(GType parent_type, GObject *ob
 // @p widget the widget.
 // @p cache pointer to store the AtkObject between repeated calls.  Might or might not be filled.
 // @p widget_parent_class pointer to the widget's parent class (to chain up method calls).
-AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *widget, AtkObject **cache, gpointer widget_parent_class)
-{
+AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *widget, AtkObject **cache, gpointer widget_parent_class) {
 #if HAVE_GTK_A11Y_H // just instantiate the accessible
 	if (*cache == NULL) {
 		*cache = scintilla_object_accessible_new(0, G_OBJECT(widget));
@@ -283,8 +1109,7 @@ AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *wid
 #endif
 }
 
-static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessible)
-{
+static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessible) {
 	AtkStateSet *state_set = ATK_OBJECT_CLASS(scintilla_object_accessible_parent_class)->ref_state_set(accessible);
 
 	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(accessible));
@@ -304,64 +1129,30 @@ static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessi
 	return state_set;
 }
 
-// FIXME: this doesn't seem to really work, Orca doesn't read nothing when the document changes
-//        OTOH, GtkTextView has the same problem, so maybe it's Orca's fault?
-static void scintilla_object_accessible_change_document(ScintillaObjectAccessible *accessible, ScintillaObject *sci, Document *new_doc)
-{
-	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
-
-	if (new_doc == priv->doc) {
-		return;
-	}
-
-	if (priv->doc) {
-		g_signal_emit_by_name(accessible, "text-changed::delete", 0, (gint) priv->doc->Length());
-		priv->doc->Release();
-	}
-
-	if (new_doc) {
-		new_doc->AddRef();
-
-		g_signal_emit_by_name(accessible, "text-changed::insert", 0, (gint) new_doc->Length());
-
-		// FIXME: should we really reinit readonly here?  we probably should notify the accessible
-		priv->readonly = scintilla_send_message(sci, SCI_GETREADONLY, 0, 0);
-
-		// update cursor and selection
-		priv->pos = -1;
-		g_array_set_size(priv->carets, 0);
-		g_array_set_size(priv->anchors, 0);
-		scintilla_object_accessible_update_cursor(accessible, sci);
-	}
-
-	priv->doc = new_doc;
-}
-
-static void scintilla_object_accessible_widget_set(GtkAccessible *accessible)
-{
+static void scintilla_object_accessible_widget_set(GtkAccessible *accessible) {
 	GtkWidget *widget = gtk_accessible_get_widget(accessible);
 	if (widget == NULL)
 		return;
 
-	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible), SCINTILLA_OBJECT(widget),
-			ScintillaBaseFromWidget(widget)->pdoc);
-
-	g_signal_connect(widget, "sci-notify", G_CALLBACK(sci_notify_handler), accessible);
+	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
+	if (priv->pscin != nullptr)
+		delete priv->pscin;
+	priv->pscin = new ScintillaGTKAccessible(accessible, widget);
 }
 
 #if HAVE_WIDGET_SET_UNSET
-static void scintilla_object_accessible_widget_unset(GtkAccessible *accessible)
-{
+static void scintilla_object_accessible_widget_unset(GtkAccessible *accessible) {
 	GtkWidget *widget = gtk_accessible_get_widget(accessible);
 	if (widget == NULL)
 		return;
 
-	scintilla_object_accessible_change_document(SCINTILLA_OBJECT_ACCESSIBLE(accessible), SCINTILLA_OBJECT(widget), NULL);
+	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
+	delete priv->pscin;
+	priv->pscin = nullptr;
 }
 #endif
 
-static void scintilla_object_accessible_initialize(AtkObject *obj, gpointer data)
-{
+static void scintilla_object_accessible_initialize(AtkObject *obj, gpointer data) {
 	ATK_OBJECT_CLASS(scintilla_object_accessible_parent_class)->initialize(obj, data);
 
 #if ! HAVE_WIDGET_SET_UNSET
@@ -371,21 +1162,16 @@ static void scintilla_object_accessible_initialize(AtkObject *obj, gpointer data
 	obj->role = ATK_ROLE_TEXT;
 }
 
-static void scintilla_object_accessible_finalize(GObject *object)
-{
+static void scintilla_object_accessible_finalize(GObject *object) {
 	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(object);
 
-	g_array_free(priv->carets, TRUE);
-	g_array_free(priv->anchors, TRUE);
-
-	if (priv->doc) {
-		priv->doc->Release();
-		priv->doc = NULL;
+	if (priv->pscin) {
+		delete priv->pscin;
+		priv->pscin = nullptr;
 	}
 }
 
-static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClass *klass)
-{
+static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClass *klass) {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
 	AtkObjectClass *object_class = ATK_OBJECT_CLASS(klass);
 
@@ -405,812 +1191,10 @@ static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClas
 	g_type_class_add_private(klass, sizeof (ScintillaObjectAccessiblePrivate));
 }
 
-static void scintilla_object_accessible_init(ScintillaObjectAccessible *accessible)
-{
+static void scintilla_object_accessible_init(ScintillaObjectAccessible *accessible) {
 	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
 
-	priv->doc = NULL;
-
-	priv->pos = 0;
-	priv->readonly = FALSE;
-
-	priv->carets = g_array_new(FALSE, FALSE, sizeof(int));
-	priv->anchors = g_array_new(FALSE, FALSE, sizeof(int));
-}
-
-static gchar *get_text_range(ScintillaObject *sci, gint start_offset, gint end_offset)
-{
-	struct Sci_TextRange range;
-
-	g_return_val_if_fail(start_offset >= 0, NULL);
-	g_return_val_if_fail(end_offset >= start_offset, NULL);
-
-	range.chrg.cpMin = start_offset;
-	range.chrg.cpMax = end_offset;
-	range.lpstrText = (char *) g_malloc(end_offset - start_offset + 1);
-	scintilla_send_message(sci, SCI_GETTEXTRANGE, 0, (sptr_t) &range);
-
-	return range.lpstrText;
-}
-
-static gchar *scintilla_object_accessible_get_text(AtkText *text, gint start_offset, gint end_offset)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (widget == NULL)
-		return NULL;
-
-	return get_text_range(SCINTILLA_OBJECT(widget), start_offset, end_offset);
-}
-
-static gchar *scintilla_object_accessible_get_text_after_offset(AtkText *text, gint offset,
-		AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset)
-{
-	g_return_val_if_fail(offset >= 0, NULL);
-
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return NULL;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	switch (boundary_type) {
-		case ATK_TEXT_BOUNDARY_CHAR:
-			*start_offset = scintilla_send_message(sci, SCI_POSITIONAFTER, offset, 0);
-			*end_offset = scintilla_send_message(sci, SCI_POSITIONAFTER, *start_offset, 0);
-			break;
-
-		case ATK_TEXT_BOUNDARY_WORD_START:
-			*start_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, offset, 1);
-			*start_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *start_offset, 0);
-			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *start_offset, 1);
-			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *end_offset, 0);
-			break;
-
-		case ATK_TEXT_BOUNDARY_WORD_END:
-			*start_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, offset, 0);
-			*start_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *start_offset, 1);
-			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *start_offset, 0);
-			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *end_offset, 1);
-			break;
-
-		case ATK_TEXT_BOUNDARY_LINE_START: {
-			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
-			*start_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line + 1, 0);
-			*end_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line + 2, 0);
-			break;
-		}
-
-		case ATK_TEXT_BOUNDARY_LINE_END: {
-			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
-			*start_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line, 0);
-			*end_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line + 1, 0);
-			break;
-		}
-
-		default:
-			*start_offset = *end_offset = -1;
-			return NULL;
-	}
-
-	return get_text_range(sci, *start_offset, *end_offset);
-}
-
-static gchar *scintilla_object_accessible_get_text_before_offset(AtkText *text, gint offset,
-		AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset)
-{
-	g_return_val_if_fail(offset >= 0, NULL);
-
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return NULL;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	switch (boundary_type) {
-		case ATK_TEXT_BOUNDARY_CHAR:
-			*end_offset = scintilla_send_message(sci, SCI_POSITIONBEFORE, offset, 0);
-			*start_offset = scintilla_send_message(sci, SCI_POSITIONBEFORE, *end_offset, 0);
-			break;
-
-		case ATK_TEXT_BOUNDARY_WORD_START:
-			*end_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, offset, 0);
-			*end_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *end_offset, 1);
-			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *end_offset, 0);
-			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *start_offset, 1);
-			break;
-
-		case ATK_TEXT_BOUNDARY_WORD_END:
-			*end_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, offset, 1);
-			*end_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *end_offset, 0);
-			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *end_offset, 1);
-			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *start_offset, 0);
-			break;
-
-		case ATK_TEXT_BOUNDARY_LINE_START: {
-			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
-			*end_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line, 0);
-			if (line > 0) {
-				*start_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line - 1, 0);
-			} else {
-				*start_offset = *end_offset;
-			}
-			break;
-		}
-
-		case ATK_TEXT_BOUNDARY_LINE_END: {
-			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
-			if (line > 0) {
-				*end_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line - 1, 0);
-			} else {
-				*end_offset = 0;
-			}
-			if (line > 1) {
-				*start_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line - 2, 0);
-			} else {
-				*start_offset = *end_offset;
-			}
-			break;
-		}
-
-		default:
-			*start_offset = *end_offset = -1;
-			return NULL;
-	}
-
-	return get_text_range(sci, *start_offset, *end_offset);
-}
-
-static gchar *scintilla_object_accessible_get_string_at_offset(AtkText *text, gint offset,
-		AtkTextGranularity granularity, gint *start_offset, gint *end_offset)
-{
-	g_return_val_if_fail(offset >= 0, NULL);
-
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return NULL;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	switch (granularity) {
-		case ATK_TEXT_GRANULARITY_CHAR:
-			*start_offset = offset;
-			*end_offset = scintilla_send_message(sci, SCI_POSITIONAFTER, offset, 0);
-			break;
-		case ATK_TEXT_GRANULARITY_WORD:
-			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, offset, 1);
-			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, offset, 1);
-			break;
-		case ATK_TEXT_GRANULARITY_LINE: {
-			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
-			*start_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line, 0);
-			*end_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line, 0);
-			break;
-		}
-		default:
-			*start_offset = *end_offset = -1;
-			return NULL;
-	}
-
-	return get_text_range(sci, *start_offset, *end_offset);
-}
-
-static gchar *scintilla_object_accessible_get_text_at_offset(AtkText *text, gint offset,
-		AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset)
-{
-	g_return_val_if_fail(offset >= 0, NULL);
-
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return NULL;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	switch (boundary_type) {
-		case ATK_TEXT_BOUNDARY_CHAR:
-			*start_offset = offset;
-			*end_offset = scintilla_send_message(sci, SCI_POSITIONAFTER, offset, 0);
-			break;
-
-		case ATK_TEXT_BOUNDARY_WORD_START:
-			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, offset, 1);
-			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, offset, 1);
-			if (! scintilla_send_message(sci, SCI_ISRANGEWORD, *start_offset, *end_offset)) {
-				// if the cursor was not on a word, forward back
-				*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *start_offset, 0);
-				*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *start_offset, 1);
-			}
-			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *end_offset, 0);
-			break;
-
-		case ATK_TEXT_BOUNDARY_WORD_END:
-			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, offset, 1);
-			*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, offset, 1);
-			if (! scintilla_send_message(sci, SCI_ISRANGEWORD, *start_offset, *end_offset)) {
-				// if the cursor was not on a word, forward back
-				*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *end_offset, 0);
-				*end_offset = scintilla_send_message(sci, SCI_WORDENDPOSITION, *end_offset, 1);
-			}
-			*start_offset = scintilla_send_message(sci, SCI_WORDSTARTPOSITION, *start_offset, 0);
-			break;
-
-		case ATK_TEXT_BOUNDARY_LINE_START: {
-			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
-			*start_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line, 0);
-			*end_offset = scintilla_send_message(sci, SCI_POSITIONFROMLINE, line + 1, 0);
-			break;
-		}
-
-		case ATK_TEXT_BOUNDARY_LINE_END: {
-			gint line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
-			if (line > 0) {
-				*start_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line - 1, 0);
-			} else {
-				*start_offset = 0;
-			}
-			*end_offset = scintilla_send_message(sci, SCI_GETLINEENDPOSITION, line, 0);
-			break;
-		}
-
-		default:
-			*start_offset = *end_offset = -1;
-			return NULL;
-	}
-
-	return get_text_range(sci, *start_offset, *end_offset);
-}
-
-static gunichar scintilla_object_accessible_get_character_at_offset(AtkText *text, gint offset)
-{
-	g_return_val_if_fail(offset >= 0, 0);
-
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return 0;
-
-	// FIXME: support real Unicode character, not bytes?
-	return scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETCHARAT, offset, 0);
-}
-
-static gint scintilla_object_accessible_get_character_count(AtkText *text)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return 0;
-
-	// FIXME: return characters, not bytes?
-	return scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETLENGTH, 0, 0);
-}
-
-static gint scintilla_object_accessible_get_caret_offset(AtkText *text)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE (text));
-	if (! widget)
-		return 0;
-
-	return scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETCURRENTPOS, 0, 0);
-}
-
-static gboolean scintilla_object_accessible_set_caret_offset(AtkText *text, gint offset)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE (text));
-	if (! widget)
-		return 0;
-
-	// FIXME: do we need to scroll explicitly?  it has to happen, but need to check if
-	// SCI_SETCURRENTPOS does it
-	scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_SETCURRENTPOS, offset, 0);
-	return TRUE;
-}
-
-static gint scintilla_object_accessible_get_offset_at_point(AtkText *text, gint x, gint y, AtkCoordType coords)
-{
-	gint x_widget, y_widget, x_window, y_window;
-	GtkWidget *widget;
-	GdkWindow *window;
-
-	widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return -1;
-
-	window = gtk_widget_get_window(widget);
-	gdk_window_get_origin(window, &x_widget, &y_widget);
-	if (coords == ATK_XY_SCREEN) {
-		x = x - x_widget;
-		y = y - y_widget;
-	} else if (coords == ATK_XY_WINDOW) {
-		window = gdk_window_get_toplevel(window);
-		gdk_window_get_origin(window, &x_window, &y_window);
-
-		x = x - x_widget + x_window;
-		y = y - y_widget + y_window;
-	} else {
-		return -1;
-	}
-
-	// FIXME: should we handle scrolling?
-	return scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_CHARPOSITIONFROMPOINTCLOSE, x, y);
-}
-
-static void scintilla_object_accessible_get_character_extents(AtkText *text, gint offset,
-		gint *x, gint *y, gint *width, gint *height, AtkCoordType coords)
-{
-	*x = *y = *height = *width = 0;
-
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return;
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-
-	// FIXME: should we handle scrolling?
-	*x = scintilla_send_message(sci, SCI_POINTXFROMPOSITION, 0, offset);
-	*y = scintilla_send_message(sci, SCI_POINTYFROMPOSITION, 0, offset);
-
-	int line = scintilla_send_message(sci, SCI_LINEFROMPOSITION, offset, 0);
-	*height = scintilla_send_message(sci, SCI_TEXTHEIGHT, line, 0);
-
-	int next_pos = scintilla_send_message(sci, SCI_POSITIONAFTER, offset, 0);
-	int next_x = scintilla_send_message(sci, SCI_POINTXFROMPOSITION, 0, next_pos);
-	if (next_x > *x) {
-		*width = next_x - *x;
-	} else if (next_pos > offset) {
-		/* maybe next position was on the next line or something.
-		 * just compute the expected character width */
-		int style = scintilla_send_message(sci, SCI_GETSTYLEAT, offset, 0);
-		gchar *ch = get_text_range(sci, offset, next_pos);
-		*width = scintilla_send_message(sci, SCI_TEXTWIDTH, style, (sptr_t) ch);
-		g_free(ch);
-	} else {
-		// possibly the last position on the document, so no character here.
-		*x = *y = *height = *width = 0;
-		return;
-	}
-
-	GdkWindow *window = gtk_widget_get_window(widget);
-	int x_widget, y_widget;
-	gdk_window_get_origin(window, &x_widget, &y_widget);
-	if (coords == ATK_XY_SCREEN) {
-		*x += x_widget;
-		*y += y_widget;
-	} else if (coords == ATK_XY_WINDOW) {
-		window = gdk_window_get_toplevel(window);
-		int x_window, y_window;
-		gdk_window_get_origin(window, &x_window, &y_window);
-
-		*x += x_widget - x_window;
-		*y += y_widget - y_window;
-	} else {
-		*x = *y = *height = *width = 0;
-	}
-}
-
-static AtkAttributeSet *add_text_attribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gchar *value)
-{
-	AtkAttribute *at = g_new(AtkAttribute, 1);
-	at->name = g_strdup(atk_text_attribute_get_name(attr));
-	at->value = value;
-
-	return g_slist_prepend(attributes, at);
-}
-
-static AtkAttributeSet *add_text_int_attribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gint i)
-{
-	return add_text_attribute (attributes, attr, g_strdup(atk_text_attribute_get_value(attr, i)));
-}
-
-static AtkAttributeSet *get_attributes_for_style(ScintillaObject *sci, gint style)
-{
-	AtkAttributeSet *attr_set = NULL;
-
-	const int font_len = scintilla_send_message(sci, SCI_STYLEGETFONT, style, 0);
-	gchar *font = (char *) g_malloc(font_len + 1);
-	scintilla_send_message(sci, SCI_STYLEGETFONT, style, (sptr_t) font);
-	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_FAMILY_NAME, font);
-
-	const int size = scintilla_send_message(sci, SCI_STYLEGETSIZE, style, 0);
-	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_SIZE, g_strdup_printf("%d", size));
-
-	const int weight = scintilla_send_message(sci, SCI_STYLEGETWEIGHT, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_WEIGHT, CLAMP(weight, 100, 1000));
-
-	const int italic = scintilla_send_message(sci, SCI_STYLEGETITALIC, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_STYLE, italic ? PANGO_STYLE_ITALIC : PANGO_STYLE_NORMAL);
-
-	const int underline = scintilla_send_message(sci, SCI_STYLEGETUNDERLINE, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_UNDERLINE, underline ? PANGO_UNDERLINE_SINGLE : PANGO_UNDERLINE_NONE);
-
-	const int fg = scintilla_send_message(sci, SCI_STYLEGETFORE, style, 0);
-	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_FG_COLOR,
-	                              g_strdup_printf("%u,%u,%u",
-	                                              (guint) (((fg >>  0) & 0xff) * 257),
-	                                              (guint) (((fg >>  8) & 0xff) * 257),
-	                                              (guint) (((fg >> 16) & 0xff) * 257)));
-
-	const int bg = scintilla_send_message(sci, SCI_STYLEGETBACK, style, 0);
-	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_BG_COLOR,
-	                              g_strdup_printf("%u,%u,%u",
-	                                              (guint) (((bg >>  0) & 0xff) * 257),
-	                                              (guint) (((bg >>  8) & 0xff) * 257),
-	                                              (guint) (((bg >> 16) & 0xff) * 257)));
-
-	const int visible = scintilla_send_message(sci, SCI_STYLEGETVISIBLE, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_INVISIBLE, ! visible);
-
-	const int changeable = scintilla_send_message(sci, SCI_STYLEGETCHANGEABLE, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_EDITABLE, changeable);
-
-	return attr_set;
-}
-
-static AtkAttributeSet *scintilla_object_accessible_get_run_attributes(AtkText *text, gint offset, gint *start_offset, gint *end_offset)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return NULL;
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-
-	const gint style = scintilla_send_message(sci, SCI_GETSTYLEAT, offset, 0);
-
-	/* compute the range for this style */
-	*start_offset = offset;
-	while (*start_offset > 0 && scintilla_send_message(sci, SCI_GETSTYLEAT, (*start_offset) - 1, 0) == style)
-		(*start_offset)--;
-	*end_offset = offset;
-	while ((*end_offset) < scintilla_send_message(sci, SCI_GETLENGTH, (*end_offset) + 1, 0) &&
-	       scintilla_send_message(sci, SCI_GETSTYLEAT, (*end_offset) - 1, 0) == style)
-		(*end_offset)++;
-
-	/* fill the style info */
-	return get_attributes_for_style(sci, style);
-}
-
-static AtkAttributeSet *scintilla_object_accessible_get_default_attributes(AtkText *text)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return NULL;
-
-	return get_attributes_for_style(SCINTILLA_OBJECT(widget), 0);
-}
-
-static gint scintilla_object_accessible_get_n_selections(AtkText *text)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return 0;
-
-	if (scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETSELECTIONEMPTY, 0, 0))
-		return 0;
-	else
-		return scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETSELECTIONS, 0, 0);
-}
-
-static gchar *scintilla_object_accessible_get_selection(AtkText *atk_text, gint selection_num, gint *start_pos, gint *end_pos)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE (atk_text));
-	if (! widget)
-		return NULL;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	if (selection_num >= scintilla_send_message(sci, SCI_GETSELECTIONS, 0, 0))
-		return NULL;
-
-	struct Sci_TextRange range;
-	*start_pos = range.chrg.cpMin = scintilla_send_message(sci, SCI_GETSELECTIONNSTART, selection_num, 0);
-	*end_pos = range.chrg.cpMax = scintilla_send_message(sci, SCI_GETSELECTIONNEND, selection_num, 0);
-	if (range.chrg.cpMin == range.chrg.cpMax) {
-		return NULL;
-	} else if (range.chrg.cpMax < range.chrg.cpMin) {
-		/* just in case */
-		Sci_PositionCR tmp = range.chrg.cpMin;
-		range.chrg.cpMin = range.chrg.cpMax;
-		range.chrg.cpMax = tmp;
-	}
-
-	range.lpstrText = (char *) g_malloc(range.chrg.cpMax - range.chrg.cpMin + 1);
-	scintilla_send_message(sci, SCI_GETTEXTRANGE, 0, (sptr_t) &range);
-
-	return range.lpstrText;
-}
-
-static gboolean scintilla_object_accessible_add_selection(AtkText *text, gint start, gint end)
-{
-	GtkWidget *widget = gtk_accessible_get_widget (GTK_ACCESSIBLE (text));
-	if (! widget)
-		return FALSE;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	int n_selections = scintilla_send_message(sci, SCI_GETSELECTIONS, 0, 0);
-	if (n_selections > 1 || ! scintilla_send_message(sci, SCI_GETSELECTIONEMPTY, 0, 0)) {
-		scintilla_send_message(sci, SCI_ADDSELECTION, start, end);
-	} else {
-		scintilla_send_message(sci, SCI_SETSELECTION, start, end);
-	}
-
-	return TRUE;
-}
-
-static gboolean scintilla_object_accessible_remove_selection(AtkText *text, gint selection_num)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return FALSE;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	int n_selections = scintilla_send_message(sci, SCI_GETSELECTIONS, 0, 0);
-	if (selection_num >= n_selections)
-		return FALSE;
-
-	if (n_selections > 1) {
-		scintilla_send_message(sci, SCI_DROPSELECTIONN, selection_num, 0);
-	} else if (scintilla_send_message(sci, SCI_GETSELECTIONEMPTY, 0, 0)) {
-		return FALSE;
-	} else {
-		scintilla_send_message(sci, SCI_CLEARSELECTIONS, 0, 0);
-	}
-
-	return TRUE;
-}
-
-static gboolean scintilla_object_accessible_set_selection(AtkText *text, gint selection_num, gint start, gint end)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return FALSE;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	if (selection_num >= scintilla_send_message(sci, SCI_GETSELECTIONS, 0, 0))
-		return NULL;
-
-	scintilla_send_message(sci, SCI_SETSELECTIONNSTART, selection_num, start);
-	scintilla_send_message(sci, SCI_SETSELECTIONNEND, selection_num, end);
-
-	return TRUE;
-}
-
-static void atk_text_interface_init (AtkTextIface *iface)
-{
-	iface->get_text = scintilla_object_accessible_get_text;
-	iface->get_text_after_offset = scintilla_object_accessible_get_text_after_offset;
-	iface->get_text_at_offset = scintilla_object_accessible_get_text_at_offset;
-	iface->get_text_before_offset = scintilla_object_accessible_get_text_before_offset;
-#if ATK_CHECK_VERSION(2, 10, 0)
-	iface->get_string_at_offset = scintilla_object_accessible_get_string_at_offset;
-#endif
-	iface->get_character_at_offset = scintilla_object_accessible_get_character_at_offset;
-	iface->get_character_count = scintilla_object_accessible_get_character_count;
-	iface->get_caret_offset = scintilla_object_accessible_get_caret_offset;
-	iface->set_caret_offset = scintilla_object_accessible_set_caret_offset;
-	iface->get_offset_at_point = scintilla_object_accessible_get_offset_at_point;
-	iface->get_character_extents = scintilla_object_accessible_get_character_extents;
-	iface->get_n_selections = scintilla_object_accessible_get_n_selections;
-	iface->get_selection = scintilla_object_accessible_get_selection;
-	iface->add_selection = scintilla_object_accessible_add_selection;
-	iface->remove_selection = scintilla_object_accessible_remove_selection;
-	iface->set_selection = scintilla_object_accessible_set_selection;
-	iface->get_run_attributes = scintilla_object_accessible_get_run_attributes;
-	iface->get_default_attributes = scintilla_object_accessible_get_default_attributes;
-}
-
-/* atkeditabletext.h */
-
-static void scintilla_object_accessible_set_text_contents(AtkEditableText *text, const gchar *contents)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return;
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	// FIXME: it's probably useless to check for READONLY here, SETTEXT probably does it just fine?
-	if (! scintilla_send_message(sci, SCI_GETREADONLY, 0, 0)) {
-		scintilla_send_message(sci, SCI_SETTEXT, 0, (sptr_t) contents);
-	}
-}
-
-static void insert_text(ScintillaObject *sci, const gchar *text, gint length, gint *position)
-{
-	if (! scintilla_send_message(sci, SCI_GETREADONLY, 0, 0)) {
-		gint tgt_start = scintilla_send_message(sci, SCI_GETTARGETSTART, 0, 0);
-		gint tgt_end = scintilla_send_message(sci, SCI_GETTARGETEND, 0, 0);
-
-		scintilla_send_message(sci, SCI_SETTARGETRANGE, *position, *position);
-		scintilla_send_message(sci, SCI_REPLACETARGET, length, (sptr_t) text);
-		(*position) += length;
-
-		// restore the old target
-		if (tgt_start > *position)
-			tgt_start += length;
-		if (tgt_end > *position)
-			tgt_end += length;
-		scintilla_send_message(sci, SCI_SETTARGETRANGE, tgt_start, tgt_end);
-	}
-}
-
-static void scintilla_object_accessible_insert_text(AtkEditableText *text, const gchar *contents, gint length, gint *position)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return;
-
-	insert_text(SCINTILLA_OBJECT(widget), contents, length, position);
-}
-
-static void scintilla_object_accessible_copy_text(AtkEditableText *text, gint start, gint end)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return;
-
-	scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_COPYRANGE, start, end);
-}
-
-static void scintilla_object_accessible_cut_text(AtkEditableText *text, gint start, gint end)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return;
-
-	g_return_if_fail(end >= start);
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	if (! scintilla_send_message(sci, SCI_GETREADONLY, 0, 0)) {
-		gint tgt_start = scintilla_send_message(sci, SCI_GETTARGETSTART, 0, 0);
-		gint tgt_end = scintilla_send_message(sci, SCI_GETTARGETEND, 0, 0);
-
-		struct Sci_TextRange range;
-		range.chrg.cpMin = start;
-		range.chrg.cpMax = end;
-		range.lpstrText = (char *) g_malloc(range.chrg.cpMax - range.chrg.cpMin + 1);
-		scintilla_send_message(sci, SCI_GETTEXTRANGE, 0, (sptr_t) &range);
-		scintilla_send_message(sci, SCI_COPYTEXT, range.chrg.cpMax - range.chrg.cpMin + 1, (sptr_t) range.lpstrText);
-		scintilla_send_message(sci, SCI_SETTARGETRANGE, start, end);
-		scintilla_send_message(sci, SCI_REPLACETARGET, 0, (sptr_t) "");
-
-		// restore the old target
-		scintilla_send_message(sci, SCI_SETTARGETRANGE, tgt_start, tgt_end);
-	}
-}
-
-static void scintilla_object_accessible_delete_text(AtkEditableText *text, gint start, gint end)
-{
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (! widget)
-		return;
-
-	g_return_if_fail(end >= start);
-
-	ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-	if (! scintilla_send_message(sci, SCI_GETREADONLY, 0, 0)) {
-		gint tgt_start = scintilla_send_message(sci, SCI_GETTARGETSTART, 0, 0);
-		gint tgt_end = scintilla_send_message(sci, SCI_GETTARGETEND, 0, 0);
-
-		scintilla_send_message(sci, SCI_SETTARGETRANGE, start, end);
-		scintilla_send_message(sci, SCI_REPLACETARGET, 0, (sptr_t) "");
-
-		// restore the old target
-		scintilla_send_message(sci, SCI_SETTARGETRANGE, tgt_start, tgt_end);
-	}
-}
-
-typedef struct
-{
-	Document *doc;
-	gint position;
-} PasteData;
-
-static void paste_received(GtkClipboard *clipboard, const gchar *text, gpointer data)
-{
-	PasteData *paste = (PasteData *) data;
-
-	if (text) {
-		paste->doc->InsertString(paste->position, text, (int) strlen(text));
-	}
-
-	paste->doc->Release();
-}
-
-static void scintilla_object_accessible_paste_text(AtkEditableText *text, gint position)
-{
-	PasteData paste;
-
-	GtkWidget *widget = gtk_accessible_get_widget(GTK_ACCESSIBLE(text));
-	if (widget == NULL)
-		return;
-
-	if (scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETREADONLY, 0, 0))
-		return;
-
-	paste.doc = ScintillaBaseFromWidget(widget)->pdoc;
-	paste.doc->AddRef();
-	paste.position = position;
-
-	GtkClipboard *clipboard = gtk_widget_get_clipboard(widget, GDK_SELECTION_CLIPBOARD);
-	gtk_clipboard_request_text(clipboard, paste_received, &paste);
-}
-
-static void atk_editable_text_interface_init (AtkEditableTextIface *iface)
-{
-	iface->set_text_contents = scintilla_object_accessible_set_text_contents;
-	iface->insert_text = scintilla_object_accessible_insert_text;
-	iface->copy_text = scintilla_object_accessible_copy_text;
-	iface->cut_text = scintilla_object_accessible_cut_text;
-	iface->delete_text = scintilla_object_accessible_delete_text;
-	iface->paste_text = scintilla_object_accessible_paste_text;
-	//~ iface->set_run_attributes = scintilla_object_accessible_set_run_attributes;
-}
-
-/* Callbacks */
-
-static void scintilla_object_accessible_update_cursor(ScintillaObjectAccessible *accessible, ScintillaObject *sci)
-{
-	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
-
-	int pos = scintilla_send_message(sci, SCI_GETCURRENTPOS, 0, 0);
-	if (priv->pos != pos) {
-		g_signal_emit_by_name(accessible, "text-caret-moved", pos);
-		priv->pos = pos;
-	}
-
-	int n_selections = scintilla_send_message(sci, SCI_GETSELECTIONS, 0, 0);
-	int prev_n_selections = priv->carets->len;
-	gboolean selection_changed = n_selections != prev_n_selections;
-
-	g_array_set_size(priv->carets, n_selections);
-	g_array_set_size(priv->anchors, n_selections);
-	for (int i = 0; i < n_selections; i++) {
-		int caret = scintilla_send_message(sci, SCI_GETSELECTIONNSTART, i, 0);
-		int anchor = scintilla_send_message(sci, SCI_GETSELECTIONNEND, i, 0);
-
-		if (i < prev_n_selections && ! selection_changed) {
-			int prev_caret = g_array_index(priv->carets, int, i);
-			int prev_anchor = g_array_index(priv->anchors, int, i);
-			// do not consider a caret move to be a selection change
-			selection_changed = ((prev_caret != prev_anchor || caret != anchor) &&
-			                     (prev_caret != caret || prev_anchor != anchor));
-		}
-
-		g_array_index(priv->carets, int, i) = caret;
-		g_array_index(priv->anchors, int, i) = anchor;
-	}
-
-	if (selection_changed)
-		g_signal_emit_by_name(accessible, "text-selection-changed");
-}
-
-static void sci_notify_handler(GtkWidget *widget, gint code, SCNotification *nt, gpointer data)
-{
-	ScintillaObjectAccessible *accessible = (ScintillaObjectAccessible *) data;
-
-	switch (nt->nmhdr.code) {
-		case SCN_MODIFIED: {
-			if (nt->modificationType & SC_MOD_INSERTTEXT) {
-				g_signal_emit_by_name(accessible, "text-changed::insert",
-				                      (gint) nt->position, (gint) nt->length);
-				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
-			}
-			if (nt->modificationType & SC_MOD_DELETETEXT) {
-				g_signal_emit_by_name(accessible, "text-changed::delete", (gint) nt->position, (gint) nt->length);
-				scintilla_object_accessible_update_cursor(accessible, SCINTILLA_OBJECT(widget));
-			}
-			if (nt->modificationType & SC_MOD_CHANGESTYLE) {
-				g_signal_emit_by_name(accessible, "text-attributes-changed");
-			}
-		} break;
-		case SCN_UPDATEUI: {
-			ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
-			ScintillaObject *sci = SCINTILLA_OBJECT(widget);
-
-			if (nt->updated & SC_UPDATE_SELECTION) {
-				scintilla_object_accessible_update_cursor(accessible, sci);
-
-				// SC_UPDATE_SELECTION is the only signal we get when DOCPOINTER changes, so check here
-				Document *doc = ScintillaBaseFromWidget(widget)->pdoc;
-				if (doc != priv->doc) {
-					scintilla_object_accessible_change_document(accessible, sci, doc);
-				}
-			}
-			int readonly = scintilla_send_message(sci, SCI_GETREADONLY, 0, 0);
-			if (priv->readonly != readonly) {
-				atk_object_notify_state_change(gtk_widget_get_accessible(widget), ATK_STATE_EDITABLE, ! readonly);
-				priv->readonly = readonly;
-			}
-		} break;
-	}
+	priv->pscin = nullptr;
 }
 
 #if HAVE_GTK_FACTORY
@@ -1220,22 +1204,18 @@ typedef AtkObjectFactoryClass ScintillaObjectAccessibleFactoryClass;
 
 G_DEFINE_TYPE(ScintillaObjectAccessibleFactory, scintilla_object_accessible_factory, ATK_TYPE_OBJECT_FACTORY)
 
-static void scintilla_object_accessible_factory_init(ScintillaObjectAccessibleFactory *factory)
-{
+static void scintilla_object_accessible_factory_init(ScintillaObjectAccessibleFactory *) {
 }
 
-static GType scintilla_object_accessible_factory_get_accessible_type(void)
-{
+static GType scintilla_object_accessible_factory_get_accessible_type(void) {
 	return SCINTILLA_TYPE_OBJECT_ACCESSIBLE;
 }
 
-static AtkObject *scintilla_object_accessible_factory_create_accessible(GObject *obj)
-{
+static AtkObject *scintilla_object_accessible_factory_create_accessible(GObject *obj) {
 	return scintilla_object_accessible_new(0, obj);
 }
 
-static void scintilla_object_accessible_factory_class_init(AtkObjectFactoryClass * klass)
-{
+static void scintilla_object_accessible_factory_class_init(AtkObjectFactoryClass * klass) {
 	klass->create_accessible = scintilla_object_accessible_factory_create_accessible;
 	klass->get_accessible_type = scintilla_object_accessible_factory_get_accessible_type;
 }
