@@ -175,7 +175,7 @@ private:
 	gboolean SetCaretOffset(gint offset);
 	gint GetOffsetAtPoint(gint x, gint y, AtkCoordType coords);
 	void GetCharacterExtents(gint offset, gint *x, gint *y, gint *width, gint *height, AtkCoordType coords);
-	AtkAttributeSet *GetAttributesForStyle(gint style);
+	AtkAttributeSet *GetAttributesForStyle(unsigned int style);
 	AtkAttributeSet *GetRunAttributes(gint offset, gint *start_offset, gint *end_offset);
 	AtkAttributeSet *GetDefaultAttributes();
 	gint GetNSelections();
@@ -603,7 +603,7 @@ void ScintillaGTKAccessible::GetCharacterExtents(gint offset,
 	}
 }
 
-static AtkAttributeSet *add_text_attribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gchar *value) {
+static AtkAttributeSet *AddTextAttribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gchar *value) {
 	AtkAttribute *at = g_new(AtkAttribute, 1);
 	at->name = g_strdup(atk_text_attribute_get_name(attr));
 	at->value = value;
@@ -611,67 +611,52 @@ static AtkAttributeSet *add_text_attribute(AtkAttributeSet *attributes, AtkTextA
 	return g_slist_prepend(attributes, at);
 }
 
-static AtkAttributeSet *add_text_int_attribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gint i) {
-	return add_text_attribute(attributes, attr, g_strdup(atk_text_attribute_get_value(attr, i)));
+static AtkAttributeSet *AddTextIntAttribute(AtkAttributeSet *attributes, AtkTextAttribute attr, gint i) {
+	return AddTextAttribute(attributes, attr, g_strdup(atk_text_attribute_get_value(attr, i)));
 }
 
-AtkAttributeSet *ScintillaGTKAccessible::GetAttributesForStyle(gint style) {
+static AtkAttributeSet *AddTextColorAttribute(AtkAttributeSet *attributes, AtkTextAttribute attr, const ColourDesired &colour) {
+	return AddTextAttribute(attributes, attr,
+		g_strdup_printf("%u,%u,%u", colour.GetRed() * 257, colour.GetGreen() * 257, colour.GetBlue() * 257));
+}
+
+AtkAttributeSet *ScintillaGTKAccessible::GetAttributesForStyle(unsigned int styleNum) {
 	AtkAttributeSet *attr_set = NULL;
 
-	const int font_len = sci->WndProc(SCI_STYLEGETFONT, style, 0);
-	gchar *font = (char *) g_malloc(font_len + 1);
-	sci->WndProc(SCI_STYLEGETFONT, style, (sptr_t) font);
-	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_FAMILY_NAME, font);
+	if (styleNum >= sci->vs.styles.size())
+		return NULL;
+	Style &style = sci->vs.styles[styleNum];
 
-	const int size = sci->WndProc(SCI_STYLEGETSIZE, style, 0);
-	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_SIZE, g_strdup_printf("%d", size));
-
-	const int weight = sci->WndProc(SCI_STYLEGETWEIGHT, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_WEIGHT, CLAMP(weight, 100, 1000));
-
-	const int italic = sci->WndProc(SCI_STYLEGETITALIC, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_STYLE, italic ? PANGO_STYLE_ITALIC : PANGO_STYLE_NORMAL);
-
-	const int underline = sci->WndProc(SCI_STYLEGETUNDERLINE, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_UNDERLINE, underline ? PANGO_UNDERLINE_SINGLE : PANGO_UNDERLINE_NONE);
-
-	const int fg = sci->WndProc(SCI_STYLEGETFORE, style, 0);
-	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_FG_COLOR,
-	                              g_strdup_printf("%u,%u,%u",
-	                                              (guint) (((fg >>  0) & 0xff) * 257),
-	                                              (guint) (((fg >>  8) & 0xff) * 257),
-	                                              (guint) (((fg >> 16) & 0xff) * 257)));
-
-	const int bg = sci->WndProc(SCI_STYLEGETBACK, style, 0);
-	attr_set = add_text_attribute(attr_set, ATK_TEXT_ATTR_BG_COLOR,
-	                              g_strdup_printf("%u,%u,%u",
-	                                              (guint) (((bg >>  0) & 0xff) * 257),
-	                                              (guint) (((bg >>  8) & 0xff) * 257),
-	                                              (guint) (((bg >> 16) & 0xff) * 257)));
-
-	const int visible = sci->WndProc(SCI_STYLEGETVISIBLE, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_INVISIBLE, ! visible);
-
-	const int changeable = sci->WndProc(SCI_STYLEGETCHANGEABLE, style, 0);
-	attr_set = add_text_int_attribute(attr_set, ATK_TEXT_ATTR_EDITABLE, changeable);
+	attr_set = AddTextAttribute(attr_set, ATK_TEXT_ATTR_FAMILY_NAME, g_strdup(style.fontName));
+	attr_set = AddTextAttribute(attr_set, ATK_TEXT_ATTR_SIZE, g_strdup_printf("%d", style.size / SC_FONT_SIZE_MULTIPLIER));
+	attr_set = AddTextIntAttribute(attr_set, ATK_TEXT_ATTR_WEIGHT, CLAMP(style.weight, 100, 1000));
+	attr_set = AddTextIntAttribute(attr_set, ATK_TEXT_ATTR_STYLE, style.italic ? PANGO_STYLE_ITALIC : PANGO_STYLE_NORMAL);
+	attr_set = AddTextIntAttribute(attr_set, ATK_TEXT_ATTR_UNDERLINE, style.underline ? PANGO_UNDERLINE_SINGLE : PANGO_UNDERLINE_NONE);
+	attr_set = AddTextColorAttribute(attr_set, ATK_TEXT_ATTR_FG_COLOR, style.fore);
+	attr_set = AddTextColorAttribute(attr_set, ATK_TEXT_ATTR_BG_COLOR, style.back);
+	attr_set = AddTextIntAttribute(attr_set, ATK_TEXT_ATTR_INVISIBLE, style.visible ? 0 : 1);
+	attr_set = AddTextIntAttribute(attr_set, ATK_TEXT_ATTR_EDITABLE, style.changeable ? 1 : 0);
 
 	return attr_set;
 }
 
 AtkAttributeSet *ScintillaGTKAccessible::GetRunAttributes(gint offset, gint *start_offset, gint *end_offset) {
-	const gint style = sci->WndProc(SCI_GETSTYLEAT, offset, 0);
+	char style = 0;
 
-	/* compute the range for this style */
-	*start_offset = offset;
-	while (*start_offset > 0 && sci->WndProc(SCI_GETSTYLEAT, (*start_offset) - 1, 0) == style)
-		(*start_offset)--;
-	*end_offset = offset;
-	while ((*end_offset) < sci->WndProc(SCI_GETLENGTH, (*end_offset) + 1, 0) &&
-	       sci->WndProc(SCI_GETSTYLEAT, (*end_offset) - 1, 0) == style)
-		(*end_offset)++;
+	int length = sci->pdoc->Length();
+	if (offset > 0 && offset < length) {
+		style = sci->pdoc->StyleAt(offset);
 
-	/* fill the style info */
-	return GetAttributesForStyle(style);
+		// compute the range for this style
+		*start_offset = offset;
+		while (*start_offset > 0 && sci->pdoc->StyleAt((*start_offset) - 1) == style)
+			(*start_offset)--;
+		*end_offset = offset;
+		while ((*end_offset) + 1 < length && sci->pdoc->StyleAt((*end_offset) + 1) == style)
+			(*end_offset)++;
+	}
+
+	return GetAttributesForStyle((unsigned int) style);
 }
 
 AtkAttributeSet *ScintillaGTKAccessible::GetDefaultAttributes() {
