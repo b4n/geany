@@ -58,7 +58,6 @@
 #include <stdexcept>
 #include <new>
 #include <string>
-#include <utility>
 #include <vector>
 #include <map>
 #include <algorithm>
@@ -139,7 +138,7 @@ private:
 	Document *old_doc = nullptr;
 	bool old_readonly = false;
 	Position old_pos = -1;
-	std::vector<std::pair<Position, Position>> old_sels;
+	std::vector<SelectionRange> old_sels;
 
 	void UpdateCursor();
 	void ChangeDocument(Document *new_doc);
@@ -664,25 +663,23 @@ AtkAttributeSet *ScintillaGTKAccessible::GetDefaultAttributes() {
 }
 
 gint ScintillaGTKAccessible::GetNSelections() {
-	if (sci->WndProc(SCI_GETSELECTIONEMPTY, 0, 0))
-		return 0;
-	else
-		return sci->WndProc(SCI_GETSELECTIONS, 0, 0);
+	return sci->sel.Empty() ? 0 : sci->sel.Count();
 }
 
 gchar *ScintillaGTKAccessible::GetSelection(gint selection_num, gint *start_pos, gint *end_pos) {
-	if (selection_num >= sci->WndProc(SCI_GETSELECTIONS, 0, 0))
+	if (selection_num < 0 || (unsigned int) selection_num >= sci->sel.Count())
 		return NULL;
 
-	*start_pos = sci->WndProc(SCI_GETSELECTIONNSTART, selection_num, 0);
-	*end_pos = sci->WndProc(SCI_GETSELECTIONNEND, selection_num, 0);
+	*start_pos = sci->sel.Range(selection_num).Start().Position();
+	*end_pos = sci->sel.Range(selection_num).End().Position();
 
 	return GetTextRange(*start_pos, *end_pos);
 }
 
 gboolean ScintillaGTKAccessible::AddSelection(gint start, gint end) {
-	int n_selections = sci->WndProc(SCI_GETSELECTIONS, 0, 0);
-	if (n_selections > 1 || ! sci->WndProc(SCI_GETSELECTIONEMPTY, 0, 0)) {
+	size_t n_selections = sci->sel.Count();
+	// use WndProc() to set the selections so it notifies as needed
+	if (n_selections > 1 || ! sci->sel.Empty()) {
 		sci->WndProc(SCI_ADDSELECTION, start, end);
 	} else {
 		sci->WndProc(SCI_SETSELECTION, start, end);
@@ -692,13 +689,13 @@ gboolean ScintillaGTKAccessible::AddSelection(gint start, gint end) {
 }
 
 gboolean ScintillaGTKAccessible::RemoveSelection(gint selection_num) {
-	int n_selections = sci->WndProc(SCI_GETSELECTIONS, 0, 0);
-	if (selection_num >= n_selections)
+	size_t n_selections = sci->sel.Count();
+	if (selection_num < 0 || (unsigned int) selection_num >= n_selections)
 		return FALSE;
 
 	if (n_selections > 1) {
 		sci->WndProc(SCI_DROPSELECTIONN, selection_num, 0);
-	} else if (sci->WndProc(SCI_GETSELECTIONEMPTY, 0, 0)) {
+	} else if (sci->sel.Empty()) {
 		return FALSE;
 	} else {
 		sci->WndProc(SCI_CLEARSELECTIONS, 0, 0);
@@ -708,7 +705,7 @@ gboolean ScintillaGTKAccessible::RemoveSelection(gint selection_num) {
 }
 
 gboolean ScintillaGTKAccessible::SetSelection(gint selection_num, gint start, gint end) {
-	if (selection_num >= sci->WndProc(SCI_GETSELECTIONS, 0, 0))
+	if (selection_num < 0 || (unsigned int) selection_num >= sci->sel.Count())
 		return FALSE;
 
 	sci->WndProc(SCI_SETSELECTIONNSTART, selection_num, start);
@@ -861,22 +858,21 @@ void ScintillaGTKAccessible::UpdateCursor() {
 		old_pos = pos;
 	}
 
-	int n_selections = sci->WndProc(SCI_GETSELECTIONS, 0, 0);
-	int prev_n_selections = old_sels.size();
+	size_t n_selections = sci->sel.Count();
+	size_t prev_n_selections = old_sels.size();
 	bool selection_changed = n_selections != prev_n_selections;
 
 	old_sels.resize(n_selections);
-	for (int i = 0; i < n_selections; i++) {
-		Position start = sci->WndProc(SCI_GETSELECTIONNSTART, i, 0);
-		Position end = sci->WndProc(SCI_GETSELECTIONNEND, i, 0);
+	for (size_t i = 0; i < n_selections; i++) {
+		SelectionRange &sel = sci->sel.Range(i);
 
 		if (i < prev_n_selections && ! selection_changed) {
+			SelectionRange &old_sel = old_sels[i];
 			// do not consider a caret move to be a selection change
-			selection_changed = ((old_sels[i].first != old_sels[i].second || start != end) &&
-			                     (old_sels[i].first != start || old_sels[i].second != end));
+			selection_changed = ((! old_sel.Empty() || ! sel.Empty()) && ! (old_sel == sel));
 		}
 
-		old_sels[i] = std::pair<Position, Position>(start, end);
+		old_sels[i] = sel;
 	}
 
 	if (selection_changed)
