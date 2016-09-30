@@ -130,9 +130,6 @@ static GType scintilla_object_accessible_get_type(GType parent_type);
 using namespace Scintilla;
 #endif
 
-// FIXME
-#define ScintillaGTK ScintillaBase
-
 class ScintillaGTKAccessible {
 private:
 	GtkAccessible *accessible;
@@ -301,7 +298,7 @@ public:
 
 ScintillaGTKAccessible::ScintillaGTKAccessible(GtkAccessible *accessible_, GtkWidget *widget_) :
 		accessible(accessible_),
-		sci(ScintillaBaseFromWidget(widget_)) {
+		sci(ScintillaFromWidget(widget_)) {
 	g_signal_connect(widget_, "sci-notify", G_CALLBACK(SciNotify), this);
 }
 
