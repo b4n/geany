@@ -153,12 +153,12 @@ private:
 		// FIXME: do we need the check below?  GTK checks that in all methods, so maybe
 		GtkWidget *widget = gtk_accessible_get_widget(accessible);
 		if (! widget) {
-			throw;
+			throw std::runtime_error("Defunct accessible object");
 		}
 
 		ScintillaGTKAccessible *self = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible)->pscin;
 		if (! self)
-			throw;
+			throw std::runtime_error("Invalid accessible object");
 
 		return self;
 	}
