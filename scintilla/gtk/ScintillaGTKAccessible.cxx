@@ -876,7 +876,7 @@ void ScintillaGTKAccessible::InsertText(const gchar *text, int lengthBytes, int 
 void ScintillaGTKAccessible::CopyText(int startChar, int endChar) {
 	Position startByte, endByte;
 	ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
-	sci->WndProc(SCI_COPYRANGE, startByte, endByte);
+	sci->CopyRangeToClipboard(startByte, endByte);
 }
 
 void ScintillaGTKAccessible::CutText(int startChar, int endChar) {
