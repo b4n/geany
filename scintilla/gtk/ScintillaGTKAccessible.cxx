@@ -841,7 +841,7 @@ void ScintillaGTKAccessible::AtkTextIface::init(::AtkTextIface *iface) {
 
 void ScintillaGTKAccessible::SetTextContents(const gchar *contents) {
 	// FIXME: it's probably useless to check for READONLY here, SETTEXT probably does it just fine?
-	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
+	if (! sci->pdoc->IsReadOnly()) {
 		sci->WndProc(SCI_SETTEXT, 0, (sptr_t) contents);
 	}
 }
@@ -882,7 +882,7 @@ void ScintillaGTKAccessible::CopyText(int startChar, int endChar) {
 void ScintillaGTKAccessible::CutText(int startChar, int endChar) {
 	g_return_if_fail(endChar >= startChar);
 
-	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
+	if (! sci->pdoc->IsReadOnly()) {
 		// FIXME: have a byte variant of those and convert only once?
 		CopyText(startChar, endChar);
 		DeleteText(startChar, endChar);
@@ -892,7 +892,7 @@ void ScintillaGTKAccessible::CutText(int startChar, int endChar) {
 void ScintillaGTKAccessible::DeleteText(int startChar, int endChar) {
 	g_return_if_fail(endChar >= startChar);
 
-	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
+	if (! sci->pdoc->IsReadOnly()) {
 		int old_target[2] = {
 			(int) sci->WndProc(SCI_GETTARGETSTART, 0, 0),
 			(int) sci->WndProc(SCI_GETTARGETEND, 0, 0)
