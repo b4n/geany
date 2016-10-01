@@ -302,7 +302,9 @@ ScintillaGTKAccessible::ScintillaGTKAccessible(GtkAccessible *accessible_, GtkWi
 }
 
 ScintillaGTKAccessible::~ScintillaGTKAccessible() {
-	ChangeDocument(nullptr);
+	if (old_doc) {
+		old_doc->Release();
+	}
 }
 
 gchar *ScintillaGTKAccessible::GetTextRange(Position start_offset, Position end_offset)  {
@@ -1147,6 +1149,8 @@ static void scintilla_object_accessible_finalize(GObject *object) {
 		delete priv->pscin;
 		priv->pscin = nullptr;
 	}
+
+	G_OBJECT_CLASS(scintilla_object_accessible_parent_class)->finalize(object);
 }
 
 static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClass *klass) {
