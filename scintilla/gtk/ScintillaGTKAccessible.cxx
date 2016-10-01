@@ -52,8 +52,6 @@
 # include <gtk/gtk-a11y.h>
 #endif
 
-#define GTK
-
 // ScintillaGTK.h and stuff it needs
 #include <stdexcept>
 #include <new>
