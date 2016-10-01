@@ -893,26 +893,11 @@ void ScintillaGTKAccessible::DeleteText(int startChar, int endChar) {
 	g_return_if_fail(endChar >= startChar);
 
 	if (! sci->pdoc->IsReadOnly()) {
-		int old_target[2] = {
-			(int) sci->WndProc(SCI_GETTARGETSTART, 0, 0),
-			(int) sci->WndProc(SCI_GETTARGETEND, 0, 0)
-		};
-
 		Position startByte, endByte;
 		ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
 
-		sci->WndProc(SCI_SETTARGETRANGE, startByte, endByte);
-		sci->WndProc(SCI_REPLACETARGET, 0, (sptr_t) "");
-
-		// restore the old target, compensating for the removed range
-		for (int i = 0; i < 2; i++) {
-			if (old_target[i] > endByte)
-				old_target[i] -= endByte - startByte;
-			else if (old_target[i] > startByte) // start was in the middle of removed range
-				old_target[i] = startByte;
-		}
-
-		sci->WndProc(SCI_SETTARGETRANGE, old_target[0], old_target[1]);
+		// FIXME: restore the target?
+		sci->pdoc->DeleteChars(startByte, endByte - startByte);
 	}
 }
 
