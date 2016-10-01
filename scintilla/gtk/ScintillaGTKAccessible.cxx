@@ -27,7 +27,8 @@
 // Initially based on GtkTextViewAccessible from GTK 3.20
 // Inspiration for the GTK < 3.2 part comes from Evince 2.24, thanks.
 
-// FIXME: report characters rather than bytes
+// FIXME: optimize character/byte offset conversion (with a cache?)
+// FIXME: convert input/output to UTF-8
 
 #include <sys/types.h>
 
@@ -163,33 +164,73 @@ private:
 		return self;
 	}
 
-	gchar *GetTextRange(Position start_offset, Position end_offset);
-	gchar *GetTextAfterOffset(int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset);
-	gchar *GetTextBeforeOffset(int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset);
-	gchar *GetTextAtOffset(int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset);
-	gchar *GetStringAtOffset(int offset, AtkTextGranularity granularity, int *start_offset, int *end_offset);
-	gunichar GetCharacterAtOffset(gint offset);
+	Position ByteOffsetFromCharacterOffset(Position startByte, int characterOffset) {
+		Position pos = sci->pdoc->GetRelativePosition(startByte, characterOffset);
+		if (pos == INVALID_POSITION) {
+			// clamp invalid positions inside the document
+			if (characterOffset > 0) {
+				return sci->pdoc->Length();
+			} else {
+				return 0;
+			}
+		}
+		return pos;
+	}
+
+	Position ByteOffsetFromCharacterOffset(int characterOffset) {
+		return ByteOffsetFromCharacterOffset(0, characterOffset);
+	}
+
+	int CharacterOffsetFromByteOffset(Position byteOffset) {
+		return sci->pdoc->CountCharacters(0, byteOffset);
+	}
+
+	void CharacterRangeFromByteRange(Position startByte, Position endByte, int *startChar, int *endChar) {
+		*startChar = CharacterOffsetFromByteOffset(startByte);
+		*endChar = *startChar + sci->pdoc->CountCharacters(startByte, endByte);
+	}
+
+	void ByteRangeFromCharacterRange(int startChar, int endChar, Position& startByte, Position& endByte) {
+		startByte = ByteOffsetFromCharacterOffset(startChar);
+		endByte = ByteOffsetFromCharacterOffset(startByte, endChar - startChar);
+	}
+
+	Position PositionBefore(Position pos) {
+		return sci->pdoc->MovePositionOutsideChar(pos - 1, -1, true);
+	}
+
+	Position PositionAfter(Position pos) {
+		return sci->pdoc->MovePositionOutsideChar(pos + 1, 1, true);
+	}
+
+	gchar *GetTextRange(Position startByte, Position endByte);
+	gchar *GetText(int startChar, int endChar);
+	gchar *GetTextAfterOffset(int charOffset, AtkTextBoundary boundaryType, int *startChar, int *endChar);
+	gchar *GetTextBeforeOffset(int charOffset, AtkTextBoundary boundaryType, int *startChar, int *endChar);
+	gchar *GetTextAtOffset(int charOffset, AtkTextBoundary boundaryType, int *startChar, int *endChar);
+	gchar *GetStringAtOffset(int charOffset, AtkTextGranularity granularity, int *startChar, int *endChar);
+	gunichar GetCharacterAtOffset(int charOffset);
 	gint GetCharacterCount();
 	gint GetCaretOffset();
-	gboolean SetCaretOffset(gint offset);
+	gboolean SetCaretOffset(int charOffset);
 	gint GetOffsetAtPoint(gint x, gint y, AtkCoordType coords);
-	void GetCharacterExtents(gint offset, gint *x, gint *y, gint *width, gint *height, AtkCoordType coords);
+	void GetCharacterExtents(int charOffset, gint *x, gint *y, gint *width, gint *height, AtkCoordType coords);
 	AtkAttributeSet *GetAttributesForStyle(unsigned int style);
-	AtkAttributeSet *GetRunAttributes(gint offset, gint *start_offset, gint *end_offset);
+	AtkAttributeSet *GetRunAttributes(int charOffset, int *startChar, int *endChar);
 	AtkAttributeSet *GetDefaultAttributes();
 	gint GetNSelections();
-	gchar *GetSelection(gint selection_num, gint *start_pos, gint *end_pos);
-	gboolean AddSelection(gint start, gint end);
-	gboolean RemoveSelection(gint selection_num);
-	gboolean SetSelection(gint selection_num, gint start, gint end);
+	gchar *GetSelection(gint selection_num, int *startChar, int *endChar);
+	gboolean AddSelection(int startChar, int endChar);
+	gboolean RemoveSelection(int selection_num);
+	gboolean SetSelection(gint selection_num, int startChar, int endChar);
 
 	/* atkeditabletext.h */
 	void SetTextContents(const gchar *contents);
-	void InsertText(const gchar *contents, gint length, gint *position);
-	void CopyText(gint start, gint end);
-	void CutText(gint start, gint end);
-	void DeleteText(gint start, gint end);
-	void PasteText(gint position);
+	void InsertText(const gchar *contents, int lengthBytes, int *charPosition);
+	void CopyText(int startChar, int endChar);
+	void CutText(int startChar, int endChar);
+	void DeleteText(int startChar, int endChar);
+	void PasteText(int charPosition);
 
 public:
 	ScintillaGTKAccessible(GtkAccessible *accessible, GtkWidget *widget);
@@ -213,7 +254,7 @@ public:
 		AtkTextIface();
 
 		static gchar *GetText(AtkText *text, int start_offset, int end_offset) {
-			WRAPPER_METHOD_BODY(text, GetTextRange(start_offset, end_offset), NULL);
+			WRAPPER_METHOD_BODY(text, GetText(start_offset, end_offset), NULL);
 		}
 		static gchar *GetTextAfterOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
 			WRAPPER_METHOD_BODY(text, GetTextAfterOffset(offset, boundary_type, start_offset, end_offset), NULL)
@@ -307,230 +348,263 @@ ScintillaGTKAccessible::~ScintillaGTKAccessible() {
 	}
 }
 
-gchar *ScintillaGTKAccessible::GetTextRange(Position start_offset, Position end_offset)  {
+gchar *ScintillaGTKAccessible::GetTextRange(Position startByte, Position endByte) {
 	struct Sci_TextRange range;
 
-	g_return_val_if_fail(start_offset >= 0, NULL);
+	g_return_val_if_fail(startByte >= 0, NULL);
 	// FIXME: should we swap start/end if necessary?
-	g_return_val_if_fail(end_offset >= start_offset, NULL);
+	g_return_val_if_fail(endByte >= startByte, NULL);
 
-	range.chrg.cpMin = start_offset;
-	range.chrg.cpMax = end_offset;
-	range.lpstrText = (char *) g_malloc(end_offset - start_offset + 1);
+	range.chrg.cpMin = startByte;
+	range.chrg.cpMax = endByte;
+	range.lpstrText = (char *) g_malloc(endByte - startByte + 1);
 	sci->WndProc(SCI_GETTEXTRANGE, 0, (sptr_t) &range);
+	// FXIME: return UTF-8
 
 	return range.lpstrText;
 }
 
-gchar *ScintillaGTKAccessible::GetTextAfterOffset(int offset,
-		AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
-	g_return_val_if_fail(offset >= 0, NULL);
+gchar *ScintillaGTKAccessible::GetText(int startChar, int endChar) {
+	Position startByte, endByte;
+	if (endChar == -1) {
+		startByte = ByteOffsetFromCharacterOffset(startChar);
+		endByte = sci->pdoc->Length();
+	} else {
+		ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
+	}
+	return GetTextRange(startByte, endByte);
+}
 
-	switch (boundary_type) {
+gchar *ScintillaGTKAccessible::GetTextAfterOffset(int charOffset,
+		AtkTextBoundary boundaryType, int *startChar, int *endChar) {
+	g_return_val_if_fail(charOffset >= 0, NULL);
+
+	Position startByte, endByte;
+	Position byteOffset = ByteOffsetFromCharacterOffset(charOffset);
+
+	switch (boundaryType) {
 		case ATK_TEXT_BOUNDARY_CHAR:
-			*start_offset = sci->WndProc(SCI_POSITIONAFTER, offset, 0);
-			*end_offset = sci->WndProc(SCI_POSITIONAFTER, *start_offset, 0);
+			startByte = PositionAfter(byteOffset);
+			endByte = PositionAfter(startByte);
+			// FIXME: optimize conversion back, as we can reasonably assume +1 char?
 			break;
 
 		case ATK_TEXT_BOUNDARY_WORD_START:
-			*start_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 1);
-			*start_offset = sci->WndProc(SCI_WORDENDPOSITION, *start_offset, 0);
-			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *start_offset, 1);
-			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 0);
+			startByte = sci->WndProc(SCI_WORDENDPOSITION, byteOffset, 1);
+			startByte = sci->WndProc(SCI_WORDENDPOSITION, startByte, 0);
+			endByte = sci->WndProc(SCI_WORDENDPOSITION, startByte, 1);
+			endByte = sci->WndProc(SCI_WORDENDPOSITION, endByte, 0);
 			break;
 
 		case ATK_TEXT_BOUNDARY_WORD_END:
-			*start_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 0);
-			*start_offset = sci->WndProc(SCI_WORDENDPOSITION, *start_offset, 1);
-			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *start_offset, 0);
-			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 1);
+			startByte = sci->WndProc(SCI_WORDENDPOSITION, byteOffset, 0);
+			startByte = sci->WndProc(SCI_WORDENDPOSITION, startByte, 1);
+			endByte = sci->WndProc(SCI_WORDENDPOSITION, startByte, 0);
+			endByte = sci->WndProc(SCI_WORDENDPOSITION, endByte, 1);
 			break;
 
 		case ATK_TEXT_BOUNDARY_LINE_START: {
-			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
-			*start_offset = sci->WndProc(SCI_POSITIONFROMLINE, line + 1, 0);
-			*end_offset = sci->WndProc(SCI_POSITIONFROMLINE, line + 2, 0);
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, byteOffset, 0);
+			startByte = sci->WndProc(SCI_POSITIONFROMLINE, line + 1, 0);
+			endByte = sci->WndProc(SCI_POSITIONFROMLINE, line + 2, 0);
 			break;
 		}
 
 		case ATK_TEXT_BOUNDARY_LINE_END: {
-			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
-			*start_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
-			*end_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line + 1, 0);
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, byteOffset, 0);
+			startByte = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
+			endByte = sci->WndProc(SCI_GETLINEENDPOSITION, line + 1, 0);
 			break;
 		}
 
 		default:
-			*start_offset = *end_offset = -1;
+			*startChar = *endChar = -1;
 			return NULL;
 	}
 
-	return GetTextRange(*start_offset, *end_offset);
+	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
+	return GetTextRange(startByte, endByte);
 }
 
-gchar *ScintillaGTKAccessible::GetTextBeforeOffset(int offset,
-		AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
-	g_return_val_if_fail(offset >= 0, NULL);
+gchar *ScintillaGTKAccessible::GetTextBeforeOffset(int charOffset,
+		AtkTextBoundary boundaryType, int *startChar, int *endChar) {
+	g_return_val_if_fail(charOffset >= 0, NULL);
 
-	switch (boundary_type) {
+	Position startByte, endByte;
+	Position byteOffset = ByteOffsetFromCharacterOffset(charOffset);
+
+	switch (boundaryType) {
 		case ATK_TEXT_BOUNDARY_CHAR:
-			*end_offset = sci->WndProc(SCI_POSITIONBEFORE, offset, 0);
-			*start_offset = sci->WndProc(SCI_POSITIONBEFORE, *end_offset, 0);
+			endByte = PositionBefore(byteOffset);
+			startByte = PositionBefore(endByte);
 			break;
 
 		case ATK_TEXT_BOUNDARY_WORD_START:
-			*end_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 0);
-			*end_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *end_offset, 1);
-			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *end_offset, 0);
-			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 1);
+			endByte = sci->WndProc(SCI_WORDSTARTPOSITION, byteOffset, 0);
+			endByte = sci->WndProc(SCI_WORDSTARTPOSITION, endByte, 1);
+			startByte = sci->WndProc(SCI_WORDSTARTPOSITION, endByte, 0);
+			startByte = sci->WndProc(SCI_WORDSTARTPOSITION, startByte, 1);
 			break;
 
 		case ATK_TEXT_BOUNDARY_WORD_END:
-			*end_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 1);
-			*end_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *end_offset, 0);
-			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *end_offset, 1);
-			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 0);
+			endByte = sci->WndProc(SCI_WORDSTARTPOSITION, byteOffset, 1);
+			endByte = sci->WndProc(SCI_WORDSTARTPOSITION, endByte, 0);
+			startByte = sci->WndProc(SCI_WORDSTARTPOSITION, endByte, 1);
+			startByte = sci->WndProc(SCI_WORDSTARTPOSITION, startByte, 0);
 			break;
 
 		case ATK_TEXT_BOUNDARY_LINE_START: {
-			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
-			*end_offset = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, byteOffset, 0);
+			endByte = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
 			if (line > 0) {
-				*start_offset = sci->WndProc(SCI_POSITIONFROMLINE, line - 1, 0);
+				startByte = sci->WndProc(SCI_POSITIONFROMLINE, line - 1, 0);
 			} else {
-				*start_offset = *end_offset;
+				startByte = endByte;
 			}
 			break;
 		}
 
 		case ATK_TEXT_BOUNDARY_LINE_END: {
-			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, byteOffset, 0);
 			if (line > 0) {
-				*end_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line - 1, 0);
+				endByte = sci->WndProc(SCI_GETLINEENDPOSITION, line - 1, 0);
 			} else {
-				*end_offset = 0;
+				endByte = 0;
 			}
 			if (line > 1) {
-				*start_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line - 2, 0);
+				startByte = sci->WndProc(SCI_GETLINEENDPOSITION, line - 2, 0);
 			} else {
-				*start_offset = *end_offset;
+				startByte = endByte;
 			}
 			break;
 		}
 
 		default:
-			*start_offset = *end_offset = -1;
+			*startChar = *endChar = -1;
 			return NULL;
 	}
 
-	return GetTextRange(*start_offset, *end_offset);
+	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
+	return GetTextRange(startByte, endByte);
 }
 
-gchar *ScintillaGTKAccessible::GetTextAtOffset(gint offset,
-		AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset) {
-	g_return_val_if_fail(offset >= 0, NULL);
+gchar *ScintillaGTKAccessible::GetTextAtOffset(int charOffset,
+		AtkTextBoundary boundaryType, int *startChar, int *endChar) {
+	g_return_val_if_fail(charOffset >= 0, NULL);
 
-	switch (boundary_type) {
+	Position startByte, endByte;
+	Position byteOffset = ByteOffsetFromCharacterOffset(charOffset);
+
+	switch (boundaryType) {
 		case ATK_TEXT_BOUNDARY_CHAR:
-			*start_offset = offset;
-			*end_offset = sci->WndProc(SCI_POSITIONAFTER, offset, 0);
+			startByte = byteOffset;
+			endByte = sci->WndProc(SCI_POSITIONAFTER, byteOffset, 0);
 			break;
 
 		case ATK_TEXT_BOUNDARY_WORD_START:
-			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 1);
-			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 1);
-			if (! sci->WndProc(SCI_ISRANGEWORD, *start_offset, *end_offset)) {
+			startByte = sci->WndProc(SCI_WORDSTARTPOSITION, byteOffset, 1);
+			endByte = sci->WndProc(SCI_WORDENDPOSITION, byteOffset, 1);
+			if (! sci->WndProc(SCI_ISRANGEWORD, startByte, endByte)) {
 				// if the cursor was not on a word, forward back
-				*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 0);
-				*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 1);
+				startByte = sci->WndProc(SCI_WORDSTARTPOSITION, startByte, 0);
+				startByte = sci->WndProc(SCI_WORDSTARTPOSITION, startByte, 1);
 			}
-			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 0);
+			endByte = sci->WndProc(SCI_WORDENDPOSITION, endByte, 0);
 			break;
 
 		case ATK_TEXT_BOUNDARY_WORD_END:
-			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 1);
-			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 1);
-			if (! sci->WndProc(SCI_ISRANGEWORD, *start_offset, *end_offset)) {
+			startByte = sci->WndProc(SCI_WORDSTARTPOSITION, byteOffset, 1);
+			endByte = sci->WndProc(SCI_WORDENDPOSITION, byteOffset, 1);
+			if (! sci->WndProc(SCI_ISRANGEWORD, startByte, endByte)) {
 				// if the cursor was not on a word, forward back
-				*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 0);
-				*end_offset = sci->WndProc(SCI_WORDENDPOSITION, *end_offset, 1);
+				endByte = sci->WndProc(SCI_WORDENDPOSITION, endByte, 0);
+				endByte = sci->WndProc(SCI_WORDENDPOSITION, endByte, 1);
 			}
-			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, *start_offset, 0);
+			startByte = sci->WndProc(SCI_WORDSTARTPOSITION, startByte, 0);
 			break;
 
 		case ATK_TEXT_BOUNDARY_LINE_START: {
-			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
-			*start_offset = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
-			*end_offset = sci->WndProc(SCI_POSITIONFROMLINE, line + 1, 0);
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, byteOffset, 0);
+			startByte = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
+			endByte = sci->WndProc(SCI_POSITIONFROMLINE, line + 1, 0);
 			break;
 		}
 
 		case ATK_TEXT_BOUNDARY_LINE_END: {
-			int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+			int line = sci->WndProc(SCI_LINEFROMPOSITION, byteOffset, 0);
 			if (line > 0) {
-				*start_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line - 1, 0);
+				startByte = sci->WndProc(SCI_GETLINEENDPOSITION, line - 1, 0);
 			} else {
-				*start_offset = 0;
+				startByte = 0;
 			}
-			*end_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
+			endByte = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
 			break;
 		}
 
 		default:
-			*start_offset = *end_offset = -1;
+			*startChar = *endChar = -1;
 			return NULL;
 	}
 
-	return GetTextRange(*start_offset, *end_offset);
+	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
+	return GetTextRange(startByte, endByte);
 }
 
-gchar *ScintillaGTKAccessible::GetStringAtOffset(gint offset,
-		AtkTextGranularity granularity, gint *start_offset, gint *end_offset) {
-	g_return_val_if_fail(offset >= 0, NULL);
+gchar *ScintillaGTKAccessible::GetStringAtOffset(int charOffset,
+		AtkTextGranularity granularity, int *startChar, int *endChar) {
+	g_return_val_if_fail(charOffset >= 0, NULL);
+
+	Position startByte, endByte;
+	Position byteOffset = ByteOffsetFromCharacterOffset(charOffset);
 
 	switch (granularity) {
 		case ATK_TEXT_GRANULARITY_CHAR:
-			*start_offset = offset;
-			*end_offset = sci->WndProc(SCI_POSITIONAFTER, offset, 0);
+			startByte = byteOffset;
+			endByte = sci->WndProc(SCI_POSITIONAFTER, byteOffset, 0);
 			break;
 		case ATK_TEXT_GRANULARITY_WORD:
-			*start_offset = sci->WndProc(SCI_WORDSTARTPOSITION, offset, 1);
-			*end_offset = sci->WndProc(SCI_WORDENDPOSITION, offset, 1);
+			startByte = sci->WndProc(SCI_WORDSTARTPOSITION, byteOffset, 1);
+			endByte = sci->WndProc(SCI_WORDENDPOSITION, byteOffset, 1);
 			break;
 		case ATK_TEXT_GRANULARITY_LINE: {
-			gint line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
-			*start_offset = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
-			*end_offset = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
+			gint line = sci->WndProc(SCI_LINEFROMPOSITION, byteOffset, 0);
+			startByte = sci->WndProc(SCI_POSITIONFROMLINE, line, 0);
+			endByte = sci->WndProc(SCI_GETLINEENDPOSITION, line, 0);
 			break;
 		}
 		default:
-			*start_offset = *end_offset = -1;
+			*startChar = *endChar = -1;
 			return NULL;
 	}
 
-	return GetTextRange(*start_offset, *end_offset);
+	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
+	return GetTextRange(startByte, endByte);
 }
 
-gunichar ScintillaGTKAccessible::GetCharacterAtOffset(gint offset) {
-	g_return_val_if_fail(offset >= 0, 0);
+gunichar ScintillaGTKAccessible::GetCharacterAtOffset(int charOffset) {
+	g_return_val_if_fail(charOffset >= 0, 0);
 
-	// FIXME: support real Unicode character, not bytes?
-	return sci->WndProc(SCI_GETCHARAT, offset, 0);
+	Position startByte = ByteOffsetFromCharacterOffset(charOffset);
+	Position endByte = PositionAfter(startByte);
+	gchar *ch = GetTextRange(startByte, endByte);
+	gunichar unichar = g_utf8_get_char_validated(ch, endByte - startByte);
+	g_free(ch);
+
+	return unichar;
 }
 
 gint ScintillaGTKAccessible::GetCharacterCount() {
-	// FIXME: return characters, not bytes?
-	return sci->WndProc(SCI_GETLENGTH, 0, 0);
+	return sci->pdoc->CountCharacters(0, sci->pdoc->Length());
 }
 
 gint ScintillaGTKAccessible::GetCaretOffset() {
-	return sci->WndProc(SCI_GETCURRENTPOS, 0, 0);
+	return CharacterOffsetFromByteOffset(sci->WndProc(SCI_GETCURRENTPOS, 0, 0));
 }
 
-gboolean ScintillaGTKAccessible::SetCaretOffset(gint offset) {
+gboolean ScintillaGTKAccessible::SetCaretOffset(int charOffset) {
 	// FIXME: do we need to scroll explicitly?  it has to happen, but need to check if
 	// SCI_SETCURRENTPOS does it
-	sci->WndProc(SCI_SETCURRENTPOS, offset, 0);
+	sci->WndProc(SCI_SETCURRENTPOS, ByteOffsetFromCharacterOffset(charOffset), 0);
 	return TRUE;
 }
 
@@ -554,29 +628,31 @@ gint ScintillaGTKAccessible::GetOffsetAtPoint(gint x, gint y, AtkCoordType coord
 	}
 
 	// FIXME: should we handle scrolling?
-	return sci->WndProc(SCI_CHARPOSITIONFROMPOINTCLOSE, x, y);
+	return CharacterOffsetFromByteOffset(sci->WndProc(SCI_CHARPOSITIONFROMPOINTCLOSE, x, y));
 }
 
-void ScintillaGTKAccessible::GetCharacterExtents(gint offset,
+void ScintillaGTKAccessible::GetCharacterExtents(int charOffset,
 		gint *x, gint *y, gint *width, gint *height, AtkCoordType coords) {
 	*x = *y = *height = *width = 0;
 
-	// FIXME: should we handle scrolling?
-	*x = sci->WndProc(SCI_POINTXFROMPOSITION, 0, offset);
-	*y = sci->WndProc(SCI_POINTYFROMPOSITION, 0, offset);
+	Position byteOffset = ByteOffsetFromCharacterOffset(charOffset);
 
-	int line = sci->WndProc(SCI_LINEFROMPOSITION, offset, 0);
+	// FIXME: should we handle scrolling?
+	*x = sci->WndProc(SCI_POINTXFROMPOSITION, 0, byteOffset);
+	*y = sci->WndProc(SCI_POINTYFROMPOSITION, 0, byteOffset);
+
+	int line = sci->WndProc(SCI_LINEFROMPOSITION, byteOffset, 0);
 	*height = sci->WndProc(SCI_TEXTHEIGHT, line, 0);
 
-	int next_pos = sci->WndProc(SCI_POSITIONAFTER, offset, 0);
-	int next_x = sci->WndProc(SCI_POINTXFROMPOSITION, 0, next_pos);
+	int nextByteOffset = PositionAfter(byteOffset);
+	int next_x = sci->WndProc(SCI_POINTXFROMPOSITION, 0, nextByteOffset);
 	if (next_x > *x) {
 		*width = next_x - *x;
-	} else if (next_pos > offset) {
+	} else if (nextByteOffset > byteOffset) {
 		/* maybe next position was on the next line or something.
 		 * just compute the expected character width */
-		int style = sci->pdoc->StyleAt(offset);
-		gchar *ch = GetTextRange(offset, next_pos);
+		int style = sci->pdoc->StyleAt(byteOffset);
+		gchar *ch = GetTextRange(byteOffset, nextByteOffset);
 		*width = sci->TextWidth(style, ch);
 		g_free(ch);
 	} else {
@@ -641,22 +717,24 @@ AtkAttributeSet *ScintillaGTKAccessible::GetAttributesForStyle(unsigned int styl
 	return attr_set;
 }
 
-AtkAttributeSet *ScintillaGTKAccessible::GetRunAttributes(gint offset, gint *start_offset, gint *end_offset) {
-	char style = 0;
+AtkAttributeSet *ScintillaGTKAccessible::GetRunAttributes(int charOffset, int *startChar, int *endChar) {
+	g_return_val_if_fail(charOffset >= 0, NULL);
 
+	Position byteOffset = ByteOffsetFromCharacterOffset(charOffset);
 	int length = sci->pdoc->Length();
-	if (offset > 0 && offset < length) {
-		style = sci->pdoc->StyleAt(offset);
 
-		// compute the range for this style
-		*start_offset = offset;
-		while (*start_offset > 0 && sci->pdoc->StyleAt((*start_offset) - 1) == style)
-			(*start_offset)--;
-		*end_offset = offset;
-		while ((*end_offset) + 1 < length && sci->pdoc->StyleAt((*end_offset) + 1) == style)
-			(*end_offset)++;
-	}
+	g_return_val_if_fail(byteOffset < length, NULL);
 
+	const char style = sci->pdoc->StyleAt(byteOffset);
+	// compute the range for this style
+	Position startByte = byteOffset;
+	while (startByte > 0 && sci->pdoc->StyleAt((startByte) - 1) == style)
+		(startByte)--;
+	Position endByte = byteOffset;
+	while ((endByte) + 1 < length && sci->pdoc->StyleAt((endByte) + 1) == style)
+		(endByte)++;
+
+	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
 	return GetAttributesForStyle((unsigned int) style);
 }
 
@@ -668,23 +746,26 @@ gint ScintillaGTKAccessible::GetNSelections() {
 	return sci->sel.Empty() ? 0 : sci->sel.Count();
 }
 
-gchar *ScintillaGTKAccessible::GetSelection(gint selection_num, gint *start_pos, gint *end_pos) {
+gchar *ScintillaGTKAccessible::GetSelection(gint selection_num, int *startChar, int *endChar) {
 	if (selection_num < 0 || (unsigned int) selection_num >= sci->sel.Count())
 		return NULL;
 
-	*start_pos = sci->sel.Range(selection_num).Start().Position();
-	*end_pos = sci->sel.Range(selection_num).End().Position();
+	Position startByte = sci->sel.Range(selection_num).Start().Position();
+	Position endByte = sci->sel.Range(selection_num).End().Position();
 
-	return GetTextRange(*start_pos, *end_pos);
+	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
+	return GetTextRange(startByte, endByte);
 }
 
-gboolean ScintillaGTKAccessible::AddSelection(gint start, gint end) {
+gboolean ScintillaGTKAccessible::AddSelection(int startChar, int endChar) {
 	size_t n_selections = sci->sel.Count();
+	Position startByte, endByte;
+	ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
 	// use WndProc() to set the selections so it notifies as needed
 	if (n_selections > 1 || ! sci->sel.Empty()) {
-		sci->WndProc(SCI_ADDSELECTION, start, end);
+		sci->WndProc(SCI_ADDSELECTION, startByte, endByte);
 	} else {
-		sci->WndProc(SCI_SETSELECTION, start, end);
+		sci->WndProc(SCI_SETSELECTION, startByte, endByte);
 	}
 
 	return TRUE;
@@ -706,12 +787,15 @@ gboolean ScintillaGTKAccessible::RemoveSelection(gint selection_num) {
 	return TRUE;
 }
 
-gboolean ScintillaGTKAccessible::SetSelection(gint selection_num, gint start, gint end) {
+gboolean ScintillaGTKAccessible::SetSelection(gint selection_num, int startChar, int endChar) {
 	if (selection_num < 0 || (unsigned int) selection_num >= sci->sel.Count())
 		return FALSE;
 
-	sci->WndProc(SCI_SETSELECTIONNSTART, selection_num, start);
-	sci->WndProc(SCI_SETSELECTIONNEND, selection_num, end);
+	Position startByte, endByte;
+	ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
+
+	sci->WndProc(SCI_SETSELECTIONNSTART, selection_num, startByte);
+	sci->WndProc(SCI_SETSELECTIONNEND, selection_num, endByte);
 
 	return TRUE;
 }
@@ -748,41 +832,47 @@ void ScintillaGTKAccessible::SetTextContents(const gchar *contents) {
 	}
 }
 
-void ScintillaGTKAccessible::InsertText(const gchar *text, gint length, gint *position) {
+void ScintillaGTKAccessible::InsertText(const gchar *text, int lengthBytes, int *charPosition) {
 	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
 		int old_target[2] = {
 			(int) sci->WndProc(SCI_GETTARGETSTART, 0, 0),
 			(int) sci->WndProc(SCI_GETTARGETEND, 0, 0)
 		};
 
-		sci->WndProc(SCI_SETTARGETRANGE, *position, *position);
-		sci->WndProc(SCI_REPLACETARGET, length, (sptr_t) text);
-		(*position) += length;
+		Position bytePosition = ByteOffsetFromCharacterOffset(*charPosition);
+		sci->WndProc(SCI_SETTARGETRANGE, bytePosition, bytePosition);
+		// FIXME: convert text from UTF-8 to the buffer encoding
+		sci->WndProc(SCI_REPLACETARGET, lengthBytes, (sptr_t) text);
 
 		// restore the old target
 		for (int i = 0; i < 2; i++) {
-			if (old_target[i] > *position)
-				old_target[i] += length;
+			if (old_target[i] > bytePosition)
+				old_target[i] += lengthBytes;
 		}
 		sci->WndProc(SCI_SETTARGETRANGE, old_target[0], old_target[1]);
+
+		(*charPosition) += sci->pdoc->CountCharacters(bytePosition, lengthBytes);
 	}
 }
 
-void ScintillaGTKAccessible::CopyText(gint start, gint end) {
-	sci->WndProc(SCI_COPYRANGE, start, end);
+void ScintillaGTKAccessible::CopyText(int startChar, int endChar) {
+	Position startByte, endByte;
+	ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
+	sci->WndProc(SCI_COPYRANGE, startByte, endByte);
 }
 
-void ScintillaGTKAccessible::CutText(gint start, gint end) {
-	g_return_if_fail(end >= start);
+void ScintillaGTKAccessible::CutText(int startChar, int endChar) {
+	g_return_if_fail(endChar >= startChar);
 
 	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
-		CopyText(start, end);
-		DeleteText(start, end);
+		// FIXME: have a byte variant of those and convert only once?
+		CopyText(startChar, endChar);
+		DeleteText(startChar, endChar);
 	}
 }
 
-void ScintillaGTKAccessible::DeleteText(gint start, gint end) {
-	g_return_if_fail(end >= start);
+void ScintillaGTKAccessible::DeleteText(int startChar, int endChar) {
+	g_return_if_fail(endChar >= startChar);
 
 	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
 		int old_target[2] = {
@@ -790,15 +880,18 @@ void ScintillaGTKAccessible::DeleteText(gint start, gint end) {
 			(int) sci->WndProc(SCI_GETTARGETEND, 0, 0)
 		};
 
-		sci->WndProc(SCI_SETTARGETRANGE, start, end);
+		Position startByte, endByte;
+		ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
+
+		sci->WndProc(SCI_SETTARGETRANGE, startByte, endByte);
 		sci->WndProc(SCI_REPLACETARGET, 0, (sptr_t) "");
 
 		// restore the old target, compensating for the removed range
 		for (int i = 0; i < 2; i++) {
-			if (old_target[i] > end)
-				old_target[i] -= end - start;
-			else if (old_target[i] > start) // start was in the middle of removed range
-				old_target[i] = start;
+			if (old_target[i] > endByte)
+				old_target[i] -= endByte - startByte;
+			else if (old_target[i] > startByte) // start was in the middle of removed range
+				old_target[i] = startByte;
 		}
 
 		sci->WndProc(SCI_SETTARGETRANGE, old_target[0], old_target[1]);
@@ -807,11 +900,11 @@ void ScintillaGTKAccessible::DeleteText(gint start, gint end) {
 
 struct PasteData {
 	Document *doc;
-	gint position;
+	int bytePosition;
 
-	PasteData(Document *doc_, int pos_) :
+	PasteData(Document *doc_, int bytePos_) :
 		doc(doc_),
-		position(pos_) {
+		bytePosition(bytePos_) {
 		doc->AddRef();
 	}
 
@@ -821,7 +914,8 @@ struct PasteData {
 
 	void TextReceivedThis(GtkClipboard *, const gchar *text) {
 		if (text) {
-			doc->InsertString(position, text, (int) strlen(text));
+			// FIXME: convert from UTF-8?
+			doc->InsertString(bytePosition, text, (int) strlen(text));
 		}
 	}
 
@@ -830,11 +924,11 @@ struct PasteData {
 	}
 };
 
-void ScintillaGTKAccessible::PasteText(gint position) {
+void ScintillaGTKAccessible::PasteText(int charPosition) {
 	if (sci->pdoc->IsReadOnly())
 		return;
 
-	PasteData paste(sci->pdoc, position);
+	PasteData paste(sci->pdoc, ByteOffsetFromCharacterOffset(charPosition));
 
 	GtkWidget *widget = gtk_accessible_get_widget(accessible);
 	GtkClipboard *clipboard = gtk_widget_get_clipboard(widget, GDK_SELECTION_CLIPBOARD);
@@ -856,7 +950,8 @@ void ScintillaGTKAccessible::AtkEditableTextIface::init(::AtkEditableTextIface *
 void ScintillaGTKAccessible::UpdateCursor() {
 	Position pos = sci->WndProc(SCI_GETCURRENTPOS, 0, 0);
 	if (old_pos != pos) {
-		g_signal_emit_by_name(accessible, "text-caret-moved", (gint) pos);
+		int charPosition = CharacterOffsetFromByteOffset(pos);
+		g_signal_emit_by_name(accessible, "text-caret-moved", charPosition);
 		old_pos = pos;
 	}
 
@@ -889,13 +984,14 @@ void ScintillaGTKAccessible::ChangeDocument(Document *new_doc) {
 	}
 
 	if (old_doc) {
-		g_signal_emit_by_name(accessible, "text-changed::delete", 0, old_doc->Length());
+		int charLength = old_doc->CountCharacters(0, old_doc->Length());
+		g_signal_emit_by_name(accessible, "text-changed::delete", 0, charLength);
 		old_doc->Release();
 	}
 
-	if (new_doc)
-	{
-		g_signal_emit_by_name(accessible, "text-changed::insert", 0, new_doc->Length());
+	if (new_doc) {
+		int charLength = new_doc->CountCharacters(0, new_doc->Length());
+		g_signal_emit_by_name(accessible, "text-changed::insert", 0, charLength);
 
 		// FIXME: should we really reinit readonly here?  we probably should notify the accessible
 		old_readonly = new_doc->IsReadOnly();
@@ -915,11 +1011,15 @@ void ScintillaGTKAccessible::Notify(GtkWidget *, gint, SCNotification *nt) {
 	switch (nt->nmhdr.code) {
 		case SCN_MODIFIED: {
 			if (nt->modificationType & SC_MOD_INSERTTEXT) {
-				g_signal_emit_by_name(accessible, "text-changed::insert", (gint) nt->position, (gint) nt->length);
+				int startChar = CharacterOffsetFromByteOffset(nt->position);
+				int lengthChar = sci->pdoc->CountCharacters(nt->position, nt->position + nt->length);
+				g_signal_emit_by_name(accessible, "text-changed::insert", startChar, lengthChar);
 				UpdateCursor();
 			}
 			if (nt->modificationType & SC_MOD_DELETETEXT) {
-				g_signal_emit_by_name(accessible, "text-changed::delete", (gint) nt->position, (gint) nt->length);
+				int startChar = CharacterOffsetFromByteOffset(nt->position);
+				int lengthChar = sci->pdoc->CountCharacters(nt->position, nt->position + nt->length);
+				g_signal_emit_by_name(accessible, "text-changed::delete", startChar, lengthChar);
 				UpdateCursor();
 			}
 			if (nt->modificationType & SC_MOD_CHANGESTYLE) {
