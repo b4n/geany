@@ -573,9 +573,9 @@ void ScintillaGTKAccessible::GetCharacterExtents(gint offset,
 	} else if (next_pos > offset) {
 		/* maybe next position was on the next line or something.
 		 * just compute the expected character width */
-		int style = sci->WndProc(SCI_GETSTYLEAT, offset, 0);
+		int style = sci->pdoc->StyleAt(offset);
 		gchar *ch = GetTextRange(offset, next_pos);
-		*width = sci->WndProc(SCI_TEXTWIDTH, style, (sptr_t) ch);
+		*width = sci->TextWidth(style, ch);
 		g_free(ch);
 	} else {
 		// possibly the last position on the document, so no character here.
