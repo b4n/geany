@@ -937,6 +937,7 @@ struct PasteData {
 		if (text) {
 			DocumentInsertStringUTF8(doc, charSet, bytePosition, text, (int) strlen(text));
 		}
+		delete this;
 	}
 
 	static void TextReceived(GtkClipboard *clipboard, const gchar *text, gpointer data) {
@@ -950,11 +951,11 @@ void ScintillaGTKAccessible::PasteText(int charPosition) {
 	if (sci->pdoc->IsReadOnly())
 		return;
 
-	PasteData paste(sci->pdoc, sci->CharacterSetID(), ByteOffsetFromCharacterOffset(charPosition));
+	PasteData *paste = new PasteData(sci->pdoc, sci->CharacterSetID(), ByteOffsetFromCharacterOffset(charPosition));
 
 	GtkWidget *widget = gtk_accessible_get_widget(accessible);
 	GtkClipboard *clipboard = gtk_widget_get_clipboard(widget, GDK_SELECTION_CLIPBOARD);
-	gtk_clipboard_request_text(clipboard, paste.TextReceived, &paste);
+	gtk_clipboard_request_text(clipboard, paste->TextReceived, paste);
 }
 
 void ScintillaGTKAccessible::AtkEditableTextIface::init(::AtkEditableTextIface *iface) {
