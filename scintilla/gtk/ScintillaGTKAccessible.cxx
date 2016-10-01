@@ -662,9 +662,10 @@ void ScintillaGTKAccessible::GetCharacterExtents(int charOffset,
 		/* maybe next position was on the next line or something.
 		 * just compute the expected character width */
 		int style = sci->pdoc->StyleAt(byteOffset);
-		char ch[nextByteOffset - byteOffset];
+		char *ch = new char[nextByteOffset - byteOffset];
 		sci->pdoc->GetCharRange(ch, byteOffset, nextByteOffset);
 		*width = sci->TextWidth(style, ch);
+		delete[] ch;
 	} else {
 		// possibly the last position on the document, so no character here.
 		*x = *y = *height = *width = 0;
