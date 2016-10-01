@@ -718,9 +718,14 @@ AtkAttributeSet *ScintillaGTKAccessible::GetAttributesForStyle(unsigned int styl
 }
 
 AtkAttributeSet *ScintillaGTKAccessible::GetRunAttributes(int charOffset, int *startChar, int *endChar) {
-	g_return_val_if_fail(charOffset >= 0, NULL);
+	g_return_val_if_fail(charOffset >= -1, NULL);
 
-	Position byteOffset = ByteOffsetFromCharacterOffset(charOffset);
+	Position byteOffset;
+	if (charOffset == -1) {
+		byteOffset = sci->WndProc(SCI_GETCURRENTPOS, 0, 0);
+	} else {
+		byteOffset = ByteOffsetFromCharacterOffset(charOffset);
+	}
 	int length = sci->pdoc->Length();
 
 	g_return_val_if_fail(byteOffset < length, NULL);
