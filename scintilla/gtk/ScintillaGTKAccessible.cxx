@@ -28,7 +28,6 @@
 // Inspiration for the GTK < 3.2 part comes from Evince 2.24, thanks.
 
 // FIXME: optimize character/byte offset conversion (with a cache?)
-// FIXME: convert input/output to UTF-8
 
 #include <sys/types.h>
 
@@ -203,7 +202,7 @@ private:
 		return sci->pdoc->MovePositionOutsideChar(pos + 1, 1, true);
 	}
 
-	gchar *GetTextRange(Position startByte, Position endByte);
+	gchar *GetTextRangeUTF8(Position startByte, Position endByte);
 	gchar *GetText(int startChar, int endChar);
 	gchar *GetTextAfterOffset(int charOffset, AtkTextBoundary boundaryType, int *startChar, int *endChar);
 	gchar *GetTextBeforeOffset(int charOffset, AtkTextBoundary boundaryType, int *startChar, int *endChar);
@@ -348,20 +347,31 @@ ScintillaGTKAccessible::~ScintillaGTKAccessible() {
 	}
 }
 
-gchar *ScintillaGTKAccessible::GetTextRange(Position startByte, Position endByte) {
-	struct Sci_TextRange range;
-
+gchar *ScintillaGTKAccessible::GetTextRangeUTF8(Position startByte, Position endByte) {
 	g_return_val_if_fail(startByte >= 0, NULL);
 	// FIXME: should we swap start/end if necessary?
 	g_return_val_if_fail(endByte >= startByte, NULL);
 
-	range.chrg.cpMin = startByte;
-	range.chrg.cpMax = endByte;
-	range.lpstrText = (char *) g_malloc(endByte - startByte + 1);
-	sci->WndProc(SCI_GETTEXTRANGE, 0, (sptr_t) &range);
-	// FXIME: return UTF-8
+	gchar *utf8Text = NULL;
+	const char *charSetBuffer;
 
-	return range.lpstrText;
+	// like TargetAsUTF8, but avoids a double conversion
+	if (sci->IsUnicodeMode() || ! *(charSetBuffer = sci->CharacterSetID())) {
+		int len = endByte - startByte;
+		utf8Text = (char *) g_malloc(len + 1);
+		sci->pdoc->GetCharRange(utf8Text, startByte, len);
+		utf8Text[len] = '\0';
+	} else {
+		// Need to convert
+		std::string s = sci->RangeText(startByte, endByte);
+		std::string tmputf = ConvertText(&s[0], s.length(), "UTF-8", charSetBuffer, false);
+		size_t len = tmputf.length();
+		utf8Text = (char *) g_malloc(len + 1);
+		memcpy(utf8Text, tmputf.c_str(), len);
+		utf8Text[len] = '\0';
+	}
+
+	return utf8Text;
 }
 
 gchar *ScintillaGTKAccessible::GetText(int startChar, int endChar) {
@@ -372,7 +382,7 @@ gchar *ScintillaGTKAccessible::GetText(int startChar, int endChar) {
 	} else {
 		ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
 	}
-	return GetTextRange(startByte, endByte);
+	return GetTextRangeUTF8(startByte, endByte);
 }
 
 gchar *ScintillaGTKAccessible::GetTextAfterOffset(int charOffset,
@@ -423,7 +433,7 @@ gchar *ScintillaGTKAccessible::GetTextAfterOffset(int charOffset,
 	}
 
 	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
-	return GetTextRange(startByte, endByte);
+	return GetTextRangeUTF8(startByte, endByte);
 }
 
 gchar *ScintillaGTKAccessible::GetTextBeforeOffset(int charOffset,
@@ -485,7 +495,7 @@ gchar *ScintillaGTKAccessible::GetTextBeforeOffset(int charOffset,
 	}
 
 	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
-	return GetTextRange(startByte, endByte);
+	return GetTextRangeUTF8(startByte, endByte);
 }
 
 gchar *ScintillaGTKAccessible::GetTextAtOffset(int charOffset,
@@ -547,7 +557,7 @@ gchar *ScintillaGTKAccessible::GetTextAtOffset(int charOffset,
 	}
 
 	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
-	return GetTextRange(startByte, endByte);
+	return GetTextRangeUTF8(startByte, endByte);
 }
 
 gchar *ScintillaGTKAccessible::GetStringAtOffset(int charOffset,
@@ -578,7 +588,7 @@ gchar *ScintillaGTKAccessible::GetStringAtOffset(int charOffset,
 	}
 
 	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
-	return GetTextRange(startByte, endByte);
+	return GetTextRangeUTF8(startByte, endByte);
 }
 
 gunichar ScintillaGTKAccessible::GetCharacterAtOffset(int charOffset) {
@@ -586,8 +596,8 @@ gunichar ScintillaGTKAccessible::GetCharacterAtOffset(int charOffset) {
 
 	Position startByte = ByteOffsetFromCharacterOffset(charOffset);
 	Position endByte = PositionAfter(startByte);
-	gchar *ch = GetTextRange(startByte, endByte);
-	gunichar unichar = g_utf8_get_char_validated(ch, endByte - startByte);
+	gchar *ch = GetTextRangeUTF8(startByte, endByte);
+	gunichar unichar = g_utf8_get_char_validated(ch, -1);
 	g_free(ch);
 
 	return unichar;
@@ -652,9 +662,9 @@ void ScintillaGTKAccessible::GetCharacterExtents(int charOffset,
 		/* maybe next position was on the next line or something.
 		 * just compute the expected character width */
 		int style = sci->pdoc->StyleAt(byteOffset);
-		gchar *ch = GetTextRange(byteOffset, nextByteOffset);
+		char ch[nextByteOffset - byteOffset];
+		sci->pdoc->GetCharRange(ch, byteOffset, nextByteOffset);
 		*width = sci->TextWidth(style, ch);
-		g_free(ch);
 	} else {
 		// possibly the last position on the document, so no character here.
 		*x = *y = *height = *width = 0;
@@ -759,7 +769,7 @@ gchar *ScintillaGTKAccessible::GetSelection(gint selection_num, int *startChar, 
 	Position endByte = sci->sel.Range(selection_num).End().Position();
 
 	CharacterRangeFromByteRange(startByte, endByte, startChar, endChar);
-	return GetTextRange(startByte, endByte);
+	return GetTextRangeUTF8(startByte, endByte);
 }
 
 gboolean ScintillaGTKAccessible::AddSelection(int startChar, int endChar) {
@@ -837,25 +847,29 @@ void ScintillaGTKAccessible::SetTextContents(const gchar *contents) {
 	}
 }
 
+static bool DocumentInsertStringUTF8(Document *doc, const char *charSet, Position bytePos, const gchar *utf8, int lengthBytes) {
+	if (doc->IsReadOnly()) {
+		return false;
+	}
+
+	// like EncodedFromUTF8(), but avoids an extra copy
+	// FIXME: update target?
+	if (SC_CP_UTF8 == doc->dbcsCodePage || ! *charSet) {
+		doc->InsertString(bytePos, utf8, lengthBytes);
+	} else {
+		// conversion needed
+		std::string encoded = ConvertText(utf8, lengthBytes, charSet, "UTF-8", true);
+		doc->InsertString(bytePos, encoded.c_str(), encoded.length());
+	}
+
+	return true;
+}
+
 void ScintillaGTKAccessible::InsertText(const gchar *text, int lengthBytes, int *charPosition) {
-	if (! sci->WndProc(SCI_GETREADONLY, 0, 0)) {
-		int old_target[2] = {
-			(int) sci->WndProc(SCI_GETTARGETSTART, 0, 0),
-			(int) sci->WndProc(SCI_GETTARGETEND, 0, 0)
-		};
+	Position bytePosition = ByteOffsetFromCharacterOffset(*charPosition);
 
-		Position bytePosition = ByteOffsetFromCharacterOffset(*charPosition);
-		sci->WndProc(SCI_SETTARGETRANGE, bytePosition, bytePosition);
-		// FIXME: convert text from UTF-8 to the buffer encoding
-		sci->WndProc(SCI_REPLACETARGET, lengthBytes, (sptr_t) text);
-
-		// restore the old target
-		for (int i = 0; i < 2; i++) {
-			if (old_target[i] > bytePosition)
-				old_target[i] += lengthBytes;
-		}
-		sci->WndProc(SCI_SETTARGETRANGE, old_target[0], old_target[1]);
-
+	// FIXME: should we update the target?
+	if (DocumentInsertStringUTF8(sci->pdoc, sci->CharacterSetID(), bytePosition, text, lengthBytes)) {
 		(*charPosition) += sci->pdoc->CountCharacters(bytePosition, lengthBytes);
 	}
 }
@@ -905,10 +919,12 @@ void ScintillaGTKAccessible::DeleteText(int startChar, int endChar) {
 
 struct PasteData {
 	Document *doc;
+	const char *charSet;
 	int bytePosition;
 
-	PasteData(Document *doc_, int bytePos_) :
+	PasteData(Document *doc_, const char *charSet_, int bytePos_) :
 		doc(doc_),
+		charSet(charSet_), // static string
 		bytePosition(bytePos_) {
 		doc->AddRef();
 	}
@@ -919,8 +935,7 @@ struct PasteData {
 
 	void TextReceivedThis(GtkClipboard *, const gchar *text) {
 		if (text) {
-			// FIXME: convert from UTF-8?
-			doc->InsertString(bytePosition, text, (int) strlen(text));
+			DocumentInsertStringUTF8(doc, charSet, bytePosition, text, (int) strlen(text));
 		}
 	}
 
@@ -930,10 +945,12 @@ struct PasteData {
 };
 
 void ScintillaGTKAccessible::PasteText(int charPosition) {
+	// FIXME: use ScintillaGTK::Paste() somehow (it'd need a way to set the position)
+
 	if (sci->pdoc->IsReadOnly())
 		return;
 
-	PasteData paste(sci->pdoc, ByteOffsetFromCharacterOffset(charPosition));
+	PasteData paste(sci->pdoc, sci->CharacterSetID(), ByteOffsetFromCharacterOffset(charPosition));
 
 	GtkWidget *widget = gtk_accessible_get_widget(accessible);
 	GtkClipboard *clipboard = gtk_widget_get_clipboard(widget, GDK_SELECTION_CLIPBOARD);

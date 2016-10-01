@@ -243,7 +243,8 @@ private:
 	                             unsigned int iMessage, uptr_t wParam, sptr_t lParam);
 };
 
-
+std::string ConvertText(const char *s, size_t len, const char *charSetDest,
+                        const char *charSetSource, bool transliterations, bool silent=false);
 ScintillaGTK *ScintillaFromWidget(GtkWidget *widget);
 
 #endif

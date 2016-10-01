@@ -710,8 +710,8 @@ void ScintillaGTK::StartDrag() {
 #endif
 }
 
-static std::string ConvertText(const char *s, size_t len, const char *charSetDest,
-	const char *charSetSource, bool transliterations, bool silent=false) {
+std::string ConvertText(const char *s, size_t len, const char *charSetDest,
+	const char *charSetSource, bool transliterations, bool silent) {
 	// s is not const because of different versions of iconv disagreeing about const
 	std::string destForm;
 	Converter conv(charSetDest, charSetSource, transliterations);
