@@ -6,14 +6,15 @@
 #ifndef SCINTILLAGTKACCESSIBLE_H
 #define SCINTILLAGTKACCESSIBLE_H
 
-#include <gtk/gtk.h>
-
-G_BEGIN_DECLS
-
+#ifdef SCI_NAMESPACE
+namespace Scintilla {
+#endif
 
 AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *widget, AtkObject **cache, gpointer widget_parent_class);
 
+#ifdef SCI_NAMESPACE
+}
+#endif
 
-G_END_DECLS
 
 #endif /* SCINTILLAGTKACCESSIBLE_H */

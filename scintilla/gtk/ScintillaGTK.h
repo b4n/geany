@@ -7,7 +7,7 @@
 #define SCINTILLAGTK_H
 
 #ifdef SCI_NAMESPACE
-using namespace Scintilla;
+namespace Scintilla {
 #endif
 
 class ScintillaGTKAccessible;
@@ -246,5 +246,9 @@ private:
 std::string ConvertText(const char *s, size_t len, const char *charSetDest,
                         const char *charSetSource, bool transliterations, bool silent=false);
 ScintillaGTK *ScintillaFromWidget(GtkWidget *widget);
+
+#ifdef SCI_NAMESPACE
+}
+#endif
 
 #endif
