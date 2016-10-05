@@ -904,8 +904,6 @@ void ScintillaGTKAccessible::DeleteText(int startChar, int endChar) {
 }
 
 void ScintillaGTKAccessible::PasteText(int charPosition) {
-	// FIXME: use ScintillaGTK::Paste() somehow (it'd need a way to set the position)
-
 	if (sci->pdoc->IsReadOnly())
 		return;
 
@@ -923,7 +921,15 @@ void ScintillaGTKAccessible::PasteText(int charPosition) {
 
 		void TextReceived(GtkClipboard *, const gchar *text) {
 			if (text) {
-				scia->InsertStringUTF8(bytePosition, text, (int) strlen(text));
+				size_t len = strlen(text);
+				std::string convertedText;
+				if (len > 0 && scia->sci->convertPastes) {
+					// Convert line endings of the paste into our local line-endings mode
+					convertedText = Document::TransformLineEnds(text, len, scia->sci->pdoc->eolMode);
+					len = convertedText.length();
+					text = convertedText.c_str();
+				}
+				scia->InsertStringUTF8(bytePosition, text, static_cast<int>(len));
 			}
 			delete this;
 		}
