@@ -661,8 +661,10 @@ void ScintillaGTKAccessible::GetCharacterExtents(int charOffset,
 		/* maybe next position was on the next line or something.
 		 * just compute the expected character width */
 		int style = sci->pdoc->StyleAt(byteOffset);
-		char *ch = new char[nextByteOffset - byteOffset];
-		sci->pdoc->GetCharRange(ch, byteOffset, nextByteOffset);
+		int len = nextByteOffset - byteOffset;
+		char *ch = new char[len + 1];
+		sci->pdoc->GetCharRange(ch, byteOffset, len);
+		ch[len] = '\0';
 		*width = sci->TextWidth(style, ch);
 		delete[] ch;
 	} else {
