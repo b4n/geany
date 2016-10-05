@@ -931,11 +931,14 @@ void ScintillaGTKAccessible::PasteText(int charPosition) {
 				}
 				scia->InsertStringUTF8(bytePosition, text, static_cast<int>(len));
 			}
-			delete this;
 		}
 
 		static void TextReceivedCallback(GtkClipboard *clipboard, const gchar *text, gpointer data) {
-			reinterpret_cast<Helper*>(data)->TextReceived(clipboard, text);
+			Helper *helper = reinterpret_cast<Helper*>(data);
+			try {
+				helper->TextReceived(clipboard, text);
+			} catch (...) {}
+			delete helper;
 		}
 	};
 
