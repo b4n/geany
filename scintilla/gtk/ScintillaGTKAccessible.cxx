@@ -222,6 +222,7 @@ private:
 	gboolean SetSelection(gint selection_num, int startChar, int endChar);
 
 	/* atkeditabletext.h */
+	bool InsertStringUTF8(Position bytePos, const gchar *utf8, int lengthBytes);
 	void SetTextContents(const gchar *contents);
 	void InsertText(const gchar *contents, int lengthBytes, int *charPosition);
 	void CopyText(int startChar, int endChar);
@@ -846,19 +847,20 @@ void ScintillaGTKAccessible::SetTextContents(const gchar *contents) {
 	}
 }
 
-static bool DocumentInsertStringUTF8(Document *doc, const char *charSet, Position bytePos, const gchar *utf8, int lengthBytes) {
-	if (doc->IsReadOnly()) {
+bool ScintillaGTKAccessible::InsertStringUTF8(Position bytePos, const gchar *utf8, int lengthBytes) {
+	if (sci->pdoc->IsReadOnly()) {
 		return false;
 	}
 
 	// like EncodedFromUTF8(), but avoids an extra copy
 	// FIXME: update target?
-	if (SC_CP_UTF8 == doc->dbcsCodePage || ! *charSet) {
-		doc->InsertString(bytePos, utf8, lengthBytes);
+	const char *charSetBuffer;
+	if (sci->IsUnicodeMode() || ! *(charSetBuffer = sci->CharacterSetID())) {
+		sci->pdoc->InsertString(bytePos, utf8, lengthBytes);
 	} else {
 		// conversion needed
-		std::string encoded = ConvertText(utf8, lengthBytes, charSet, "UTF-8", true);
-		doc->InsertString(bytePos, encoded.c_str(), encoded.length());
+		std::string encoded = ConvertText(utf8, lengthBytes, charSetBuffer, "UTF-8", true);
+		sci->pdoc->InsertString(bytePos, encoded.c_str(), encoded.length());
 	}
 
 	return true;
@@ -868,7 +870,7 @@ void ScintillaGTKAccessible::InsertText(const gchar *text, int lengthBytes, int 
 	Position bytePosition = ByteOffsetFromCharacterOffset(*charPosition);
 
 	// FIXME: should we update the target?
-	if (DocumentInsertStringUTF8(sci->pdoc, sci->CharacterSetID(), bytePosition, text, lengthBytes)) {
+	if (InsertStringUTF8(bytePosition, text, lengthBytes)) {
 		(*charPosition) += sci->pdoc->CountCharacters(bytePosition, lengthBytes);
 	}
 }
@@ -901,45 +903,40 @@ void ScintillaGTKAccessible::DeleteText(int startChar, int endChar) {
 	}
 }
 
-struct PasteData {
-	Document *doc;
-	const char *charSet;
-	int bytePosition;
-
-	PasteData(Document *doc_, const char *charSet_, int bytePos_) :
-		doc(doc_),
-		charSet(charSet_), // static string
-		bytePosition(bytePos_) {
-		doc->AddRef();
-	}
-
-	~PasteData() {
-		doc->Release();
-	}
-
-	void TextReceivedThis(GtkClipboard *, const gchar *text) {
-		if (text) {
-			DocumentInsertStringUTF8(doc, charSet, bytePosition, text, (int) strlen(text));
-		}
-		delete this;
-	}
-
-	static void TextReceived(GtkClipboard *clipboard, const gchar *text, gpointer data) {
-		reinterpret_cast<PasteData*>(data)->TextReceivedThis(clipboard, text);
-	}
-};
-
 void ScintillaGTKAccessible::PasteText(int charPosition) {
 	// FIXME: use ScintillaGTK::Paste() somehow (it'd need a way to set the position)
 
 	if (sci->pdoc->IsReadOnly())
 		return;
 
-	PasteData *paste = new PasteData(sci->pdoc, sci->CharacterSetID(), ByteOffsetFromCharacterOffset(charPosition));
+	// Helper class holding the position for the asynchronous paste operation.
+	// We can only hope that when the callback gets called scia is still valid, but ScintillaGTK
+	// has always done that without problems, so let's guess it's a fairly safe bet.
+	struct Helper {
+		ScintillaGTKAccessible *scia;
+		Position bytePosition;
 
+		Helper(ScintillaGTKAccessible *scia_, Position bytePos_) :
+			scia(scia_),
+			bytePosition(bytePos_) {
+		}
+
+		void TextReceived(GtkClipboard *, const gchar *text) {
+			if (text) {
+				scia->InsertStringUTF8(bytePosition, text, (int) strlen(text));
+			}
+			delete this;
+		}
+
+		static void TextReceivedCallback(GtkClipboard *clipboard, const gchar *text, gpointer data) {
+			reinterpret_cast<Helper*>(data)->TextReceived(clipboard, text);
+		}
+	};
+
+	Helper *helper = new Helper(this, ByteOffsetFromCharacterOffset(charPosition));
 	GtkWidget *widget = gtk_accessible_get_widget(accessible);
 	GtkClipboard *clipboard = gtk_widget_get_clipboard(widget, GDK_SELECTION_CLIPBOARD);
-	gtk_clipboard_request_text(clipboard, paste->TextReceived, paste);
+	gtk_clipboard_request_text(clipboard, helper->TextReceivedCallback, helper);
 }
 
 void ScintillaGTKAccessible::AtkEditableTextIface::init(::AtkEditableTextIface *iface) {
