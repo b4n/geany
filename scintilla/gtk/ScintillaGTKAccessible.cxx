@@ -200,6 +200,7 @@ private:
 		return sci->pdoc->MovePositionOutsideChar(pos + 1, 1, true);
 	}
 
+	// For AtkText
 	gchar *GetTextRangeUTF8(Position startByte, Position endByte);
 	gchar *GetText(int startChar, int endChar);
 	gchar *GetTextAfterOffset(int charOffset, AtkTextBoundary boundaryType, int *startChar, int *endChar);
@@ -220,8 +221,7 @@ private:
 	gboolean AddSelection(int startChar, int endChar);
 	gboolean RemoveSelection(int selection_num);
 	gboolean SetSelection(gint selection_num, int startChar, int endChar);
-
-	/* atkeditabletext.h */
+	// for AtkEditableText
 	bool InsertStringUTF8(Position bytePos, const gchar *utf8, int lengthBytes);
 	void SetTextContents(const gchar *contents);
 	void InsertText(const gchar *contents, int lengthBytes, int *charPosition);
