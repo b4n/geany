@@ -230,6 +230,7 @@ private:
 	static gboolean StyleIdle(gpointer pSci);
 	virtual void IdleWork();
 	virtual void QueueIdleWork(WorkNeeded::workItems items, int upTo);
+	virtual void SetDocPointer(Document *document);
 	static void PopUpCB(GtkMenuItem *menuItem, ScintillaGTK *sciThis);
 
 #if GTK_CHECK_VERSION(3,0,0)

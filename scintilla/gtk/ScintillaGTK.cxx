@@ -2776,6 +2776,28 @@ void ScintillaGTK::QueueIdleWork(WorkNeeded::workItems items, int upTo) {
 	}
 }
 
+void ScintillaGTK::SetDocPointer(Document *document) {
+	Document *oldDoc = 0;
+	ScintillaGTKAccessible *sciAccessible = 0;
+	if (accessible) {
+		sciAccessible = ScintillaGTKAccessible::FromAccessible(reinterpret_cast<GtkAccessible*>(accessible));
+		if (sciAccessible && pdoc) {
+			oldDoc = pdoc;
+			oldDoc->AddRef();
+		}
+	}
+
+	Editor::SetDocPointer(document);
+
+	if (sciAccessible) {
+		// the accessible needs have the old Document, but also the new one active
+		sciAccessible->ChangeDocument(oldDoc, pdoc);
+	}
+	if (oldDoc) {
+		oldDoc->Release();
+	}
+}
+
 void ScintillaGTK::PopUpCB(GtkMenuItem *menuItem, ScintillaGTK *sciThis) {
 	guint action = GPOINTER_TO_UINT(g_object_get_data(G_OBJECT(menuItem), "CmdNum"));
 	if (action) {
