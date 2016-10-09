@@ -102,6 +102,9 @@ public:
 	~ScintillaGTKAccessible();
 
 	static ScintillaGTKAccessible *FromAccessible(GtkAccessible *accessible);
+	static ScintillaGTKAccessible *FromAccessible(AtkObject *accessible) {
+		return FromAccessible(GTK_ACCESSIBLE(accessible));
+	}
 	// So ScintillaGTK can notify us
 	void ChangeDocument(Document *oldDoc, Document *newDoc);
 
