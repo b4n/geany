@@ -15,6 +15,7 @@
 
 #include "parse.h"
 #include "read.h"
+#include "routines.h"
 #include "vstring.h"
 
 
@@ -28,8 +29,8 @@ enum {
 };
 
 static kindOption M4Kinds[] = {
-	{ TRUE, 'd', "macro", "macros" },
-	{ TRUE, 'v', "variable", "variables" }
+	{ true, 'd', "macro", "macros" },
+	{ true, 'v', "variable", "variables" }
 };
 
 /* "language" selection */
@@ -64,10 +65,7 @@ static void makeM4Tag(unsigned int t, const vString *const name)
 	if (vStringLength(name) <= 0)
 		return;
 
-	initTagEntry (&e, vStringValue(name));
-
-	e.kindName = M4Kinds[t].name;
-	e.kind = M4Kinds[t].letter;
+	initTagEntry (&e, vStringValue(name), &M4Kinds[t]);
 
 	/*fprintf(stderr, "making tag `%s' of type %c\n", e.name, e.kind);*/
 	makeTagEntry(&e);
@@ -118,7 +116,7 @@ static void skipQuotes(int c)
 	else
 		openQuote = c;
 
-	for (; c != EOF; c = fileGetc())
+	for (; c != EOF; c = getcFromInputFile())
 	{
 		if (c == closeQuote)
 			depth --;
@@ -134,17 +132,17 @@ static void readQuotedWord(vString *const name)
 {
 	unsigned int depth = 0;
 	int openQuote = 0, closeQuote = 0;
-	int c = fileGetc();
+	int c = getcFromInputFile();
 
 	closeQuote = getCloseQuote(c);
 	if (closeQuote != 0)
 	{
 		openQuote = c;
 		depth ++;
-		c = fileGetc();
+		c = getcFromInputFile();
 	}
 
-	for (; c != EOF; c = fileGetc())
+	for (; c != EOF; c = getcFromInputFile())
 	{
 		/* don't allow embedded NULs, and prevents to match when quote == 0 (aka none) */
 		if (c == 0)
@@ -158,33 +156,33 @@ static void readQuotedWord(vString *const name)
 			vStringPut(name, c);
 		else
 		{
-			fileUngetc(c);
+			ungetcToInputFile(c);
 			break;
 		}
 	}
 }
 
-static boolean skipLineEnding(int c)
+static bool skipLineEnding(int c)
 {
 	if (c == '\n')
-		return TRUE;
+		return true;
 	else if (c == '\r')
 	{
 		/* try to eat the `\n' of a `\r\n' sequence */
-		c = fileGetc();
+		c = getcFromInputFile();
 		if (c != '\n')
-			fileUngetc(c);
-		return TRUE;
+			ungetcToInputFile(c);
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
-static void skipToCharacter(int ch, boolean oneLine)
+static void skipToCharacter(int ch, bool oneLine)
 {
 	int c;
 
-	while ((c = fileGetc()) != EOF)
+	while ((c = getcFromInputFile()) != EOF)
 	{
 		if (c == ch)
 			break;
@@ -195,19 +193,19 @@ static void skipToCharacter(int ch, boolean oneLine)
 
 static void skipLine(int c)
 {
-	for (; c != EOF; c = fileGetc())
+	for (; c != EOF; c = getcFromInputFile())
 	{
 		if (skipLineEnding(c))
 			break;
 	}
 }
 
-static boolean tokenMatches(const vString *const token, const char *name)
+static bool tokenMatches(const vString *const token, const char *name)
 {
 	return strcmp(vStringValue(token), name) == 0;
 }
 
-static boolean tokenStartMatches(const vString *const token, const char *start)
+static bool tokenStartMatches(const vString *const token, const char *start)
 {
 	const char *name = vStringValue(token);
 
@@ -221,32 +219,32 @@ static boolean tokenStartMatches(const vString *const token, const char *start)
 }
 
 /* reads everything in a macro argument
- * return TRUE if there are more args, FALSE otherwise */
-static boolean readMacroArgument(vString *const arg)
+ * return true if there are more args, false otherwise */
+static bool readMacroArgument(vString *const arg)
 {
 	int c;
 
 	/* discard leading blanks */
-	while ((c = fileGetc()) != EOF && isspace(c))
+	while ((c = getcFromInputFile()) != EOF && isspace(c))
 		;
 
-	for (; c != EOF; c = fileGetc())
+	for (; c != EOF; c = getcFromInputFile())
 	{
 		if (c == ',' || c == ')')
 		{
-			fileUngetc(c);
+			ungetcToInputFile(c);
 			return c == ',';
 		}
 		else if (getCloseQuote(c) != 0)
 		{
-			fileUngetc(c);
+			ungetcToInputFile(c);
 			readQuotedWord(arg);
 		}
 		else
 			vStringPut(arg, c);
 	}
 
-	return FALSE;
+	return false;
 }
 
 static void handleChangequote(void)
@@ -254,7 +252,7 @@ static void handleChangequote(void)
 	vString *const arg = vStringNew();
 	char args[2] = {0,0};
 	int i, n = (sizeof(args) / sizeof(args[0]));
-	boolean more = TRUE;
+	bool more = true;
 
 	for (i = 0; more && i < n; i++)
 	{
@@ -263,8 +261,7 @@ static void handleChangequote(void)
 		vStringClear(arg);
 		more = readMacroArgument(arg);
 		if (more)
-			fileGetc();
-		vStringTerminate(arg);
+			getcFromInputFile();
 		v = vStringValue(arg);
 		fprintf(stderr, "got arg: %s\n", v);
 		if (! v[0] || v[1])
@@ -285,14 +282,14 @@ static void findTags(void)
 	vString *const token = vStringNew();
 	int c;
 
-	while ((c = fileGetc()) != EOF)
+	while ((c = getcFromInputFile()) != EOF)
 	{
 		if (c == '#' || tokenMatches(token, "dnl"))
 			skipLine(c);
 		else if (c == Quote_open)
 			skipQuotes(c);
 		else if (isLang(LANG_AC) && (c == '"' || c == '"' || c == '`')) /* AutoConf quotes */
-			skipToCharacter(c, FALSE);
+			skipToCharacter(c, false);
 #if 0
 		else if (isLang(LANG_AC) && c == '=') /* shell-style variables for Autoconf */
 			makeM4Tag(VARIABLE_KIND, token);
@@ -313,7 +310,6 @@ static void findTags(void)
 			{
 				vStringClear(name);
 				readMacroArgument(name);
-				vStringTerminate(name);
 				makeM4Tag(MACRO_KIND, name);
 			}
 			else if (tokenMatches(token, "changequote") ||
@@ -324,9 +320,8 @@ static void findTags(void)
 		vStringClear(token);
 		if (IS_WORD(c))
 		{
-			fileUngetc(c);
+			ungetcToInputFile(c);
 			readQuotedWord(token);
-			vStringTerminate(token);
 		}
 	}
 	vStringDelete(token);
@@ -352,7 +347,7 @@ extern parserDefinition* M4Parser (void)
 	parserDefinition* const def = parserNew("M4");
 
 	def->kinds = M4Kinds;
-	def->kindCount = KIND_COUNT(M4Kinds);
+	def->kindCount = ARRAY_SIZE(M4Kinds);
 	def->patterns = patterns;
 	def->extensions = extensions;
 	def->parser = findM4Tags;
@@ -366,7 +361,7 @@ extern parserDefinition* AutoConfParser (void)
 	parserDefinition* const def = parserNew("AutoConf");
 
 	def->kinds = M4Kinds;
-	def->kindCount = KIND_COUNT(M4Kinds);
+	def->kindCount = ARRAY_SIZE(M4Kinds);
 	def->patterns = patterns;
 	def->extensions = extensions;
 	def->parser = findAutoConfTags;
