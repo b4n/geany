@@ -850,6 +850,96 @@ void ScintillaGTKAccessible::Notify(GtkWidget *, gint, SCNotification *nt) {
 	}
 }
 
+// ATK method wrappers
+
+// wraps a call from the accessible object to the ScintillaGTKAccessible, and avoid leaking any exception
+#define WRAPPER_METHOD_BODY(accessible, call, defret) \
+	try { \
+		ScintillaGTKAccessible *thisAccessible = FromAccessible(reinterpret_cast<GtkAccessible*>(accessible)); \
+		if (thisAccessible) { \
+			return thisAccessible->call; \
+		} else { \
+			return defret; \
+		} \
+	} catch (...) { \
+		return defret; \
+	}
+
+// AtkText
+gchar *ScintillaGTKAccessible::AtkTextIface::GetText(AtkText *text, int start_offset, int end_offset) {
+	WRAPPER_METHOD_BODY(text, GetText(start_offset, end_offset), NULL);
+}
+gchar *ScintillaGTKAccessible::AtkTextIface::GetTextAfterOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
+	WRAPPER_METHOD_BODY(text, GetTextAfterOffset(offset, boundary_type, start_offset, end_offset), NULL)
+}
+gchar *ScintillaGTKAccessible::AtkTextIface::GetTextBeforeOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
+	WRAPPER_METHOD_BODY(text, GetTextBeforeOffset(offset, boundary_type, start_offset, end_offset), NULL)
+}
+gchar *ScintillaGTKAccessible::AtkTextIface::GetTextAtOffset(AtkText *text, gint offset, AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset) {
+	WRAPPER_METHOD_BODY(text, GetTextAtOffset(offset, boundary_type, start_offset, end_offset), NULL)
+}
+gchar *ScintillaGTKAccessible::AtkTextIface::GetStringAtOffset(AtkText *text, gint offset, AtkTextGranularity granularity, gint *start_offset, gint *end_offset) {
+	WRAPPER_METHOD_BODY(text, GetStringAtOffset(offset, granularity, start_offset, end_offset), NULL)
+}
+gunichar ScintillaGTKAccessible::AtkTextIface::GetCharacterAtOffset(AtkText *text, gint offset) {
+	WRAPPER_METHOD_BODY(text, GetCharacterAtOffset(offset), 0)
+}
+gint ScintillaGTKAccessible::AtkTextIface::GetCharacterCount(AtkText *text) {
+	WRAPPER_METHOD_BODY(text, GetCharacterCount(), 0)
+}
+gint ScintillaGTKAccessible::AtkTextIface::GetCaretOffset(AtkText *text) {
+	WRAPPER_METHOD_BODY(text, GetCaretOffset(), 0)
+}
+gboolean ScintillaGTKAccessible::AtkTextIface::SetCaretOffset(AtkText *text, gint offset) {
+	WRAPPER_METHOD_BODY(text, SetCaretOffset(offset), FALSE)
+}
+gint ScintillaGTKAccessible::AtkTextIface::GetOffsetAtPoint(AtkText *text, gint x, gint y, AtkCoordType coords) {
+	WRAPPER_METHOD_BODY(text, GetOffsetAtPoint(x, y, coords), -1)
+}
+void ScintillaGTKAccessible::AtkTextIface::GetCharacterExtents(AtkText *text, gint offset, gint *x, gint *y, gint *width, gint *height, AtkCoordType coords) {
+	WRAPPER_METHOD_BODY(text, GetCharacterExtents(offset, x, y, width, height, coords), )
+}
+AtkAttributeSet *ScintillaGTKAccessible::AtkTextIface::GetRunAttributes(AtkText *text, gint offset, gint *start_offset, gint *end_offset) {
+	WRAPPER_METHOD_BODY(text, GetRunAttributes(offset, start_offset, end_offset), NULL)
+}
+AtkAttributeSet *ScintillaGTKAccessible::AtkTextIface::GetDefaultAttributes(AtkText *text) {
+	WRAPPER_METHOD_BODY(text, GetDefaultAttributes(), NULL)
+}
+gint ScintillaGTKAccessible::AtkTextIface::GetNSelections(AtkText *text) {
+	WRAPPER_METHOD_BODY(text, GetNSelections(), 0)
+}
+gchar *ScintillaGTKAccessible::AtkTextIface::GetSelection(AtkText *text, gint selection_num, gint *start_pos, gint *end_pos) {
+	WRAPPER_METHOD_BODY(text, GetSelection(selection_num, start_pos, end_pos), NULL)
+}
+gboolean ScintillaGTKAccessible::AtkTextIface::AddSelection(AtkText *text, gint start, gint end) {
+	WRAPPER_METHOD_BODY(text, AddSelection(start, end), FALSE)
+}
+gboolean ScintillaGTKAccessible::AtkTextIface::RemoveSelection(AtkText *text, gint selection_num) {
+	WRAPPER_METHOD_BODY(text, RemoveSelection(selection_num), FALSE)
+}
+gboolean ScintillaGTKAccessible::AtkTextIface::SetSelection(AtkText *text, gint selection_num, gint start, gint end) {
+	WRAPPER_METHOD_BODY(text, SetSelection(selection_num, start, end), FALSE)
+}
+// AtkEditableText
+void ScintillaGTKAccessible::AtkEditableTextIface::SetTextContents(AtkEditableText *text, const gchar *contents) {
+	WRAPPER_METHOD_BODY(text, SetTextContents(contents), )
+}
+void ScintillaGTKAccessible::AtkEditableTextIface::InsertText(AtkEditableText *text, const gchar *contents, gint length, gint *position) {
+	WRAPPER_METHOD_BODY(text, InsertText(contents, length, position), )
+}
+void ScintillaGTKAccessible::AtkEditableTextIface::CopyText(AtkEditableText *text, gint start, gint end) {
+	WRAPPER_METHOD_BODY(text, CopyText(start, end), )
+}
+void ScintillaGTKAccessible::AtkEditableTextIface::CutText(AtkEditableText *text, gint start, gint end) {
+	WRAPPER_METHOD_BODY(text, CutText(start, end), )
+}
+void ScintillaGTKAccessible::AtkEditableTextIface::DeleteText(AtkEditableText *text, gint start, gint end) {
+	WRAPPER_METHOD_BODY(text, DeleteText(start, end), )
+}
+void ScintillaGTKAccessible::AtkEditableTextIface::PasteText(AtkEditableText *text, gint position) {
+	WRAPPER_METHOD_BODY(text, PasteText(position), )
+}
+
 // GObject glue
 
 #if HAVE_GTK_FACTORY

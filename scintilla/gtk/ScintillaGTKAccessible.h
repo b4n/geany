@@ -110,19 +110,6 @@ public:
 
 	// ATK methods
 
-	// wraps a call from the accessible object to the ScintillaGTKAccessible, and avoid leaking any exception
-	#define WRAPPER_METHOD_BODY(accessible, call, defret) \
-		try { \
-			ScintillaGTKAccessible *thisAccessible = FromAccessible(reinterpret_cast<GtkAccessible*>(accessible)); \
-			if (thisAccessible) { \
-				return thisAccessible->call; \
-			} else { \
-				return defret; \
-			} \
-		} catch (...) { \
-			return defret; \
-		}
-
 	class AtkTextIface {
 	public:
 		static void init(::AtkTextIface *iface);
@@ -130,60 +117,24 @@ public:
 	private:
 		AtkTextIface();
 
-		static gchar *GetText(AtkText *text, int start_offset, int end_offset) {
-			WRAPPER_METHOD_BODY(text, GetText(start_offset, end_offset), NULL);
-		}
-		static gchar *GetTextAfterOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
-			WRAPPER_METHOD_BODY(text, GetTextAfterOffset(offset, boundary_type, start_offset, end_offset), NULL)
-		}
-		static gchar *GetTextBeforeOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset) {
-			WRAPPER_METHOD_BODY(text, GetTextBeforeOffset(offset, boundary_type, start_offset, end_offset), NULL)
-		}
-		static gchar *GetTextAtOffset(AtkText *text, gint offset, AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset) {
-			WRAPPER_METHOD_BODY(text, GetTextAtOffset(offset, boundary_type, start_offset, end_offset), NULL)
-		}
-		static gchar *GetStringAtOffset(AtkText *text, gint offset, AtkTextGranularity granularity, gint *start_offset, gint *end_offset) {
-			WRAPPER_METHOD_BODY(text, GetStringAtOffset(offset, granularity, start_offset, end_offset), NULL)
-		}
-		static gunichar GetCharacterAtOffset(AtkText *text, gint offset) {
-			WRAPPER_METHOD_BODY(text, GetCharacterAtOffset(offset), 0)
-		}
-		static gint GetCharacterCount(AtkText *text) {
-			WRAPPER_METHOD_BODY(text, GetCharacterCount(), 0)
-		}
-		static gint GetCaretOffset(AtkText *text) {
-			WRAPPER_METHOD_BODY(text, GetCaretOffset(), 0)
-		}
-		static gboolean SetCaretOffset(AtkText *text, gint offset) {
-			WRAPPER_METHOD_BODY(text, SetCaretOffset(offset), FALSE)
-		}
-		static gint GetOffsetAtPoint(AtkText *text, gint x, gint y, AtkCoordType coords) {
-			WRAPPER_METHOD_BODY(text, GetOffsetAtPoint(x, y, coords), -1)
-		}
-		static void GetCharacterExtents(AtkText *text, gint offset, gint *x, gint *y, gint *width, gint *height, AtkCoordType coords) {
-			WRAPPER_METHOD_BODY(text, GetCharacterExtents(offset, x, y, width, height, coords), )
-		}
-		static AtkAttributeSet *GetRunAttributes(AtkText *text, gint offset, gint *start_offset, gint *end_offset) {
-			WRAPPER_METHOD_BODY(text, GetRunAttributes(offset, start_offset, end_offset), NULL)
-		}
-		static AtkAttributeSet *GetDefaultAttributes(AtkText *text) {
-			WRAPPER_METHOD_BODY(text, GetDefaultAttributes(), NULL)
-		}
-		static gint GetNSelections(AtkText *text) {
-			WRAPPER_METHOD_BODY(text, GetNSelections(), 0)
-		}
-		static gchar *GetSelection(AtkText *text, gint selection_num, gint *start_pos, gint *end_pos) {
-			WRAPPER_METHOD_BODY(text, GetSelection(selection_num, start_pos, end_pos), NULL)
-		}
-		static gboolean AddSelection(AtkText *text, gint start, gint end) {
-			WRAPPER_METHOD_BODY(text, AddSelection(start, end), FALSE)
-		}
-		static gboolean RemoveSelection(AtkText *text, gint selection_num) {
-			WRAPPER_METHOD_BODY(text, RemoveSelection(selection_num), FALSE)
-		}
-		static gboolean SetSelection(AtkText *text, gint selection_num, gint start, gint end) {
-			WRAPPER_METHOD_BODY(text, SetSelection(selection_num, start, end), FALSE)
-		}
+		static gchar *GetText(AtkText *text, int start_offset, int end_offset);
+		static gchar *GetTextAfterOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset);
+		static gchar *GetTextBeforeOffset(AtkText *text, int offset, AtkTextBoundary boundary_type, int *start_offset, int *end_offset);
+		static gchar *GetTextAtOffset(AtkText *text, gint offset, AtkTextBoundary boundary_type, gint *start_offset, gint *end_offset);
+		static gchar *GetStringAtOffset(AtkText *text, gint offset, AtkTextGranularity granularity, gint *start_offset, gint *end_offset);
+		static gunichar GetCharacterAtOffset(AtkText *text, gint offset);
+		static gint GetCharacterCount(AtkText *text);
+		static gint GetCaretOffset(AtkText *text);
+		static gboolean SetCaretOffset(AtkText *text, gint offset);
+		static gint GetOffsetAtPoint(AtkText *text, gint x, gint y, AtkCoordType coords);
+		static void GetCharacterExtents(AtkText *text, gint offset, gint *x, gint *y, gint *width, gint *height, AtkCoordType coords);
+		static AtkAttributeSet *GetRunAttributes(AtkText *text, gint offset, gint *start_offset, gint *end_offset);
+		static AtkAttributeSet *GetDefaultAttributes(AtkText *text);
+		static gint GetNSelections(AtkText *text);
+		static gchar *GetSelection(AtkText *text, gint selection_num, gint *start_pos, gint *end_pos);
+		static gboolean AddSelection(AtkText *text, gint start, gint end);
+		static gboolean RemoveSelection(AtkText *text, gint selection_num);
+		static gboolean SetSelection(AtkText *text, gint selection_num, gint start, gint end);
 	};
 	class AtkEditableTextIface {
 	public:
@@ -192,24 +143,12 @@ public:
 	private:
 		AtkEditableTextIface();
 
-		static void SetTextContents(AtkEditableText *text, const gchar *contents) {
-			WRAPPER_METHOD_BODY(text, SetTextContents(contents), )
-		}
-		static void InsertText(AtkEditableText *text, const gchar *contents, gint length, gint *position) {
-			WRAPPER_METHOD_BODY(text, InsertText(contents, length, position), )
-		}
-		static void CopyText(AtkEditableText *text, gint start, gint end) {
-			WRAPPER_METHOD_BODY(text, CopyText(start, end), )
-		}
-		static void CutText(AtkEditableText *text, gint start, gint end) {
-			WRAPPER_METHOD_BODY(text, CutText(start, end), )
-		}
-		static void DeleteText(AtkEditableText *text, gint start, gint end) {
-			WRAPPER_METHOD_BODY(text, DeleteText(start, end), )
-		}
-		static void PasteText(AtkEditableText *text, gint position) {
-			WRAPPER_METHOD_BODY(text, PasteText(position), )
-		}
+		static void SetTextContents(AtkEditableText *text, const gchar *contents);
+		static void InsertText(AtkEditableText *text, const gchar *contents, gint length, gint *position);
+		static void CopyText(AtkEditableText *text, gint start, gint end);
+		static void CutText(AtkEditableText *text, gint start, gint end);
+		static void DeleteText(AtkEditableText *text, gint start, gint end);
+		static void PasteText(AtkEditableText *text, gint position);
 	};
 };
 
