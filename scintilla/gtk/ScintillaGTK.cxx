@@ -842,6 +842,17 @@ sptr_t ScintillaGTK::WndProc(unsigned int iMessage, uptr_t wParam, sptr_t lParam
 		case SCI_GETRECTANGULARSELECTIONMODIFIER:
 			return rectangularSelectionModifier;
 
+		case SCI_SETREADONLY: {
+			sptr_t ret = ScintillaBase::WndProc(iMessage, wParam, lParam);
+			if (accessible) {
+				ScintillaGTKAccessible *sciAccessible = ScintillaGTKAccessible::FromAccessible(accessible);
+				if (sciAccessible) {
+					sciAccessible->NotifyReadOnly();
+				}
+			}
+			return ret;
+		}
+
 		default:
 			return ScintillaBase::WndProc(iMessage, wParam, lParam);
 		}

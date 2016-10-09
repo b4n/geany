@@ -16,7 +16,6 @@ private:
 	ScintillaGTK *sci;
 
 	// local state for comparing
-	bool old_readonly = false;
 	Position old_pos = -1;
 	std::vector<SelectionRange> old_sels;
 
@@ -107,6 +106,7 @@ public:
 	}
 	// So ScintillaGTK can notify us
 	void ChangeDocument(Document *oldDoc, Document *newDoc);
+	void NotifyReadOnly();
 
 	// ATK methods
 

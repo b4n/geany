@@ -807,14 +807,20 @@ void ScintillaGTKAccessible::ChangeDocument(Document *oldDoc, Document *newDoc) 
 		int charLength = newDoc->CountCharacters(0, newDoc->Length());
 		g_signal_emit_by_name(accessible, "text-changed::insert", 0, charLength);
 
-		// FIXME: should we really reinit readonly here?  we probably should notify the accessible
-		old_readonly = newDoc->IsReadOnly();
+		if ((oldDoc ? oldDoc->IsReadOnly() : false) != newDoc->IsReadOnly()) {
+			NotifyReadOnly();
+		}
 
 		// update cursor and selection
 		old_pos = -1;
 		old_sels.clear();
 		UpdateCursor();
 	}
+}
+
+void ScintillaGTKAccessible::NotifyReadOnly() {
+	bool readonly = sci->pdoc->IsReadOnly();
+	atk_object_notify_state_change(ATK_OBJECT(accessible), ATK_STATE_EDITABLE, ! readonly);
 }
 
 void ScintillaGTKAccessible::Notify(GtkWidget *, gint, SCNotification *nt) {
@@ -839,12 +845,6 @@ void ScintillaGTKAccessible::Notify(GtkWidget *, gint, SCNotification *nt) {
 		case SCN_UPDATEUI: {
 			if (nt->updated & SC_UPDATE_SELECTION) {
 				UpdateCursor();
-			}
-
-			bool readonly = sci->pdoc->IsReadOnly();
-			if (old_readonly != readonly) {
-				atk_object_notify_state_change(ATK_OBJECT(accessible), ATK_STATE_EDITABLE, ! readonly);
-				old_readonly = readonly;
 			}
 		} break;
 	}
