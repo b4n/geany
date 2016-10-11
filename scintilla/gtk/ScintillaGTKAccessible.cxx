@@ -822,6 +822,9 @@ void ScintillaGTKAccessible::ChangeDocument(Document *oldDoc, Document *newDoc) 
 void ScintillaGTKAccessible::NotifyReadOnly() {
 	bool readonly = sci->pdoc->IsReadOnly();
 	atk_object_notify_state_change(ATK_OBJECT(accessible), ATK_STATE_EDITABLE, ! readonly);
+#if ATK_CHECK_VERSION(2, 16, 0)
+	atk_object_notify_state_change(ATK_OBJECT(accessible), ATK_STATE_READ_ONLY, readonly);
+#endif
 }
 
 void ScintillaGTKAccessible::Notify(GtkWidget *, gint, SCNotification *nt) {
@@ -1091,10 +1094,12 @@ static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessi
 	if (widget == NULL) {
 		atk_state_set_add_state(state_set, ATK_STATE_DEFUNCT);
 	} else {
-		if (scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETREADONLY, 0, 0))
-			atk_state_set_add_state(state_set, ATK_STATE_READ_ONLY);
-		else
+		if (! scintilla_send_message(SCINTILLA_OBJECT(widget), SCI_GETREADONLY, 0, 0))
 			atk_state_set_add_state(state_set, ATK_STATE_EDITABLE);
+#if ATK_CHECK_VERSION(2, 16, 0)
+		else
+			atk_state_set_add_state(state_set, ATK_STATE_READ_ONLY);
+#endif
 		atk_state_set_add_state(state_set, ATK_STATE_MULTI_LINE);
 		atk_state_set_add_state(state_set, ATK_STATE_MULTISELECTABLE);
 		atk_state_set_add_state(state_set, ATK_STATE_SELECTABLE_TEXT);
