@@ -16,7 +16,7 @@ private:
 	ScintillaGTK *sci;
 
 	// local state for comparing
-	Position old_pos = -1;
+	Position old_pos;
 	std::vector<SelectionRange> old_sels;
 
 	void UpdateCursor();

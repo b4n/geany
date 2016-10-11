@@ -131,7 +131,7 @@ ScintillaGTKAccessible *ScintillaGTKAccessible::FromAccessible(GtkAccessible *ac
 	// FIXME: do we need the check below?  GTK checks that in all methods, so maybe
 	GtkWidget *widget = gtk_accessible_get_widget(accessible);
 	if (! widget) {
-		return nullptr;
+		return 0;
 	}
 
 	return SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible)->pscin;
@@ -139,7 +139,8 @@ ScintillaGTKAccessible *ScintillaGTKAccessible::FromAccessible(GtkAccessible *ac
 
 ScintillaGTKAccessible::ScintillaGTKAccessible(GtkAccessible *accessible_, GtkWidget *widget_) :
 		accessible(accessible_),
-		sci(ScintillaFromWidget(widget_)) {
+		sci(ScintillaFromWidget(widget_)),
+		old_pos(-1) {
 	g_signal_connect(widget_, "sci-notify", G_CALLBACK(SciNotify), this);
 }
 
@@ -1109,7 +1110,7 @@ static void scintilla_object_accessible_widget_set(GtkAccessible *accessible) {
 		return;
 
 	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
-	if (priv->pscin != nullptr)
+	if (priv->pscin != 0)
 		delete priv->pscin;
 	priv->pscin = new ScintillaGTKAccessible(accessible, widget);
 }
@@ -1122,7 +1123,7 @@ static void scintilla_object_accessible_widget_unset(GtkAccessible *accessible) 
 
 	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
 	delete priv->pscin;
-	priv->pscin = nullptr;
+	priv->pscin = 0;
 }
 #endif
 
@@ -1141,7 +1142,7 @@ static void scintilla_object_accessible_finalize(GObject *object) {
 
 	if (priv->pscin) {
 		delete priv->pscin;
-		priv->pscin = nullptr;
+		priv->pscin = 0;
 	}
 
 	G_OBJECT_CLASS(scintilla_object_accessible_parent_class)->finalize(object);
@@ -1170,7 +1171,7 @@ static void scintilla_object_accessible_class_init(ScintillaObjectAccessibleClas
 static void scintilla_object_accessible_init(ScintillaObjectAccessible *accessible) {
 	ScintillaObjectAccessiblePrivate *priv = SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(accessible);
 
-	priv->pscin = nullptr;
+	priv->pscin = 0;
 }
 
 #if HAVE_GTK_FACTORY
