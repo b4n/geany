@@ -701,8 +701,10 @@ void ScintillaGTKAccessible::DeleteText(int startChar, int endChar) {
 		Position startByte, endByte;
 		ByteRangeFromCharacterRange(startChar, endChar, startByte, endByte);
 
-		// FIXME: restore the target?
-		sci->pdoc->DeleteChars(startByte, endByte - startByte);
+		if (! sci->RangeContainsProtected(startByte, endByte)) {
+			// FIXME: restore the target?
+			sci->pdoc->DeleteChars(startByte, endByte - startByte);
+		}
 	}
 }
 
