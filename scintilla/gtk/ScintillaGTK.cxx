@@ -2881,7 +2881,7 @@ gboolean ScintillaGTK::ExposeCT(GtkWidget *widget, GdkEventExpose * /*ose*/, Cal
 #endif
 
 AtkObject* ScintillaGTK::GetAccessibleThis(GtkWidget *widget) {
-	return scintilla_object_accessible_widget_get_accessible_impl(widget, &accessible, scintilla_class_parent_class);
+	return ScintillaGTKAccessible::WidgetGetAccessibleImpl(widget, &accessible, scintilla_class_parent_class);
 }
 
 AtkObject* ScintillaGTK::GetAccessible(GtkWidget *widget) {

@@ -108,6 +108,9 @@ public:
 	void ChangeDocument(Document *oldDoc, Document *newDoc);
 	void NotifyReadOnly();
 
+	// Helper GtkWidget methods
+	static AtkObject *WidgetGetAccessibleImpl(GtkWidget *widget, AtkObject **cache, gpointer widget_parent_class);
+
 	// ATK methods
 
 	class AtkTextIface {
@@ -151,8 +154,6 @@ public:
 		static void PasteText(AtkEditableText *text, gint position);
 	};
 };
-
-AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *widget, AtkObject **cache, gpointer widget_parent_class);
 
 #ifdef SCI_NAMESPACE
 }

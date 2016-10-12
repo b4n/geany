@@ -1027,15 +1027,12 @@ static AtkObject *scintilla_object_accessible_new(GType parent_type, GObject *ob
 	return accessible;
 }
 
-#ifdef SCI_NAMESPACE
-namespace Scintilla {
-#endif
-// implementation for get_widget_get_accessible().
+// implementation for gtk_widget_get_accessible().
 // See the comment at the top of the file for details on the implementation
 // @p widget the widget.
 // @p cache pointer to store the AtkObject between repeated calls.  Might or might not be filled.
 // @p widget_parent_class pointer to the widget's parent class (to chain up method calls).
-AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *widget, AtkObject **cache, gpointer widget_parent_class) {
+AtkObject *ScintillaGTKAccessible::WidgetGetAccessibleImpl(GtkWidget *widget, AtkObject **cache, gpointer widget_parent_class) {
 #if HAVE_GTK_A11Y_H // just instantiate the accessible
 	if (*cache == NULL) {
 		*cache = scintilla_object_accessible_new(0, G_OBJECT(widget));
@@ -1081,9 +1078,6 @@ AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *wid
 #endif
 	return *cache;
 }
-#ifdef SCI_NAMESPACE
-}
-#endif
 
 static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessible) {
 	AtkStateSet *state_set = ATK_OBJECT_CLASS(scintilla_object_accessible_parent_class)->ref_state_set(accessible);
