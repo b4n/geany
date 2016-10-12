@@ -98,7 +98,9 @@
 #include "ScintillaGTK.h"
 #include "ScintillaGTKAccessible.h"
 
-class ScintillaGTKAccessible;
+#ifdef SCI_NAMESPACE
+using namespace Scintilla;
+#endif
 
 struct ScintillaObjectAccessiblePrivate {
 	ScintillaGTKAccessible *pscin;
@@ -114,10 +116,6 @@ typedef GtkAccessibleClass ScintillaObjectAccessibleClass;
 #define SCINTILLA_OBJECT_ACCESSIBLE_GET_PRIVATE(inst) (G_TYPE_INSTANCE_GET_PRIVATE((inst), SCINTILLA_TYPE_OBJECT_ACCESSIBLE, ScintillaObjectAccessiblePrivate))
 
 static GType scintilla_object_accessible_get_type(GType parent_type);
-
-#ifdef SCI_NAMESPACE
-using namespace Scintilla;
-#endif
 
 ScintillaGTKAccessible *ScintillaGTKAccessible::FromAccessible(GtkAccessible *accessible) {
 	// FIXME: do we need the check below?  GTK checks that in all methods, so maybe
@@ -1029,6 +1027,9 @@ static AtkObject *scintilla_object_accessible_new(GType parent_type, GObject *ob
 	return accessible;
 }
 
+#ifdef SCI_NAMESPACE
+namespace Scintilla {
+#endif
 // implementation for get_widget_get_accessible().
 // See the comment at the top of the file for details on the implementation
 // @p widget the widget.
@@ -1080,6 +1081,9 @@ AtkObject *scintilla_object_accessible_widget_get_accessible_impl(GtkWidget *wid
 #endif
 	return *cache;
 }
+#ifdef SCI_NAMESPACE
+}
+#endif
 
 static AtkStateSet *scintilla_object_accessible_ref_state_set(AtkObject *accessible) {
 	AtkStateSet *state_set = ATK_OBJECT_CLASS(scintilla_object_accessible_parent_class)->ref_state_set(accessible);
