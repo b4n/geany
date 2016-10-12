@@ -75,6 +75,7 @@ class ScintillaGTK : public ScintillaBase {
 public:
 	explicit ScintillaGTK(_ScintillaObject *sci_);
 	virtual ~ScintillaGTK();
+	static ScintillaGTK *FromWidget(GtkWidget *widget);
 	static void ClassInit(OBJECT_CLASS* object_class, GtkWidgetClass *widget_class, GtkContainerClass *container_class);
 private:
 	virtual void Initialise();
@@ -246,7 +247,6 @@ private:
 
 std::string ConvertText(const char *s, size_t len, const char *charSetDest,
                         const char *charSetSource, bool transliterations, bool silent=false);
-ScintillaGTK *ScintillaFromWidget(GtkWidget *widget);
 
 #ifdef SCI_NAMESPACE
 }

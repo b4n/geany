@@ -131,7 +131,7 @@ ScintillaGTKAccessible *ScintillaGTKAccessible::FromAccessible(GtkAccessible *ac
 
 ScintillaGTKAccessible::ScintillaGTKAccessible(GtkAccessible *accessible_, GtkWidget *widget_) :
 		accessible(accessible_),
-		sci(ScintillaFromWidget(widget_)),
+		sci(ScintillaGTK::FromWidget(widget_)),
 		old_pos(-1) {
 	g_signal_connect(widget_, "sci-notify", G_CALLBACK(SciNotify), this);
 }

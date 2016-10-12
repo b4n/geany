@@ -157,7 +157,7 @@ static GtkWidget *PWidget(Window &w) {
 	return static_cast<GtkWidget *>(w.GetID());
 }
 
-ScintillaGTK *ScintillaFromWidget(GtkWidget *widget) {
+ScintillaGTK *ScintillaGTK::FromWidget(GtkWidget *widget) {
 	ScintillaObject *scio = SCINTILLA(widget);
 	return static_cast<ScintillaGTK *>(scio->pscin);
 }
@@ -306,7 +306,7 @@ void ScintillaGTK::RealizeThis(GtkWidget *widget) {
 }
 
 void ScintillaGTK::Realize(GtkWidget *widget) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	sciThis->RealizeThis(widget);
 }
 
@@ -339,7 +339,7 @@ void ScintillaGTK::UnRealizeThis(GtkWidget *widget) {
 }
 
 void ScintillaGTK::UnRealize(GtkWidget *widget) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	sciThis->UnRealizeThis(widget);
 }
 
@@ -373,7 +373,7 @@ void ScintillaGTK::MapThis() {
 }
 
 void ScintillaGTK::Map(GtkWidget *widget) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	sciThis->MapThis();
 }
 
@@ -396,7 +396,7 @@ void ScintillaGTK::UnMapThis() {
 }
 
 void ScintillaGTK::UnMap(GtkWidget *widget) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	sciThis->UnMapThis();
 }
 
@@ -413,7 +413,7 @@ void ScintillaGTK::ForAll(GtkCallback callback, gpointer callback_data) {
 }
 
 void ScintillaGTK::MainForAll(GtkContainer *container, gboolean include_internals, GtkCallback callback, gpointer callback_data) {
-	ScintillaGTK *sciThis = ScintillaFromWidget((GtkWidget *)container);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget((GtkWidget *)container);
 
 	if (callback != NULL && include_internals) {
 		sciThis->ForAll(callback, callback_data);
@@ -469,7 +469,7 @@ gint ScintillaGTK::FocusInThis(GtkWidget *widget) {
 }
 
 gint ScintillaGTK::FocusIn(GtkWidget *widget, GdkEventFocus * /*event*/) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	return sciThis->FocusInThis(widget);
 }
 
@@ -489,12 +489,12 @@ gint ScintillaGTK::FocusOutThis(GtkWidget *widget) {
 }
 
 gint ScintillaGTK::FocusOut(GtkWidget *widget, GdkEventFocus * /*event*/) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	return sciThis->FocusOutThis(widget);
 }
 
 void ScintillaGTK::SizeRequest(GtkWidget *widget, GtkRequisition *requisition) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	requisition->width = 1;
 	requisition->height = 1;
 	GtkRequisition child_requisition;
@@ -524,7 +524,7 @@ void ScintillaGTK::GetPreferredHeight(GtkWidget *widget, gint *minimalHeight, gi
 #endif
 
 void ScintillaGTK::SizeAllocate(GtkWidget *widget, GtkAllocation *allocation) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		gtk_widget_set_allocation(widget, allocation);
 		if (IS_WIDGET_REALIZED(widget))
@@ -1711,12 +1711,12 @@ gint ScintillaGTK::PressThis(GdkEventButton *event) {
 gint ScintillaGTK::Press(GtkWidget *widget, GdkEventButton *event) {
 	if (event->window != WindowFromWidget(widget))
 		return FALSE;
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	return sciThis->PressThis(event);
 }
 
 gint ScintillaGTK::MouseRelease(GtkWidget *widget, GdkEventButton *event) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		//Platform::DebugPrintf("Release %x %d %d\n",sciThis,event->time,event->state);
 		if (!sciThis->HaveMouseCapture())
@@ -1742,7 +1742,7 @@ gint ScintillaGTK::MouseRelease(GtkWidget *widget, GdkEventButton *event) {
 // win32gtk and GTK >= 2 use SCROLL_* events instead of passing the
 // button4/5/6/7 events to the GTK app
 gint ScintillaGTK::ScrollEvent(GtkWidget *widget, GdkEventScroll *event) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 
 		if (widget == NULL || event == NULL)
@@ -1826,7 +1826,7 @@ gint ScintillaGTK::ScrollEvent(GtkWidget *widget, GdkEventScroll *event) {
 }
 
 gint ScintillaGTK::Motion(GtkWidget *widget, GdkEventMotion *event) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		//Platform::DebugPrintf("Motion %x %d\n",sciThis,event->time);
 		if (event->window != WindowFromWidget(widget))
@@ -2057,13 +2057,13 @@ gboolean ScintillaGTK::KeyThis(GdkEventKey *event) {
 }
 
 gboolean ScintillaGTK::KeyPress(GtkWidget *widget, GdkEventKey *event) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	return sciThis->KeyThis(event);
 }
 
 gboolean ScintillaGTK::KeyRelease(GtkWidget *widget, GdkEventKey *event) {
 	//Platform::DebugPrintf("SC-keyrel: %d %x %3s\n",event->keyval, event->state, event->string);
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	if (gtk_im_context_filter_keypress(sciThis->im_context, event)) {
 		return TRUE;
 	}
@@ -2511,7 +2511,7 @@ gboolean ScintillaGTK::DrawThis(cairo_t *cr) {
 }
 
 gboolean ScintillaGTK::DrawMain(GtkWidget *widget, cairo_t *cr) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	return sciThis->DrawThis(cr);
 }
 
@@ -2561,7 +2561,7 @@ gboolean ScintillaGTK::ExposeText(GtkWidget *widget, GdkEventExpose *ose, Scinti
 }
 
 gboolean ScintillaGTK::ExposeMain(GtkWidget *widget, GdkEventExpose *ose) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	//Platform::DebugPrintf("Expose Main %0d,%0d %0d,%0d\n",
 	//ose->area.x, ose->area.y, ose->area.width, ose->area.height);
 	return sciThis->Expose(widget, ose);
@@ -2604,14 +2604,14 @@ void ScintillaGTK::ScrollHSignal(GtkAdjustment *adj, ScintillaGTK *sciThis) {
 
 void ScintillaGTK::SelectionReceived(GtkWidget *widget,
                                      GtkSelectionData *selection_data, guint) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	//Platform::DebugPrintf("Selection received\n");
 	sciThis->ReceivedSelection(selection_data);
 }
 
 void ScintillaGTK::SelectionGet(GtkWidget *widget,
                                 GtkSelectionData *selection_data, guint info, guint) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		//Platform::DebugPrintf("Selection get\n");
 		if (SelectionOfGSD(selection_data) == GDK_SELECTION_PRIMARY) {
@@ -2626,7 +2626,7 @@ void ScintillaGTK::SelectionGet(GtkWidget *widget,
 }
 
 gint ScintillaGTK::SelectionClear(GtkWidget *widget, GdkEventSelection *selection_event) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	//Platform::DebugPrintf("Selection clear\n");
 	sciThis->UnclaimSelection(selection_event);
 	if (GTK_WIDGET_CLASS(sciThis->parentClass)->selection_clear_event) {
@@ -2665,12 +2665,12 @@ gboolean ScintillaGTK::DragMotionThis(GdkDragContext *context,
 
 gboolean ScintillaGTK::DragMotion(GtkWidget *widget, GdkDragContext *context,
                                  gint x, gint y, guint dragtime) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	return sciThis->DragMotionThis(context, x, y, dragtime);
 }
 
 void ScintillaGTK::DragLeave(GtkWidget *widget, GdkDragContext * /*context*/, guint) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		sciThis->SetDragPosition(SelectionPosition(invalidPosition));
 		//Platform::DebugPrintf("DragLeave %x\n", sciThis);
@@ -2680,7 +2680,7 @@ void ScintillaGTK::DragLeave(GtkWidget *widget, GdkDragContext * /*context*/, gu
 }
 
 void ScintillaGTK::DragEnd(GtkWidget *widget, GdkDragContext * /*context*/) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		// If drag did not result in drop here or elsewhere
 		if (!sciThis->dragWasDropped)
@@ -2695,7 +2695,7 @@ void ScintillaGTK::DragEnd(GtkWidget *widget, GdkDragContext * /*context*/) {
 
 gboolean ScintillaGTK::Drop(GtkWidget *widget, GdkDragContext * /*context*/,
                             gint, gint, guint) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		//Platform::DebugPrintf("Drop %x\n", sciThis);
 		sciThis->SetDragPosition(SelectionPosition(invalidPosition));
@@ -2707,7 +2707,7 @@ gboolean ScintillaGTK::Drop(GtkWidget *widget, GdkDragContext * /*context*/,
 
 void ScintillaGTK::DragDataReceived(GtkWidget *widget, GdkDragContext * /*context*/,
                                     gint, gint, GtkSelectionData *selection_data, guint /*info*/, guint) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		sciThis->ReceivedDrop(selection_data);
 		sciThis->SetDragPosition(SelectionPosition(invalidPosition));
@@ -2718,7 +2718,7 @@ void ScintillaGTK::DragDataReceived(GtkWidget *widget, GdkDragContext * /*contex
 
 void ScintillaGTK::DragDataGet(GtkWidget *widget, GdkDragContext *context,
                                GtkSelectionData *selection_data, guint info, guint) {
-	ScintillaGTK *sciThis = ScintillaFromWidget(widget);
+	ScintillaGTK *sciThis = ScintillaGTK::FromWidget(widget);
 	try {
 		sciThis->dragWasDropped = true;
 		if (!sciThis->sel.Empty()) {
@@ -2879,7 +2879,7 @@ AtkObject* ScintillaGTK::GetAccessibleThis(GtkWidget *widget) {
 }
 
 AtkObject* ScintillaGTK::GetAccessible(GtkWidget *widget) {
-	return ScintillaFromWidget(widget)->GetAccessibleThis(widget);
+	return ScintillaGTK::FromWidget(widget)->GetAccessibleThis(widget);
 }
 
 sptr_t ScintillaGTK::DirectFunction(
