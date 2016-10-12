@@ -29,16 +29,17 @@
 
 // FIXME: optimize character/byte offset conversion (with a cache?)
 
-#include <sys/types.h>
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include <stdexcept>
+#include <new>
+#include <string>
+#include <vector>
+#include <map>
+#include <algorithm>
+
 #include <glib-object.h>
-#include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
 // whether we have widget_set() and widget_unset()
@@ -53,13 +54,6 @@
 #endif
 
 // ScintillaGTK.h and stuff it needs
-#include <stdexcept>
-#include <new>
-#include <string>
-#include <vector>
-#include <map>
-#include <algorithm>
-
 #include "Platform.h"
 
 #include "ILexer.h"
@@ -101,8 +95,6 @@
 #include "AutoComplete.h"
 #include "ScintillaBase.h"
 
-#include "Scintilla.h"
-#include "ScintillaWidget.h"
 #include "ScintillaGTK.h"
 #include "ScintillaGTKAccessible.h"
 
