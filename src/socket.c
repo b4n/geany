@@ -681,21 +681,24 @@ gboolean socket_lock_input_cb(GIOChannel *source, GIOCondition condition, gpoint
 
 	if (popup)
 	{
+		/* this seems to work for X11, let's hope it might for others */
+		guint32 timestamp = g_get_monotonic_time() / 1000;
+
 #ifdef GDK_WINDOWING_X11
 		GdkWindow *x11_window = gtk_widget_get_window(window);
 
-		/* Set the proper interaction time on the window. This seems necessary to make
-		 * gtk_window_present() really bring the main window into the foreground on some
+		/* Get the proper time for gtk_window_present_with_time(). This seems necessary to
+		 * really bring the main window into the foreground on some
 		 * window managers like Gnome's metacity.
-		 * Code taken from Gedit. */
+		 * Inspired from old Gedit. */
 #	if GTK_CHECK_VERSION(3, 0, 0)
 		if (GDK_IS_X11_WINDOW(x11_window))
 #	endif
 		{
-			gdk_x11_window_set_user_time(x11_window, gdk_x11_get_server_time(x11_window));
+			timestamp = gdk_x11_get_server_time(x11_window);
 		}
 #endif
-		gtk_window_present(GTK_WINDOW(window));
+		gtk_window_present_with_time(GTK_WINDOW(window), timestamp);
 #ifdef G_OS_WIN32
 		gdk_window_show(gtk_widget_get_window(window));
 #endif
