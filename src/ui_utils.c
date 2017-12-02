@@ -42,6 +42,7 @@
 #include "msgwindow.h"
 #include "prefs.h"
 #include "project.h"
+#include "resources.h"
 #include "sciwrappers.h"
 #include "sidebar.h"
 #include "stash.h"
@@ -2425,8 +2426,8 @@ static GtkWidget *ui_get_top_parent(GtkWidget *widget)
 
 void ui_init_builder(void)
 {
-	gchar *interface_file;
 	const gchar *name;
+	GBytes *ui_data;
 	GError *error;
 	GSList *iter, *all_objects;
 	GtkWidget *widget, *toplevel;
@@ -2440,20 +2441,32 @@ void ui_init_builder(void)
 	gtk_builder_set_translation_domain(builder, GETTEXT_PACKAGE);
 
 	error = NULL;
-	interface_file = g_build_filename(app->datadir, "geany.glade", NULL);
-	if (! gtk_builder_add_from_file(builder, interface_file, &error))
+	ui_data = g_resource_lookup_data(geany_get_resource(),
+		"/org/geany/Geany/geany.glade", G_RESOURCE_LOOKUP_FLAGS_NONE, &error);
+	if (ui_data == NULL)
 	{
-		/* Show the user this message so they know WTF happened */
 		dialogs_show_msgbox_with_secondary(GTK_MESSAGE_ERROR,
 			_("Geany cannot start!"), error->message);
-		/* Aborts */
-		g_error("Cannot create user-interface: %s", error->message);
+		g_error("Cannot load user-interface: %s", error->message);
 		g_error_free(error);
-		g_free(interface_file);
 		g_object_unref(builder);
 		return;
 	}
-	g_free(interface_file);
+
+	error = NULL;
+	if (gtk_builder_add_from_string(builder, g_bytes_get_data(ui_data, NULL),
+		g_bytes_get_size(ui_data), &error) == 0)
+	{
+		dialogs_show_msgbox_with_secondary(GTK_MESSAGE_ERROR,
+			_("Geany cannot start!"), error->message);
+		g_error("Cannot create user-interface: %s", error->message);
+		g_error_free(error);
+		g_bytes_unref(ui_data);
+		g_object_unref(builder);
+		return;
+	}
+
+	g_bytes_unref(ui_data);
 
 	callbacks_connect(builder);
 
