@@ -68,6 +68,27 @@ G_BEGIN_DECLS
 #	define gtk_widget_get_allocated_width(widget)	(((GtkWidget *) (widget))->allocation.width)
 #endif
 
+#if ! GTK_CHECK_VERSION(3, 4, 0)
+static inline guint compat_builder_add_from_resource(GtkBuilder *builder, const gchar *resource_path, GError **error)
+{
+	guint success = 0;
+	GBytes *bytes = g_resources_lookup_data(resource_path, G_RESOURCE_LOOKUP_FLAGS_NONE, error);
+
+	if (bytes)
+	{
+		gsize size;
+		gconstpointer data = g_bytes_get_data(bytes, &size);
+
+		success = gtk_builder_add_from_string(builder, data, size, error);
+
+		g_bytes_unref(bytes);
+	}
+
+	return success;
+}
+#define gtk_builder_add_from_resource compat_builder_add_from_resource
+#endif
+
 
 /* Mappings below only prevent some deprecation warnings on GTK3 for things
  * that didn't exist on GTK2.  That's not future-proof. */
