@@ -572,22 +572,25 @@ static void set_dialog_position(GtkWidget *dialog, gint *position)
 		GdkMonitor *monitor;
 #else
 		GdkScreen *screen;
+		gint monitor;
 #endif
 		GdkRectangle rect;
+		gint scale;
 
 #if GTK_CHECK_VERSION(3, 22, 0)
 		display = gtk_widget_get_display(dialog);
 		monitor = gdk_display_get_monitor_at_point(display, position[0], position[1]);
-		gdk_monitor_get_geometry(monitor, &rect);
-		/* FIXME: should we actually scale? and should we also scale x and y? */
-		rect.width *= gdk_monitor_get_scale_factor(monitor);
-		rect.height *= gdk_monitor_get_scale_factor(monitor);
-#else	/* without the monitor API, just consider the screen as one big monitor */
+		gdk_monitor_get_workarea(monitor, &rect);
+		scale = gdk_monitor_get_scale_factor(monitor)
+#else
 		screen = gtk_widget_get_screen(dialog);
-		rect.x = rect.y = 0;
-		rect.width = gdk_screen_get_width(screen);
-		rect.height = gdk_screen_get_height(screen);
+		monitor = gdk_screen_get_monitor_at_point(screen, position[0], position[1]);
+		gdk_screen_get_monitor_workarea(screen, monitor, &rect);
+		scale = gdk_screen_get_monitor_scale_factor(screen, monitor);
 #endif
+		/* FIXME: should we actually scale? and should we also scale x and y? */
+		rect.width *= scale;
+		rect.height *= scale;
 
 		gtk_window_get_size(GTK_WINDOW(dialog), &width, &height);
 
@@ -600,7 +603,7 @@ static void set_dialog_position(GtkWidget *dialog, gint *position)
 		if (position[1] + height > rect.y + rect.height)
 			position[1] = MAX(rect.y, rect.y + rect.height - height);
 
-		g_debug("clamping results to %dx%d+%d+%d on screen %dx%d+%d+%d",
+		g_debug("clamping results to %dx%d+%d+%d on monitor %dx%d+%d+%d",
 				width, height, position[0], position[1],
 				rect.width, rect.height, rect.x, rect.y);
 

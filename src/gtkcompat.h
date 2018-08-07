@@ -68,6 +68,14 @@ G_BEGIN_DECLS
 #	define gtk_widget_get_allocated_width(widget)	(((GtkWidget *) (widget))->allocation.width)
 #endif
 
+/* GdkScreen */
+#if ! GTK_CHECK_VERSION(3, 4, 0)
+#	define gdk_screen_get_monitor_workarea	gdk_screen_get_monitor_geometry
+#endif
+#if ! GTK_CHECK_VERSION(3, 10, 0)
+#	define gdk_screen_get_monitor_scale_factor(screen, monitor)	(1)
+#endif
+
 
 /* Mappings below only prevent some deprecation warnings on GTK3 for things
  * that didn't exist on GTK2.  That's not future-proof. */
