@@ -548,10 +548,66 @@ static void create_find_dialog(void)
 }
 
 
+static gboolean dump_window_geometry(gpointer window)
+{
+	if (GTK_IS_WINDOW(window))
+	{
+		gint x, y, w, h;
+
+		gtk_window_get_position(window, &x, &y);
+		gtk_window_get_size(window, &w, &h);
+		g_debug("(GtkWindow *)%p geometry is %dx%d+%d+%d", window, w, h, x, y);
+	}
+
+	return G_SOURCE_REMOVE;
+}
+
 static void set_dialog_position(GtkWidget *dialog, gint *position)
 {
 	if (position[0] >= 0)
+	{
+		gint width, height;
+#if GTK_CHECK_VERSION(3, 22, 0)
+		GdkDisplay *display;
+		GdkMonitor *monitor;
+#else
+		GdkScreen *screen;
+#endif
+		GdkRectangle rect;
+
+#if GTK_CHECK_VERSION(3, 22, 0)
+		display = gtk_widget_get_display(dialog);
+		monitor = gdk_display_get_monitor_at_point(display, position[0], position[1]);
+		gdk_monitor_get_geometry(monitor, &rect);
+		/* FIXME: should we actually scale? and should we also scale x and y? */
+		rect.width *= gdk_monitor_get_scale_factor(monitor);
+		rect.height *= gdk_monitor_get_scale_factor(monitor);
+#else	/* without the monitor API, just consider the screen as one big monitor */
+		screen = gtk_widget_get_screen(dialog);
+		rect.x = rect.y = 0;
+		rect.width = gdk_screen_get_width(screen);
+		rect.height = gdk_screen_get_height(screen);
+#endif
+
+		gtk_window_get_size(GTK_WINDOW(dialog), &width, &height);
+
+		g_debug("clamping request %dx%d+%d+%d to monitor %dx%d+%d+%d",
+				width, height, position[0], position[1],
+				rect.width, rect.height, rect.x, rect.y);
+
+		if (position[0] + width > rect.x + rect.width)
+			position[0] = MAX(rect.x, rect.x + rect.width - width);
+		if (position[1] + height > rect.y + rect.height)
+			position[1] = MAX(rect.y, rect.y + rect.height - height);
+
+		g_debug("clamping results to %dx%d+%d+%d on screen %dx%d+%d+%d",
+				width, height, position[0], position[1],
+				rect.width, rect.height, rect.x, rect.y);
+
 		gtk_window_move(GTK_WINDOW(dialog), position[0], position[1]);
+
+		g_timeout_add_seconds(1, dump_window_geometry, dialog);
+	}
 }
 
 
