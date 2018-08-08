@@ -598,6 +598,10 @@ static void set_dialog_position(GtkWidget *dialog, gint *position)
 				width, height, position[0], position[1],
 				rect.width, rect.height, rect.x, rect.y);
 
+		/* FIXME: Code below only supports GRAVITY_NORTH_WEST.
+		 * However, supporting other gravities is not super-easy and probably not worth it */
+		g_warn_if_fail(gtk_window_get_gravity(GTK_WINDOW(dialog)) == GDK_GRAVITY_NORTH_WEST);
+
 		if (position[0] + width > rect.x + rect.width)
 			position[0] = MAX(rect.x, rect.x + rect.width - width);
 		else if (position[0] < rect.x)
