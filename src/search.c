@@ -600,8 +600,12 @@ static void set_dialog_position(GtkWidget *dialog, gint *position)
 
 		if (position[0] + width > rect.x + rect.width)
 			position[0] = MAX(rect.x, rect.x + rect.width - width);
+		else if (position[0] < rect.x)
+			position[0] = rect.x;
 		if (position[1] + height > rect.y + rect.height)
 			position[1] = MAX(rect.y, rect.y + rect.height - height);
+		else if (position[1] < rect.y)
+			position[1] = rect.y;
 
 		g_debug("clamping results to %dx%d+%d+%d on monitor %dx%d+%d+%d",
 				width, height, position[0], position[1],
