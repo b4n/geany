@@ -581,7 +581,7 @@ static void set_dialog_position(GtkWidget *dialog, gint *position)
 		display = gtk_widget_get_display(dialog);
 		monitor = gdk_display_get_monitor_at_point(display, position[0], position[1]);
 		gdk_monitor_get_workarea(monitor, &rect);
-		scale = gdk_monitor_get_scale_factor(monitor)
+		scale = gdk_monitor_get_scale_factor(monitor);
 #else
 		screen = gtk_widget_get_screen(dialog);
 		monitor = gdk_screen_get_monitor_at_point(screen, position[0], position[1]);
