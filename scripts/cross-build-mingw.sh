@@ -16,7 +16,9 @@
 # You may change those
 HOST=i686-w64-mingw32
 GTK2_BUNDLE_ZIP="http://ftp.gnome.org/pub/gnome/binaries/win32/gtk+/2.24/gtk+-bundle_2.24.10-20120208_win32.zip"
+GTK2_BUNDLE_SHA1="895072c22f5bfd4ac9054d48d62d6c8b2a487098"
 GTK3_BUNDLE_ZIP="https://download.geany.org/contrib/gtk/gtk+-bundle_3.8.2-20131001_win32.zip"
+GTK3_BUNDLE_SHA1="9fcf990f47878b5f85f7833f75526d8aab3ccacf"
 BUILDDIR=_build-cross-mingw
 GTK3=no
 CONFIGUREFLAGS="--enable-nls"
@@ -45,15 +47,18 @@ shift $((OPTIND - 1))
 CONFIGUREFLAGS="$CONFIGUREFLAGS --enable-gtk3=$GTK3"
 if [ "$GTK3" = yes ]; then
   BUNDLE_ZIP="$GTK3_BUNDLE_ZIP"
+  BUNDLE_SHA1="$GTK3_BUNDLE_SHA1"
 else
   BUNDLE_ZIP="$GTK2_BUNDLE_ZIP"
+  BUNDLE_SHA1="$GTK2_BUNDLE_SHA1"
 fi
 
-# USAGE: fetch_and_unzip URL DEST_PREFIX
+# USAGE: fetch_and_unzip URL DEST_PREFIX SHA1SUM
 fetch_and_unzip()
 {
   local basename=${1##*/}
   curl -L -# "$1" > "$basename"
+  echo "$3 $basename" | sha1sum -c
   unzip -qn "$basename" -d "$2"
   rm -f "$basename"
 }
@@ -87,8 +92,8 @@ mkdir "$BUILDDIR"
 cd "$BUILDDIR"
 
 mkdir _deps
-fetch_and_unzip "$GTK3_BUNDLE_ZIP" _deps
-[ "$GTK3" = yes ] || fetch_and_unzip "$BUNDLE_ZIP" _deps
+fetch_and_unzip "$GTK3_BUNDLE_ZIP" _deps "$GTK3_BUNDLE_SHA1"
+[ "$GTK3" = yes ] || fetch_and_unzip "$BUNDLE_ZIP" _deps "$BUNDLE_SHA1"
 # fixup the prefix= in the pkg-config files
 sed -i "s%^\(prefix=\).*$%\1$PWD/_deps%" _deps/lib/pkgconfig/*.pc
 
