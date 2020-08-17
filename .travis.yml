@@ -39,6 +39,31 @@ matrix:
       env:
         - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
         - TARGETS="all check"
+    - os: linux
+      dist: bionic
+      compiler: gcc
+      env:
+        - MATRIX_EVAL="CC=gcc-9 && CXX=g++-9"
+        - TARGETS="all check"
+    - os: linux
+      dist: bionic
+      compiler: gcc
+      env:
+        - MATRIX_EVAL="CC=gcc-10 && CXX=g++-10"
+        - TARGETS="all check"
+# test 8 & 10 on focal
+    - os: linux
+      dist: focal
+      compiler: gcc
+      env:
+        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
+        - TARGETS="all check"
+    - os: linux
+      dist: focal
+      compiler: gcc
+      env:
+        - MATRIX_EVAL="CC=gcc-10 && CXX=g++-10"
+        - TARGETS="all check"
 
 # clang
     - os: linux
@@ -69,7 +94,7 @@ before_install:
         sudo apt-get update -qq;
         sudo apt-get install -y $CC;
     else
-      sudo apt-get update -qq
+      sudo apt-get update -qq;
     fi
 install:
   - sudo apt-get install -y intltool libtool
