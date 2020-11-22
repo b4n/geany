@@ -177,6 +177,8 @@ libctags_la_SOURCES = \
 	main/xtag_p.h \
 	$(parsers)
 
+libctags_la_LIBADD =
+
 # build bundled GNU regex if needed
 if USE_BUNDLED_REGEX
 noinst_LTLIBRARIES += libgnu_regex.la
@@ -194,6 +196,17 @@ EXTRA_libgnu_regex_la_SOURCES = \
 EXTRA_DIST = \
 	gnu_regex/README.txt
 
-libctags_la_LIBADD = libgnu_regex.la
+libctags_la_LIBADD += libgnu_regex.la
 AM_CPPFLAGS += -I$(srcdir)/gnu_regex
+endif
+
+# build bundled fnmatch if needed
+if USE_BUNDLED_FNMATCH
+noinst_LTLIBRARIES += libfnmatch.la
+libfnmatch_la_SOURCES = \
+	fnmatch/fnmatch.c \
+	fnmatch/fnmatch.h
+
+libctags_la_LIBADD += libfnmatch.la
+AM_CPPFLAGS += -I$(srcdir)/fnmatch
 endif
