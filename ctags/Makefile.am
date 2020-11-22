@@ -193,6 +193,7 @@ EXTRA_libgnu_regex_la_SOURCES = \
 	gnu_regex/regex_internal.c \
 	gnu_regex/regex_internal.h \
 	gnu_regex/regexec.c
+libgnu_regex_la_CPPFLAGS = -D__USE_GNU
 EXTRA_DIST = \
 	gnu_regex/README.txt
 
