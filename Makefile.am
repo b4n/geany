@@ -15,7 +15,7 @@ WIN32_BUILD_FILES = \
 EXTRA_DIST = \
 	autogen.sh \
 	scripts/gen-api-gtkdoc.py \
-	geany.desktop.in \
+	geany.desktop.in.in \
 	geany.pc.in \
 	ChangeLog.pre-1-22 \
 	HACKING \
@@ -25,6 +25,9 @@ EXTRA_DIST = \
 	intltool-merge.in \
 	intltool-update.in \
 	$(WIN32_BUILD_FILES)
+
+CLEANFILES = \
+	geany.desktop.in
 
 DISTCLEANFILES = \
 	geany.desktop \
@@ -78,7 +81,12 @@ rpm: dist
 pkgconfig_DATA = geany.pc
 pkgconfigdir = $(libdir)/pkgconfig
 
+.desktop.in.in.desktop.in:
+	$(AM_V_GEN) $(SED) -e "s|@bindir[@]|$(bindir)|" $< > $@ || rm $@
+
 desktopdir = $(datadir)/applications
 desktop_in_files = geany.desktop
 desktop_DATA = $(desktop_in_files:.desktop.in=.desktop)
 @INTLTOOL_DESKTOP_RULE@
+
+SUFFIXES = .desktop.in .desktop.in.in
